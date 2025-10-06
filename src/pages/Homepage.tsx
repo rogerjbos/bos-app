@@ -1,9 +1,19 @@
-import React from 'react'
-import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
-import { Wallet, Zap, Shield, Sparkles, Code2, Blocks, Layers, ArrowRight, CheckCircle2, Package } from 'lucide-react'
-import { Button } from '../components/ui/Button'
-import ConnectWallet from '../components/ConnectWallet'
+import { motion } from "framer-motion";
+import {
+  ArrowRight,
+  Blocks,
+  CheckCircle2,
+  Code2,
+  Layers,
+  Package,
+  Shield,
+  Sparkles,
+  Wallet,
+  Zap,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import ConnectWallet from "../components/ConnectWallet";
+import { Button } from "../components/ui/Button";
 
 export default function Homepage() {
   return (
@@ -47,13 +57,9 @@ export default function Homepage() {
               transition={{ delay: 0.3, duration: 0.8 }}
               className="text-5xl md:text-6xl lg:text-7xl font-bold mb-8 leading-[1.1]"
             >
-              <span className="text-white">
-                Your Polkadot App
-              </span>
+              <span className="text-white">Your Polkadot App</span>
               <br />
-              <span className="text-gradient">
-                Starts Here
-              </span>
+              <span className="text-gradient">Starts Here</span>
             </motion.h1>
 
             {/* Description */}
@@ -63,8 +69,12 @@ export default function Homepage() {
               transition={{ delay: 0.5, duration: 0.8 }}
               className="text-lg md:text-xl text-white/60 mb-12 max-w-3xl mx-auto leading-relaxed"
             >
-              A complete React template featuring <span className="text-white/90 font-semibold">20+ production-ready components</span> from the official Polkadot UI library. 
-              Build beautiful, type-safe Web3 applications in minutes, not months.
+              A complete React template featuring{" "}
+              <span className="text-white/90 font-semibold">
+                20+ production-ready components
+              </span>{" "}
+              from the Polkadot-UI library. Build beautiful, type-safe Web3
+              applications in minutes, not months.
             </motion.p>
 
             {/* CTA Buttons */}
@@ -75,7 +85,11 @@ export default function Homepage() {
               className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-20"
             >
               <Link to="/components">
-                <Button variant="gradient" size="xl" className="min-w-[220px] gap-2">
+                <Button
+                  variant="gradient"
+                  size="xl"
+                  className="min-w-[220px] gap-2"
+                >
                   <Package className="w-5 h-5" />
                   Explore Components
                   <ArrowRight className="w-4 h-4" />
@@ -92,10 +106,10 @@ export default function Homepage() {
               className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto"
             >
               {[
-                { label: 'UI Components', value: '20+', icon: Layers },
-                { label: 'TypeScript', value: '100%', icon: Shield },
-                { label: 'Setup Time', value: '<5min', icon: Zap },
-                { label: 'Production Ready', value: '✓', icon: CheckCircle2 },
+                { label: "UI Components", value: "20+", icon: Layers },
+                { label: "TypeScript", value: "100%", icon: Shield },
+                { label: "Setup Time", value: "<5min", icon: Zap },
+                { label: "Production Ready", value: "✓", icon: CheckCircle2 },
               ].map((stat, index) => (
                 <motion.div
                   key={stat.label}
@@ -105,8 +119,12 @@ export default function Homepage() {
                   className="glass-dark p-6 rounded-xl border border-white/10 backdrop-blur-xl hover:border-white/20 transition-all group"
                 >
                   <stat.icon className="w-7 h-7 mx-auto mb-3 text-white/70 group-hover:text-white/90 group-hover:scale-110 transition-all" />
-                  <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
-                  <div className="text-xs text-white/50 uppercase tracking-wider">{stat.label}</div>
+                  <div className="text-2xl font-bold text-white mb-1">
+                    {stat.value}
+                  </div>
+                  <div className="text-xs text-white/50 uppercase tracking-wider">
+                    {stat.label}
+                  </div>
                 </motion.div>
               ))}
             </motion.div>
@@ -121,35 +139,48 @@ export default function Homepage() {
                 Everything You Need to Build
               </h2>
               <p className="text-lg text-white/60 max-w-2xl mx-auto">
-                Official Polkadot UI components integrated with modern React patterns
+                Polkadot-UI components integrated with modern React patterns
               </p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6 mb-12">
               {[
                 {
-                  title: 'Wallet Integration',
-                  description: 'Multi-wallet support for Polkadot.js, Talisman, SubWallet, and more. One-click connection with account management.',
+                  title: "Wallet Integration",
+                  description:
+                    "Multi-wallet support for Polkadot.js, Talisman, SubWallet, and more. One-click connection with account management.",
                   icon: Wallet,
-                  features: ['ConnectWallet', 'AddressDisplay', 'AccountInfo', 'RequireAccount']
+                  features: [
+                    "ConnectWallet",
+                    "AddressDisplay",
+                    "AccountInfo",
+                    "RequireAccount",
+                  ],
                 },
                 {
-                  title: 'Network Components',
-                  description: 'Real-time chain data with live block numbers, connection status, and network indicators.',
+                  title: "Network Components",
+                  description:
+                    "Real-time chain data with live block numbers, connection status, and network indicators.",
                   icon: Blocks,
-                  features: ['NetworkIndicator', 'BlockNumber', 'RequireConnection']
+                  features: [
+                    "NetworkIndicator",
+                    "BlockNumber",
+                    "RequireConnection",
+                  ],
                 },
                 {
-                  title: 'Balance & Tokens',
-                  description: 'Display and manage token balances with formatting, token selection, and multi-asset support.',
+                  title: "Balance & Tokens",
+                  description:
+                    "Display and manage token balances with formatting, token selection, and multi-asset support.",
                   icon: Sparkles,
-                  features: ['BalanceDisplay', 'SelectToken', 'AmountInput']
+                  features: ["BalanceDisplay", "SelectToken", "AmountInput"],
                 },
                 {
-                  title: 'Transaction Tools',
-                  description: 'Submit transactions with progress tracking, status notifications, and error handling built-in.',
+                  title: "Transaction Tools",
+                  description:
+                    "Submit transactions with progress tracking, status notifications, and error handling built-in.",
                   icon: Zap,
-                  features: ['TxButton', 'TxNotification', 'AddressInput']
+                  features: ["TxButton", "TxNotification", "AddressInput"],
                 },
               ].map((feature, index) => (
                 <motion.div
@@ -165,13 +196,20 @@ export default function Homepage() {
                       <feature.icon className="w-7 h-7 text-white/70 group-hover:text-white/90 transition-colors" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-semibold text-white mb-2">{feature.title}</h3>
-                      <p className="text-white/60 leading-relaxed text-sm">{feature.description}</p>
+                      <h3 className="text-xl font-semibold text-white mb-2">
+                        {feature.title}
+                      </h3>
+                      <p className="text-white/60 leading-relaxed text-sm">
+                        {feature.description}
+                      </p>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/5">
                     {feature.features.map((comp) => (
-                      <span key={comp} className="text-xs px-3 py-1.5 rounded-full bg-white/5 text-white/70 border border-white/10">
+                      <span
+                        key={comp}
+                        className="text-xs px-3 py-1.5 rounded-full bg-white/5 text-white/70 border border-white/10"
+                      >
                         {comp}
                       </span>
                     ))}
@@ -190,16 +228,26 @@ export default function Homepage() {
             >
               <div className="grid md:grid-cols-3 gap-8 text-center">
                 <div>
-                  <div className="text-3xl font-bold text-gradient mb-2">20+</div>
-                  <div className="text-sm text-white/60">Ready-to-use components</div>
+                  <div className="text-3xl font-bold text-gradient mb-2">
+                    20+
+                  </div>
+                  <div className="text-sm text-white/60">
+                    Ready-to-use components
+                  </div>
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-gradient mb-2">6</div>
-                  <div className="text-sm text-white/60">Custom React hooks</div>
+                  <div className="text-sm text-white/60">
+                    Custom React hooks
+                  </div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-gradient mb-2">100%</div>
-                  <div className="text-sm text-white/60">TypeScript coverage</div>
+                  <div className="text-3xl font-bold text-gradient mb-2">
+                    100%
+                  </div>
+                  <div className="text-sm text-white/60">
+                    TypeScript coverage
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -215,14 +263,32 @@ export default function Homepage() {
                   Built for Developers
                 </h2>
                 <p className="text-lg text-white/60 mb-8 leading-relaxed">
-                  Focus on your app's logic while we handle the UI. Every component is designed for maximum developer experience with TypeScript support and intuitive APIs.
+                  Focus on your app's logic while we handle the UI. Every
+                  component is designed for maximum developer experience with
+                  TypeScript support and intuitive APIs.
                 </p>
                 <div className="space-y-4">
                   {[
-                    { icon: Code2, text: 'Full TypeScript support with auto-complete', color: 'polkadot-cyan' },
-                    { icon: Shield, text: 'Type-safe API integration with Polkadot.js', color: 'polkadot-violet' },
-                    { icon: Zap, text: 'Hot reload and instant preview during development', color: 'polkadot-lime' },
-                    { icon: Package, text: 'Modular components - use what you need', color: 'polkadot-pink' },
+                    {
+                      icon: Code2,
+                      text: "Full TypeScript support with auto-complete",
+                      color: "polkadot-cyan",
+                    },
+                    {
+                      icon: Shield,
+                      text: "Type-safe API integration with Polkadot.js",
+                      color: "polkadot-violet",
+                    },
+                    {
+                      icon: Zap,
+                      text: "Hot reload and instant preview during development",
+                      color: "polkadot-lime",
+                    },
+                    {
+                      icon: Package,
+                      text: "Modular components - use what you need",
+                      color: "polkadot-pink",
+                    },
                   ].map((item, index) => (
                     <motion.div
                       key={item.text}
@@ -232,8 +298,12 @@ export default function Homepage() {
                       viewport={{ once: true }}
                       className="flex items-center gap-3"
                     >
-                      <div className={`w-10 h-10 rounded-lg bg-[var(--color-${item.color})]/10 border border-[var(--color-${item.color})]/20 flex items-center justify-center flex-shrink-0`}>
-                        <item.icon className={`w-5 h-5 text-[var(--color-${item.color})]`} />
+                      <div
+                        className={`w-10 h-10 rounded-lg bg-[var(--color-${item.color})]/10 border border-[var(--color-${item.color})]/20 flex items-center justify-center flex-shrink-0`}
+                      >
+                        <item.icon
+                          className={`w-5 h-5 text-[var(--color-${item.color})]`}
+                        />
                       </div>
                       <span className="text-white/80">{item.text}</span>
                     </motion.div>
@@ -256,15 +326,41 @@ export default function Homepage() {
                   </div>
                   <pre className="text-left text-sm leading-relaxed overflow-x-auto">
                     <code className="text-white/80">
-                      <span className="text-purple-400">import</span> {`{ `}<span className="text-cyan-300">ConnectWallet</span>{` }`} <span className="text-purple-400">from</span> <span className="text-green-400">'typink'</span>{'\n'}
-                      <span className="text-purple-400">import</span> {`{ `}<span className="text-cyan-300">BalanceDisplay</span>{` }`} <span className="text-purple-400">from</span> <span className="text-green-400">'./components'</span>{'\n\n'}
-                      <span className="text-purple-400">function</span> <span className="text-yellow-300">App</span>() {`{`}{'\n'}
-                      {'  '}<span className="text-purple-400">return</span> ({'\n'}
-                      {'    '}<span className="text-pink-400">&lt;div&gt;</span>{'\n'}
-                      {'      '}<span className="text-pink-400">&lt;ConnectWallet /&gt;</span>{'\n'}
-                      {'      '}<span className="text-pink-400">&lt;BalanceDisplay</span> <span className="text-cyan-300">address</span>=<span className="text-green-400">{`{address}`}</span> <span className="text-pink-400">/&gt;</span>{'\n'}
-                      {'    '}<span className="text-pink-400">&lt;/div&gt;</span>{'\n'}
-                      {'  '}){'\n'}
+                      <span className="text-purple-400">import</span> {`{ `}
+                      <span className="text-cyan-300">ConnectWallet</span>
+                      {` }`} <span className="text-purple-400">from</span>{" "}
+                      <span className="text-green-400">'typink'</span>
+                      {"\n"}
+                      <span className="text-purple-400">import</span> {`{ `}
+                      <span className="text-cyan-300">BalanceDisplay</span>
+                      {` }`} <span className="text-purple-400">from</span>{" "}
+                      <span className="text-green-400">'./components'</span>
+                      {"\n\n"}
+                      <span className="text-purple-400">function</span>{" "}
+                      <span className="text-yellow-300">App</span>() {`{`}
+                      {"\n"}
+                      {"  "}
+                      <span className="text-purple-400">return</span> ({"\n"}
+                      {"    "}
+                      <span className="text-pink-400">&lt;div&gt;</span>
+                      {"\n"}
+                      {"      "}
+                      <span className="text-pink-400">
+                        &lt;ConnectWallet /&gt;
+                      </span>
+                      {"\n"}
+                      {"      "}
+                      <span className="text-pink-400">
+                        &lt;BalanceDisplay
+                      </span>{" "}
+                      <span className="text-cyan-300">address</span>=
+                      <span className="text-green-400">{`{address}`}</span>{" "}
+                      <span className="text-pink-400">/&gt;</span>
+                      {"\n"}
+                      {"    "}
+                      <span className="text-pink-400">&lt;/div&gt;</span>
+                      {"\n"}
+                      {"  "}){"\n"}
                       {`}`}
                     </code>
                   </pre>
@@ -279,7 +375,7 @@ export default function Homepage() {
           <div className="max-w-5xl mx-auto relative">
             {/* Glow effect */}
             <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-polkadot-pink)]/20 via-[var(--color-polkadot-violet)]/20 to-[var(--color-polkadot-cyan)]/20 rounded-3xl blur-3xl"></div>
-            
+
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -301,12 +397,17 @@ export default function Homepage() {
                 Clone, Customize, Deploy
               </h2>
               <p className="text-lg md:text-xl text-white/60 mb-10 max-w-2xl mx-auto leading-relaxed">
-                Everything is ready. Just clone this template, connect your wallet, and start building your next Polkadot application.
+                Everything is ready. Just clone this template, connect your
+                wallet, and start building your next Polkadot application.
               </p>
-              
+
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-10">
                 <Link to="/components">
-                  <Button variant="gradient" size="xl" className="min-w-[200px]">
+                  <Button
+                    variant="gradient"
+                    size="xl"
+                    className="min-w-[200px]"
+                  >
                     <Package className="w-5 h-5" />
                     View Components
                   </Button>
@@ -321,17 +422,23 @@ export default function Homepage() {
 
               {/* Quick Links */}
               <div className="flex flex-wrap gap-6 justify-center text-sm text-white/50 pt-8 border-t border-white/5">
-                <Link to="/wallet" className="hover:text-white/80 transition-colors flex items-center gap-2">
+                <Link
+                  to="/wallet"
+                  className="hover:text-white/80 transition-colors flex items-center gap-2"
+                >
                   <Wallet className="w-4 h-4" />
                   Wallet Page
                 </Link>
-                <Link to="/dashboard" className="hover:text-white/80 transition-colors flex items-center gap-2">
+                <Link
+                  to="/dashboard"
+                  className="hover:text-white/80 transition-colors flex items-center gap-2"
+                >
                   <Layers className="w-4 h-4" />
                   Dashboard
                 </Link>
-                <a 
-                  href="https://github.com/Polkadot-UI-Initiative/polkadot-ui" 
-                  target="_blank" 
+                <a
+                  href="https://github.com/Polkadot-UI-Initiative/polkadot-ui"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-white/80 transition-colors flex items-center gap-2"
                 >
@@ -344,5 +451,5 @@ export default function Homepage() {
         </section>
       </div>
     </div>
-  )
+  );
 }
