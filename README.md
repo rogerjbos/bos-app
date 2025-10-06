@@ -1,32 +1,36 @@
 # Polkadot UI Template
 
-A beautiful, production-ready### 📚 Code Examples
-Complete examples page with copy-paste ready samples:
-- **Query Examples** - F### 🧩 Components
-Reusable Polkadot components showcase:
-- Live component demonstrations
-- 4 ready-to-use components (NetworkIndicator, BlockNumber, BalanceDisplay, AddressDisplay)
-- 4 custom hooks (useBlockNumber, useBalance, useChainInfo, useStakingInfo)
-- Copy-paste ready code
-- Live previews with real data
-- Installation guide
-- Category filtering
+> A beautiful, production-ready React template for building Polkadot applications with modern UI components and multi-wallet support.
 
-### 📚 Examples
-Comprehensive code samples:
-- 8+ ready-to-use examples
-- Categories: Query, Transaction, Subscription, Hook
-- Syntax highlighted code blocks
-- One-click copy to clipboard
-- Filter by category
-- External resource links (Polkadot.js docs, Wiki, Typink, Substrate)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![React](https://img.shields.io/badge/React-18.2.0-61DAFB?style=flat&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?style=flat&logo=typescript&logoColor=white)
+![Polkadot](https://img.shields.io/badge/Polkadot-E6007A?style=flat&logo=polkadot&logoColor=white)
 
-## 🔌 Wallet Integration data, balances, staking info
-- **Transaction Examples** - Sign and send transfers with fee estimation
-- **Subscription Examples** - Real-time updates for blocks and balances
-- **Hook Examples** - Use wallet state with Typink
-- **Copy to Clipboard** - One-click code copying
-- **Category Filter** - Filter by query, transaction, subscription, or hook
+## Overview
+
+This template provides everything you need to build a stunning Polkadot application with:
+- 🎨 **Beautiful UI** - Glassmorphism effects, gradient animations, and Polkadot brand colors
+- 🔗 **Multi-Wallet Support** - Connect to 5+ wallets (Polkadot.js, Talisman, SubWallet, Nova, Enkrypt)
+- � **Real-Time Data** - Live chain metrics, balances, and network monitoring
+- 🧩 **15+ Components** - Production-ready components from Polkadot UI Initiative
+- 📚 **Code Examples** - 8+ copy-paste ready samples for common operations
+- ⚡ **Modern Stack** - React 18, TypeScript, Vite, Tailwind CSS v4, Framer Motion
+
+## Quick Start
+
+```bash
+# Install dependencies
+pnpm install
+
+# Start development server
+pnpm dev
+
+# Build for production
+pnpm build
+```
+
+## 🔌 Wallet Integration
 
 ### 🧩 Polkadot UI Components Library
 
@@ -59,7 +63,31 @@ This template showcases **15+ reusable components and hooks** from the [Polkadot
 **Custom Hooks:**
 - **useBlockNumber**, **useBalance**, **useChainInfo**, **useStakingInfo**, **useNonce**, **useEvents**
 
+
 > 💡 Some components can be installed via: `npx polkadot-ui add <component-name>`
+
+### 📚 Code Examples
+
+8+ copy-paste ready code samples across categories:
+- **Query Examples** - Fetch chain data, balances, staking info
+- **Transaction Examples** - Sign and send transfers with fee estimation
+- **Subscription Examples** - Real-time updates for blocks and balances
+- **Hook Examples** - Use wallet state with Typink
+- One-click clipboard copying
+- Category filtering
+- Syntax highlighting
+
+### 📊 Dashboard Features
+
+Real-time Polkadot network monitoring:
+- Latest block number with live indicator
+- Total issuance and validator count
+- Active era and network info
+- Account balances (free, reserved, frozen)
+- Connection status
+- Beautiful glassmorphism UI with gradient animations
+
+### 🚀 Tech Stack
 
 ### 🚀 Modern Tech Stackplate for building Polkadot applications with modern UI components and multi-wallet support.
 

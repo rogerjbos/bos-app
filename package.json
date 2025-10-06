@@ -1,8 +1,24 @@
 {
   "name": "polkadot-ui-template",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "type": "module",
+  "description": "A beautiful, production-ready React template for building Polkadot applications",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/paritytech/polkadot-ui-template.git"
+  },
+  "keywords": [
+    "polkadot",
+    "react",
+    "typescript",
+    "web3",
+    "blockchain",
+    "template",
+    "ui"
+  ],
+  "author": "Parity Technologies",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
