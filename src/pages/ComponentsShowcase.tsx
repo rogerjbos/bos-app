@@ -249,9 +249,12 @@ function MyComponent({ address }: { address: string }) {
       title: 'SelectToken',
       description: 'Token selection dropdown with balance display',
       component: (
-        <div className="p-4 border border-polkadot-lime/20 rounded-lg bg-polkadot-lime/5">
-          <div className="text-sm text-gray-300">Token selector component</div>
-          <div className="text-xs mt-2">Select from available tokens with live balances</div>
+        <div className="p-6 border border-polkadot-lime/20 rounded-lg bg-polkadot-lime/5 text-center space-y-2">
+          <div className="text-sm font-semibold text-gray-200">Token Selector Component</div>
+          <div className="text-xs text-gray-400">Select from available tokens with live balances</div>
+          <div className="text-[10px] text-polkadot-lime/70 mt-2 px-3 py-1 rounded bg-black/30 inline-block">
+            Install: npx polkadot-ui add select-token
+          </div>
         </div>
       ),
       code: `// Install from polkadot-ui
@@ -276,9 +279,12 @@ function MyComponent() {
       title: 'SelectTokenDialog',
       description: 'Dialog-based token selection with search',
       component: (
-        <div className="p-4 border border-polkadot-cyan/20 rounded-lg bg-polkadot-cyan/5">
-          <div className="text-sm text-gray-300">Token dialog component</div>
-          <div className="text-xs mt-2">Full-screen token selector with search & filtering</div>
+        <div className="p-6 border border-polkadot-cyan/20 rounded-lg bg-polkadot-cyan/5 text-center space-y-2">
+          <div className="text-sm font-semibold text-gray-200">Token Dialog Component</div>
+          <div className="text-xs text-gray-400">Full-screen token selector with search & filtering</div>
+          <div className="text-[10px] text-polkadot-cyan/70 mt-2 px-3 py-1 rounded bg-black/30 inline-block">
+            Install: npx polkadot-ui add select-token-dialog
+          </div>
         </div>
       ),
       code: `// Install from polkadot-ui
@@ -306,9 +312,12 @@ function MyComponent() {
       title: 'TxButton',
       description: 'Submit transactions with progress states and notifications',
       component: (
-        <div className="p-4 border border-polkadot-pink/20 rounded-lg bg-polkadot-pink/5">
-          <div className="text-sm text-gray-300">Transaction button component</div>
-          <div className="text-xs mt-2">Handles signing, submission, and notifications</div>
+        <div className="p-6 border border-polkadot-pink/20 rounded-lg bg-polkadot-pink/5 text-center space-y-2">
+          <div className="text-sm font-semibold text-gray-200">Transaction Button Component</div>
+          <div className="text-xs text-gray-400">Handles signing, submission, and notifications</div>
+          <div className="text-[10px] text-polkadot-pink/70 mt-2 px-3 py-1 rounded bg-black/30 inline-block">
+            Install: npx polkadot-ui add tx-button
+          </div>
         </div>
       ),
       code: `// Install from polkadot-ui
@@ -338,9 +347,12 @@ function MyComponent() {
       title: 'TxNotification',
       description: 'Transaction status notifications and toasts',
       component: (
-        <div className="p-4 border border-polkadot-violet/20 rounded-lg bg-polkadot-violet/5">
-          <div className="text-sm text-gray-300">Transaction notification system</div>
-          <div className="text-xs mt-2">Shows signing, broadcasting, inclusion, and finalization states</div>
+        <div className="p-6 border border-polkadot-violet/20 rounded-lg bg-polkadot-violet/5 text-center space-y-2">
+          <div className="text-sm font-semibold text-gray-200">Transaction Notification System</div>
+          <div className="text-xs text-gray-400">Shows signing, broadcasting, inclusion, and finalization states</div>
+          <div className="text-[10px] text-polkadot-violet/70 mt-2 px-3 py-1 rounded bg-black/30 inline-block">
+            Install: npx polkadot-ui add tx-notification
+          </div>
         </div>
       ),
       code: `// Install from polkadot-ui
@@ -372,9 +384,12 @@ function MyComponent() {
       title: 'AddressInput',
       description: 'Address input with SS58/Ethereum validation',
       component: (
-        <div className="p-4 border border-polkadot-lime/20 rounded-lg bg-polkadot-lime/5">
-          <div className="text-sm text-gray-300">Address input component</div>
-          <div className="text-xs mt-2">Validates addresses and shows identity lookup</div>
+        <div className="p-6 border border-polkadot-lime/20 rounded-lg bg-polkadot-lime/5 text-center space-y-2">
+          <div className="text-sm font-semibold text-gray-200">Address Input Component</div>
+          <div className="text-xs text-gray-400">Validates addresses and shows identity lookup</div>
+          <div className="text-[10px] text-polkadot-lime/70 mt-2 px-3 py-1 rounded bg-black/30 inline-block">
+            Install: npx polkadot-ui add address-input
+          </div>
         </div>
       ),
       code: `// Install from polkadot-ui
@@ -402,9 +417,12 @@ function MyComponent() {
       title: 'AmountInput',
       description: 'Token amount input with balance and max button',
       component: (
-        <div className="p-4 border border-polkadot-cyan/20 rounded-lg bg-polkadot-cyan/5">
-          <div className="text-sm text-gray-300">Amount input component</div>
-          <div className="text-xs mt-2">Input for token amounts with max button and validation</div>
+        <div className="p-6 border border-polkadot-cyan/20 rounded-lg bg-polkadot-cyan/5 text-center space-y-2">
+          <div className="text-sm font-semibold text-gray-200">Amount Input Component</div>
+          <div className="text-xs text-gray-400">Input for token amounts with max button and validation</div>
+          <div className="text-[10px] text-polkadot-cyan/70 mt-2 px-3 py-1 rounded bg-black/30 inline-block">
+            Install: npx polkadot-ui add amount-input
+          </div>
         </div>
       ),
       code: `// Install from polkadot-ui
@@ -428,6 +446,197 @@ function MyComponent() {
       category: 'input',
       icon: <CreditCard className="w-5 h-5" />,
       href: 'https://github.com/Polkadot-UI-Initiative/polkadot-ui/tree/main/packages/registry/registry/polkadot-ui/blocks/amount-input',
+    },
+    {
+      title: 'Identicon Themes',
+      description: 'Different visual styles for address identicons (polkadot, substrate, beachball, jdenticon)',
+      component: (
+        <div className="space-y-4">
+          <div className="p-4 rounded-lg bg-black/20 border border-white/5">
+            <div className="text-xs text-gray-300 mb-3">Available themes:</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 rounded bg-black/30 border border-polkadot-pink/20">
+                <div className="text-xs font-semibold text-polkadot-pink mb-1">polkadot</div>
+                <div className="text-[10px] text-gray-400">Official Polkadot style</div>
+              </div>
+              <div className="p-3 rounded bg-black/30 border border-polkadot-purple/20">
+                <div className="text-xs font-semibold text-polkadot-purple mb-1">substrate</div>
+                <div className="text-[10px] text-gray-400">Alternative Substrate style</div>
+              </div>
+              <div className="p-3 rounded bg-black/30 border border-polkadot-cyan/20">
+                <div className="text-xs font-semibold text-polkadot-cyan mb-1">beachball</div>
+                <div className="text-[10px] text-gray-400">Colorful circular pattern</div>
+              </div>
+              <div className="p-3 rounded bg-black/30 border border-polkadot-lime/20">
+                <div className="text-xs font-semibold text-polkadot-lime mb-1">jdenticon</div>
+                <div className="text-[10px] text-gray-400">Geometric shapes</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ),
+      code: `// Use with AddressInput or AccountInfo
+import { AddressInput } from './components/polkadot/AddressInput'
+import { AccountInfo } from './components/polkadot/AccountInfo'
+
+function MyComponent() {
+  return (
+    <>
+      {/* polkadot theme (default) */}
+      <AddressInput identiconTheme="polkadot" />
+      
+      {/* substrate theme */}
+      <AddressInput identiconTheme="substrate" />
+      
+      {/* beachball theme */}
+      <AddressInput identiconTheme="beachball" />
+      
+      {/* jdenticon theme */}
+      <AddressInput identiconTheme="jdenticon" />
+      
+      {/* Also works with AccountInfo */}
+      <AccountInfo 
+        address={address}
+        iconTheme="beachball"
+      />
+    </>
+  )
+}`,
+      category: 'display',
+      icon: <User className="w-5 h-5" />,
+    },
+    {
+      title: 'Multi-Chain Support',
+      description: 'Components work across Polkadot, Kusama, and testnet chains',
+      component: (
+        <div className="space-y-3">
+          <div className="p-4 rounded-lg bg-black/20 border border-white/5">
+            <div className="text-xs text-gray-300 mb-3">Supported chains for identity lookup:</div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-2 h-2 rounded-full bg-polkadot-pink"></div>
+                <span className="text-gray-300">Polkadot People</span>
+                <code className="text-xs text-gray-400 ml-auto">polkadotPeople</code>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-2 h-2 rounded-full bg-polkadot-purple"></div>
+                <span className="text-gray-300">Kusama People</span>
+                <code className="text-xs text-gray-400 ml-auto">kusamaPeople</code>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-2 h-2 rounded-full bg-polkadot-cyan"></div>
+                <span className="text-gray-300">Paseo People (testnet)</span>
+                <code className="text-xs text-gray-400 ml-auto">paseoPeople</code>
+              </div>
+            </div>
+          </div>
+        </div>
+      ),
+      code: `// Specify identity chain for AccountInfo and AddressInput
+import { AddressInput } from './components/polkadot/AddressInput'
+import { AccountInfo } from './components/polkadot/AccountInfo'
+
+function MyComponent() {
+  return (
+    <>
+      {/* Polkadot mainnet */}
+      <AddressInput 
+        identityChain="polkadotPeople"
+        withIdentityLookup 
+      />
+      
+      {/* Kusama */}
+      <AccountInfo
+        address={address}
+        chainId="kusamaPeople"
+      />
+      
+      {/* Testnet */}
+      <AddressInput 
+        identityChain="paseoPeople"
+        withIdentitySearch
+      />
+    </>
+  )
+}`,
+      category: 'display',
+      icon: <Network className="w-5 h-5" />,
+    },
+    {
+      title: 'Balance with Comparison Token',
+      description: 'Display balance with USD or stablecoin conversion rates',
+      component: (
+        <div className="p-4 rounded-lg bg-black/20 border border-white/5">
+          <div className="text-xs text-gray-300 mb-3">Example: DOT balance with USDC comparison</div>
+          <div className="space-y-2">
+            <div className="p-3 rounded bg-black/30 border border-polkadot-pink/20">
+              <div className="text-lg font-bold text-white">12.3456 DOT</div>
+              <div className="text-xs text-gray-400 mt-1">≈ $98.76 USDC</div>
+            </div>
+            <div className="text-[10px] text-gray-500 mt-2">
+              Supports any token-to-token conversion with custom rates
+            </div>
+          </div>
+        </div>
+      ),
+      code: `// Install from polkadot-ui
+// npx polkadot-ui add balance-display
+
+import { BalanceDisplay } from './components/polkadot/BalanceDisplay'
+
+function MyComponent() {
+  const dotPrice = 8.00 // from price API
+  
+  return (
+    <BalanceDisplay
+      tokenId={NATIVE_TOKEN_KEY}
+      compareTokenId={1337} // USDC
+      accountAddress={address}
+      tokenConversionRate={dotPrice}
+      precision={4}
+    />
+  )
+}`,
+      category: 'display',
+      icon: <CreditCard className="w-5 h-5" />,
+    },
+    {
+      title: 'Token Logos with Networks',
+      description: 'Display token logos with network badge overlays',
+      component: (
+        <div className="p-4 rounded-lg bg-black/20 border border-white/5">
+          <div className="text-xs text-gray-300 mb-3">Example: Token with network indicator</div>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="w-12 h-12 rounded-full bg-polkadot-pink/20 flex items-center justify-center">
+                <span className="text-lg font-bold text-polkadot-pink">DOT</span>
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-polkadot-purple/90 border-2 border-black flex items-center justify-center">
+                <span className="text-[8px] text-white">AH</span>
+              </div>
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-white">DOT</div>
+              <div className="text-xs text-gray-400">on Asset Hub</div>
+            </div>
+          </div>
+        </div>
+      ),
+      code: `// TokenLogoWithNetwork component
+import { TokenLogoWithNetwork } from './components/polkadot/TokenLogo'
+
+function MyComponent() {
+  return (
+    <TokenLogoWithNetwork
+      tokenLogo={token.logo}
+      networkLogo={network.logo}
+      tokenSymbol={token.symbol}
+      size="md" // sm | md | lg
+    />
+  )
+}`,
+      category: 'display',
+      icon: <Package className="w-5 h-5" />,
     },
 
     // Custom Hooks
