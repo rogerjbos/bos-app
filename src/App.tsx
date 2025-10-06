@@ -11,6 +11,7 @@ import ComponentsShowcase from './pages/ComponentsShowcase'
 import { PolkadotProvider } from './providers/PolkadotProvider'
 import { Button } from './components/ui/Button'
 import { Package } from 'lucide-react'
+import ConnectWallet from './components/ConnectWallet'
 
 function Navigation() {
   const links = [
@@ -44,14 +45,7 @@ function Navigation() {
           </div>
 
           <div className="flex items-center gap-4">
-            <a
-              href="https://github.com/Polkadot-UI-Initiative/polkadot-ui"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-white/70 hover:text-white transition-colors"
-            >
-              <Github className="w-5 h-5" />
-            </a>
+            <ConnectWallet />
           </div>
         </div>
       </div>

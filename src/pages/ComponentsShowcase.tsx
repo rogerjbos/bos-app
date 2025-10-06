@@ -33,6 +33,19 @@ export default function Components() {
   const { nonce } = useNonce(connectedAccount?.address)
   const { events } = useEvents(5)
 
+  // Demo/sample fallbacks so the live preview always shows something
+  const sampleAddress = '5GrwvaEF5zXb26Fz9rcQpDWSkAqY9G6X' // truncated sample
+  const sampleAccount = { name: 'Demo Account', address: sampleAddress, source: 'demo' }
+  const sampleBalance = { free: '1,234.5678', reserved: '0.0000' }
+  const sampleBlockNumber = 1234567
+  const sampleChainInfo = { name: 'Polkadot', tokenSymbol: 'DOT', tokenDecimals: 10 }
+  const sampleStakingInfo = { validatorCount: 297, activeEra: 512 }
+  const sampleNonce = 7
+  const sampleEvents = [
+    { section: 'system', method: 'ExtrinsicSuccess' },
+    { section: 'balances', method: 'Transfer' },
+  ]
+
   const copyToClipboard = (code: string, index: number) => {
     navigator.clipboard.writeText(code)
     setCopiedIndex(index)
@@ -45,7 +58,7 @@ export default function Components() {
       title: 'ConnectWallet',
       description: 'Multi-wallet connection with account selection (Polkadot.js, Talisman, SubWallet, etc.)',
       component: (
-        <div className="text-gray-400 text-sm text-center">
+  <div className="text-gray-300 text-sm text-center">
           <p>See the header for live example →</p>
           <p className="mt-2 text-xs">Already implemented in this template</p>
         </div>
@@ -62,13 +75,11 @@ function App() {
     {
       title: 'AddressDisplay',
       description: 'Format addresses with identicon, copy, and explorer links',
-      component: connectedAccount ? (
+      component: (
         <div className="space-y-4">
-          <AddressDisplay address={connectedAccount.address} />
-          <AddressDisplay address={connectedAccount.address} showCopy={false} showExplorer={false} />
+          <AddressDisplay address={connectedAccount?.address ?? sampleAccount.address} />
+          <AddressDisplay address={connectedAccount?.address ?? sampleAccount.address} showCopy={false} showExplorer={false} />
         </div>
-      ) : (
-        <div className="text-gray-400 text-sm">Connect wallet to see address</div>
       ),
       code: `import AddressDisplay from './components/polkadot/AddressDisplay'
 
@@ -91,7 +102,7 @@ function MyComponent({ address }: { address: string }) {
           {connectedAccount ? (
             <div className="text-green-400">✓ Account connected: {connectedAccount.name}</div>
           ) : (
-            <div className="text-yellow-400">⚠ Please connect an account</div>
+            <div className="text-cyan-300">Demo Account: {sampleAccount.name}</div>
           )}
         </div>
       ),
@@ -113,16 +124,14 @@ function MyComponent() {
     {
       title: 'AccountInfo',
       description: 'Display account identity, balance, and metadata',
-      component: connectedAccount ? (
+      component: (
         <div className="p-4 border border-polkadot-cyan/20 rounded-lg bg-polkadot-cyan/5">
           <div className="space-y-2 text-sm">
-            <div><strong>Name:</strong> {connectedAccount.name || 'Unknown'}</div>
-            <div><strong>Address:</strong> {connectedAccount.address.slice(0, 8)}...{connectedAccount.address.slice(-8)}</div>
-            <div><strong>Source:</strong> {connectedAccount.source}</div>
+            <div><strong>Name:</strong> {connectedAccount?.name ?? sampleAccount.name}</div>
+            <div><strong>Address:</strong> {(connectedAccount?.address ?? sampleAccount.address).slice(0, 8)}...{(connectedAccount?.address ?? sampleAccount.address).slice(-8)}</div>
+            <div><strong>Source:</strong> {connectedAccount?.source ?? sampleAccount.source}</div>
           </div>
         </div>
-      ) : (
-        <div className="text-gray-400 text-sm">Connect wallet to see account info</div>
       ),
       code: `import { useTypink } from 'typink'
 
@@ -217,13 +226,11 @@ function MyComponent() {
     {
       title: 'BalanceDisplay',
       description: 'Account balance with real-time updates and formatting',
-      component: connectedAccount ? (
+      component: (
         <div className="space-y-4">
-          <BalanceDisplay address={connectedAccount.address} />
-          <BalanceDisplay address={connectedAccount.address} type="detailed" showIcon={false} />
+          <BalanceDisplay address={connectedAccount?.address ?? sampleAccount.address} />
+          <BalanceDisplay address={connectedAccount?.address ?? sampleAccount.address} type="detailed" showIcon={false} />
         </div>
-      ) : (
-        <div className="text-gray-400 text-sm">Connect wallet to see balance</div>
       ),
       code: `import BalanceDisplay from './components/polkadot/BalanceDisplay'
 
@@ -243,7 +250,7 @@ function MyComponent({ address }: { address: string }) {
       description: 'Token selection dropdown with balance display',
       component: (
         <div className="p-4 border border-polkadot-lime/20 rounded-lg bg-polkadot-lime/5">
-          <div className="text-sm text-gray-400">Token selector component</div>
+          <div className="text-sm text-gray-300">Token selector component</div>
           <div className="text-xs mt-2">Select from available tokens with live balances</div>
         </div>
       ),
@@ -270,7 +277,7 @@ function MyComponent() {
       description: 'Dialog-based token selection with search',
       component: (
         <div className="p-4 border border-polkadot-cyan/20 rounded-lg bg-polkadot-cyan/5">
-          <div className="text-sm text-gray-400">Token dialog component</div>
+          <div className="text-sm text-gray-300">Token dialog component</div>
           <div className="text-xs mt-2">Full-screen token selector with search & filtering</div>
         </div>
       ),
@@ -300,7 +307,7 @@ function MyComponent() {
       description: 'Submit transactions with progress states and notifications',
       component: (
         <div className="p-4 border border-polkadot-pink/20 rounded-lg bg-polkadot-pink/5">
-          <div className="text-sm text-gray-400">Transaction button component</div>
+          <div className="text-sm text-gray-300">Transaction button component</div>
           <div className="text-xs mt-2">Handles signing, submission, and notifications</div>
         </div>
       ),
@@ -332,7 +339,7 @@ function MyComponent() {
       description: 'Transaction status notifications and toasts',
       component: (
         <div className="p-4 border border-polkadot-violet/20 rounded-lg bg-polkadot-violet/5">
-          <div className="text-sm text-gray-400">Transaction notification system</div>
+          <div className="text-sm text-gray-300">Transaction notification system</div>
           <div className="text-xs mt-2">Shows signing, broadcasting, inclusion, and finalization states</div>
         </div>
       ),
@@ -366,7 +373,7 @@ function MyComponent() {
       description: 'Address input with SS58/Ethereum validation',
       component: (
         <div className="p-4 border border-polkadot-lime/20 rounded-lg bg-polkadot-lime/5">
-          <div className="text-sm text-gray-400">Address input component</div>
+          <div className="text-sm text-gray-300">Address input component</div>
           <div className="text-xs mt-2">Validates addresses and shows identity lookup</div>
         </div>
       ),
@@ -396,7 +403,7 @@ function MyComponent() {
       description: 'Token amount input with balance and max button',
       component: (
         <div className="p-4 border border-polkadot-cyan/20 rounded-lg bg-polkadot-cyan/5">
-          <div className="text-sm text-gray-400">Amount input component</div>
+          <div className="text-sm text-gray-300">Amount input component</div>
           <div className="text-xs mt-2">Input for token amounts with max button and validation</div>
         </div>
       ),
@@ -429,9 +436,9 @@ function MyComponent() {
       description: 'Get current block number with real-time updates',
       component: (
         <div className="p-4 rounded-lg bg-black/40 border border-white/10">
-          <div className="text-sm text-gray-400 mb-2">Current Block:</div>
+          <div className="text-sm text-gray-300 mb-2">Current Block:</div>
           <div className="text-2xl font-bold text-gradient">
-            #{blockNumber.toLocaleString()}
+            #{blockNumber != null ? blockNumber.toLocaleString() : '—'}
           </div>
         </div>
       ),
@@ -450,19 +457,17 @@ function MyComponent() {
     {
       title: 'useBalance Hook',
       description: 'Get account balance with subscriptions',
-      component: connectedAccount ? (
+      component: (
         <div className="p-4 rounded-lg bg-black/40 border border-white/10 space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Free:</span>
-            <span className="text-white font-mono">{balance.free}</span>
+            <span className="text-gray-300">Free:</span>
+            <span className="text-white font-mono">{(connectedAccount ? balance?.free : sampleBalance.free) ?? '—'}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Reserved:</span>
-            <span className="text-white font-mono">{balance.reserved}</span>
+            <span className="text-gray-300">Reserved:</span>
+            <span className="text-white font-mono">{(connectedAccount ? balance?.reserved : sampleBalance.reserved) ?? '—'}</span>
           </div>
         </div>
-      ) : (
-        <div className="text-gray-400 text-sm">Connect wallet to see balance</div>
       ),
       code: `import { useBalance } from './hooks/usePolkadot'
 
@@ -487,16 +492,16 @@ function MyComponent({ address }: { address: string }) {
       component: (
         <div className="p-4 rounded-lg bg-black/40 border border-white/10 space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Chain:</span>
-            <span className="text-white">{chainInfo.name}</span>
+            <span className="text-gray-300">Chain:</span>
+            <span className="text-white">{chainInfo?.name ?? '—'}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Token:</span>
-            <span className="text-white">{chainInfo.tokenSymbol}</span>
+            <span className="text-gray-300">Token:</span>
+            <span className="text-white">{chainInfo?.tokenSymbol ?? '—'}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Decimals:</span>
-            <span className="text-white">{chainInfo.tokenDecimals}</span>
+            <span className="text-gray-300">Decimals:</span>
+            <span className="text-white">{chainInfo?.tokenDecimals ?? '—'}</span>
           </div>
         </div>
       ),
@@ -524,12 +529,12 @@ function MyComponent() {
       component: (
         <div className="p-4 rounded-lg bg-black/40 border border-white/10 space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Validators:</span>
-            <span className="text-white">{stakingInfo.validatorCount}</span>
+            <span className="text-gray-300">Validators:</span>
+            <span className="text-white">{stakingInfo?.validatorCount ?? '—'}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Active Era:</span>
-            <span className="text-white">{stakingInfo.activeEra}</span>
+            <span className="text-gray-300">Active Era:</span>
+            <span className="text-white">{stakingInfo?.activeEra ?? '—'}</span>
           </div>
         </div>
       ),
@@ -553,13 +558,11 @@ function MyComponent() {
     {
       title: 'useNonce Hook',
       description: 'Get account transaction nonce',
-      component: connectedAccount ? (
+      component: (
         <div className="p-4 rounded-lg bg-black/40 border border-white/10">
-          <div className="text-sm text-gray-400 mb-2">Account Nonce:</div>
-          <div className="text-2xl font-bold text-white">{nonce}</div>
+          <div className="text-sm text-gray-300 mb-2">Account Nonce:</div>
+          <div className="text-2xl font-bold text-white">{connectedAccount ? (nonce != null ? nonce : '—') : sampleNonce}</div>
         </div>
-      ) : (
-        <div className="text-gray-400 text-sm">Connect wallet to see nonce</div>
       ),
       code: `import { useNonce } from './hooks/usePolkadot'
 
@@ -578,11 +581,15 @@ function MyComponent({ address }: { address: string }) {
       description: 'Subscribe to chain events',
       component: (
         <div className="p-4 rounded-lg bg-black/40 border border-white/10">
-          <div className="text-sm text-gray-400 mb-2">Recent Events:</div>
+          <div className="text-sm text-gray-300 mb-2">Recent Events:</div>
           <div className="text-xs text-white space-y-1 max-h-20 overflow-auto">
-            {events.slice(0, 3).map((event, i) => (
-              <div key={i} className="truncate">{event.section}.{event.method}</div>
-            ))}
+            {Array.isArray(events) && events.length > 0 ? (
+              events.slice(0, 3).map((event, i) => (
+                <div key={i} className="truncate">{event.section}.{event.method}</div>
+              ))
+              ) : (
+              <div className="text-gray-300">No recent events</div>
+            )}
           </div>
         </div>
       ),
@@ -631,7 +638,7 @@ function MyComponent() {
           <Package className="w-8 h-8 text-pink-500" />
           <h1 className="text-4xl font-bold text-gradient">Polkadot Components</h1>
         </div>
-        <p className="text-gray-400 text-lg">
+        <p className="text-gray-300 text-lg">
           Reusable components and hooks for building Polkadot applications. Copy the code and use them in your project.
         </p>
       </motion.div>
@@ -669,17 +676,17 @@ function MyComponent() {
                     </div>
                     <div>
                       <CardTitle className="text-white">{example.title}</CardTitle>
-                      <CardDescription className="mt-1">
-                        {example.description}
-                      </CardDescription>
+                        <CardDescription className="mt-1 text-gray-300">
+                          {example.description}
+                        </CardDescription>
                     </div>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Live Preview */}
-                <div className="p-4 rounded-lg bg-black/20 border border-white/5">
-                  <div className="text-xs text-gray-400 mb-3 font-semibold uppercase tracking-wide">
+                <div className="p-4 rounded-lg bg-black/20 border border-white/5 text-white">
+                  <div className="text-xs text-gray-300 mb-3 font-semibold uppercase tracking-wide">
                     Live Preview
                   </div>
                   {example.component}
@@ -687,11 +694,11 @@ function MyComponent() {
 
                 {/* Code */}
                 <div className="relative">
-                  <div className="text-xs text-gray-400 mb-2 font-semibold uppercase tracking-wide">
+                  <div className="text-xs text-gray-300 mb-2 font-semibold uppercase tracking-wide">
                     Code
                   </div>
                   <pre className="bg-black/40 rounded-lg p-4 overflow-x-auto text-sm border border-white/5">
-                    <code className="text-gray-300 font-mono text-xs">
+                      <code className="text-gray-200 font-mono text-xs">
                       {example.code}
                     </code>
                   </pre>
@@ -740,11 +747,11 @@ function MyComponent() {
         <div className="space-y-3">
           <div className="p-4 rounded-lg bg-white/5 border border-white/10">
             <div className="text-sm font-semibold text-white mb-1">Components Location</div>
-            <code className="text-xs text-gray-400 font-mono">src/components/polkadot/</code>
+            <code className="text-xs text-gray-300 font-mono">src/components/polkadot/</code>
           </div>
           <div className="p-4 rounded-lg bg-white/5 border border-white/10">
             <div className="text-sm font-semibold text-white mb-1">Hooks Location</div>
-            <code className="text-xs text-gray-400 font-mono">src/hooks/usePolkadot.ts</code>
+            <code className="text-xs text-gray-300 font-mono">src/hooks/usePolkadot.ts</code>
           </div>
         </div>
       </motion.div>
