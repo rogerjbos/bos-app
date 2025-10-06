@@ -289,13 +289,112 @@ Access in your code:
 const endpoint = import.meta.env.VITE_WS_ENDPOINT
 ```
 
-## Notes
+## Project Structure
 
-- Node.js 18+ (20+ preferred)  
-- pnpm recommended, but npm / yarn are supported  
-- Check `package.json` for exact dependency versions
+```
+polkadot-ui-template/
+├── src/
+│   ├── components/        # Reusable UI components
+│   │   ├── ConnectWallet.tsx
+│   │   ├── AddressDisplay.tsx
+│   │   ├── BalanceDisplay.tsx
+│   │   └── ...
+│   ├── hooks/            # Custom React hooks
+│   │   ├── useBlockNumber.ts
+│   │   ├── useBalance.ts
+│   │   └── ...
+│   ├── pages/            # Page components
+│   │   ├── Homepage.tsx
+│   │   ├── Dashboard.tsx
+│   │   ├── ComponentsShowcase.tsx
+│   │   └── ...
+│   ├── styles/           # Global styles & Tailwind
+│   ├── App.tsx           # Main app component
+│   └── main.tsx          # Entry point
+├── public/               # Static assets
+├── vite.config.mjs       # Vite configuration
+├── tailwind.config.ts    # Tailwind configuration
+├── tsconfig.json         # TypeScript configuration
+└── package.json          # Dependencies & scripts
+```
 
-Contributions welcome — open an issue or submit a PR.
+## Customization
+
+### Change Chain/Network
+
+Edit your connection provider to target different networks:
+
+```tsx
+// In your provider setup
+const endpoint = 'wss://westend-rpc.polkadot.io' // Westend testnet
+// or
+const endpoint = 'wss://kusama-rpc.polkadot.io' // Kusama
+```
+
+### Customize Theme
+
+The template uses Tailwind CSS with custom Polkadot colors. Edit `src/styles/index.css`:
+
+```css
+@theme {
+  --color-polkadot-pink: #e6007a;
+  --color-polkadot-cyan: #00b2ff;
+  --color-polkadot-violet: #6d3aee;
+  --color-polkadot-lime: #56f39a;
+}
+```
+
+### Add New Components
+
+Install official Polkadot UI components:
+
+```bash
+# Browse available components at:
+# https://github.com/Polkadot-UI-Initiative/polkadot-ui
+
+npx polkadot-ui add [component-name]
+```
+
+## Troubleshooting
+
+**Wallet extension not detected?**
+- Make sure you have a Polkadot wallet extension installed (Polkadot.js, Talisman, or SubWallet)
+- Check that the extension is enabled for your site
+- Refresh the page after installing the extension
+
+**Build errors?**
+- Clear node_modules and reinstall: `rm -rf node_modules pnpm-lock.yaml && pnpm install`
+- Check Node.js version: `node --version` (should be 18+)
+- Update dependencies: `pnpm update`
+
+**TypeScript errors?**
+- Run type checking: `pnpm tsc --noEmit`
+- Check `tsconfig.json` configuration
+- Ensure all dependencies are properly installed
+
+## Resources
+
+- **Polkadot UI Components**: https://github.com/Polkadot-UI-Initiative/polkadot-ui
+- **Polkadot.js API Docs**: https://polkadot.js.org/docs/
+- **Typink Documentation**: https://github.com/open-web3-stack/typink
+- **Polkadot Developer Hub**: https://wiki.polkadot.network/docs/build-index
+- **Substrate Docs**: https://docs.substrate.io/
+
+## Contributing
+
+Contributions are welcome! Please feel free to:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## Support
+
+- **Issues**: Open an issue on [GitHub](https://github.com/paritytech/polkadot-ui-template/issues)
+- **Discussions**: Join the [Polkadot Forum](https://forum.polkadot.network/)
+- **Discord**: [Polkadot Discord](https://discord.gg/polkadot)
 
 ## License
 
@@ -303,4 +402,4 @@ MIT — see `LICENSE`.
 
 ---
 
-Built with ❤️ for the Polkadot ecosystem
+Built with ❤️ for the Polkadot ecosystem by [Parity Technologies](https://www.parity.io/)
