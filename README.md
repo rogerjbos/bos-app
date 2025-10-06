@@ -372,8 +372,33 @@ npx polkadot-ui add [component-name]
 - Check `tsconfig.json` configuration
 - Ensure all dependencies are properly installed
 
-## Resources
+## 📚 Documentation & Guides
 
+This template includes comprehensive guides to help you build faster:
+
+### For Developers
+- **[EXAMPLES.md](./EXAMPLES.md)** - 📝 Ready-to-use code snippets for common tasks
+  - Wallet connection examples
+  - Data fetching patterns
+  - Transaction handling
+  - Real-time subscriptions
+  - Copy-paste ready code
+
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** - 🤝 Contribution guidelines
+  - Code style guide
+  - Development workflow
+  - Component patterns
+  - Pull request process
+
+### For AI-Assisted Development
+- **[AGENT_AI.md](./AGENT_AI.md)** - 🤖 AI Agent Guide
+  - Optimized prompts for AI coding assistants
+  - Feature-specific prompt templates
+  - Best practices for AI-assisted development
+  - Complete workflow examples
+
+### Additional Resources
+- **[FEATURES.md](./FEATURES.md)** - Complete feature documentation
 - **Polkadot UI Components**: https://github.com/Polkadot-UI-Initiative/polkadot-ui
 - **Polkadot.js API Docs**: https://polkadot.js.org/docs/
 - **Typink Documentation**: https://github.com/open-web3-stack/typink
