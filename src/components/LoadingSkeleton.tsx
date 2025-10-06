@@ -1,54 +1,53 @@
-import React from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
 
 interface LoadingSkeletonProps {
-  className?: string
-  variant?: 'text' | 'circular' | 'rectangular' | 'card'
-  lines?: number
-  animation?: 'pulse' | 'wave' | 'none'
+  className?: string;
+  variant?: "text" | "circular" | "rectangular" | "card";
+  lines?: number;
+  animation?: "pulse" | "wave" | "none";
 }
 
 /**
  * Loading Skeleton Component
- * 
+ *
  * Provides visual feedback while content is loading.
  * Supports multiple variants and animations.
- * 
+ *
  * @example
  * ```tsx
  * // Text loading
  * <LoadingSkeleton variant="text" lines={3} />
- * 
+ *
  * // Card loading
  * <LoadingSkeleton variant="card" />
- * 
+ *
  * // Custom skeleton
  * <LoadingSkeleton className="h-32 w-full rounded-lg" />
  * ```
  */
 export function LoadingSkeleton({
   className,
-  variant = 'rectangular',
+  variant = "rectangular",
   lines = 1,
-  animation = 'pulse'
+  animation = "pulse",
 }: LoadingSkeletonProps) {
-  const baseClasses = 'bg-white/5 rounded-lg'
-  
+  const baseClasses = "bg-white/5 rounded-lg";
+
   const animationClasses = {
-    pulse: 'animate-pulse',
-    wave: 'animate-shimmer bg-gradient-to-r from-white/5 via-white/10 to-white/5 bg-[length:200%_100%]',
-    none: ''
-  }
+    pulse: "animate-pulse",
+    wave: "animate-shimmer bg-gradient-to-r from-white/5 via-white/10 to-white/5 bg-[length:200%_100%]",
+    none: "",
+  };
 
   const variantClasses = {
-    text: 'h-4 w-full',
-    circular: 'h-12 w-12 rounded-full',
-    rectangular: 'h-12 w-full',
-    card: 'h-48 w-full'
-  }
+    text: "h-4 w-full",
+    circular: "h-12 w-12 rounded-full",
+    rectangular: "h-12 w-full",
+    card: "h-48 w-full",
+  };
 
   // Multiple text lines
-  if (variant === 'text' && lines > 1) {
+  if (variant === "text" && lines > 1) {
     return (
       <div className="space-y-3">
         {Array.from({ length: lines }).map((_, i) => (
@@ -58,13 +57,13 @@ export function LoadingSkeleton({
               baseClasses,
               variantClasses.text,
               animationClasses[animation],
-              i === lines - 1 && 'w-3/4', // Last line shorter
+              i === lines - 1 && "w-3/4", // Last line shorter
               className
             )}
           />
         ))}
       </div>
-    )
+    );
   }
 
   // Single skeleton
@@ -77,7 +76,7 @@ export function LoadingSkeleton({
         className
       )}
     />
-  )
+  );
 }
 
 /**
@@ -96,7 +95,7 @@ export function CardSkeleton() {
       </div>
       <LoadingSkeleton variant="text" lines={3} />
     </div>
-  )
+  );
 }
 
 /**
@@ -110,7 +109,7 @@ export function TableRowSkeleton({ columns = 4 }: { columns?: number }) {
         <LoadingSkeleton key={i} variant="text" className="flex-1" />
       ))}
     </div>
-  )
+  );
 }
 
 /**
@@ -127,7 +126,7 @@ export function StatsBoxSkeleton() {
       <LoadingSkeleton variant="text" className="h-8 w-3/4 mb-2" />
       <LoadingSkeleton variant="text" className="h-3 w-1/3" />
     </div>
-  )
+  );
 }
 
-export default LoadingSkeleton
+export default LoadingSkeleton;

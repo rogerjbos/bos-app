@@ -719,7 +719,7 @@ function TransferButton() {
     try {
       // Your transaction logic
       await sendTransaction()
-      
+
       showToast({
         type: 'success',
         message: 'Transaction sent!',
