@@ -1,0 +1,38 @@
+{
+  "name": "Polkadot UI Template",
+  "short_name": "Polkadot UI",
+  "description": "A modern React template for building Polkadot applications",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0b1e",
+  "theme_color": "#E6007A",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "productivity", "utilities"],
+  "screenshots": [
+    {
+      "src": "/screenshot-desktop.png",
+      "type": "image/png",
+      "sizes": "1280x720",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/screenshot-mobile.png",
+      "type": "image/png",
+      "sizes": "750x1334"
+    }
+  ]
+}
