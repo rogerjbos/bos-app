@@ -53,28 +53,33 @@ Scripts (in `package.json`):
 This template integrates the official **[polkadot-ui](https://github.com/Polkadot-UI-Initiative/polkadot-ui)** component library, giving you access to 20+ production-ready components:
 
 ### Wallet & Account Components
+
 - `ConnectWallet` - Multi-wallet connection (Polkadot.js, Talisman, SubWallet, etc.)
 - `AddressDisplay` - Display addresses with identicons and formatting
 - `AccountInfo` - Show detailed account information
 - `RequireAccount` - Conditional rendering based on account connection
 
 ### Network Components
+
 - `NetworkIndicator` - Display current network status
 - `BlockNumber` - Live block number updates
 - `RequireConnection` - Conditional rendering based on connection status
 
 ### Balance & Token Components
+
 - `BalanceDisplay` - Format and display token balances
 - `SelectToken` - Token selection dropdown (requires: `npx polkadot-ui add select-token`)
 - `SelectTokenDialog` - Token selection modal (requires: `npx polkadot-ui add select-token-dialog`)
 - `AmountInput` - Input field for token amounts (requires: `npx polkadot-ui add amount-input`)
 
 ### Transaction Components
+
 - `TxButton` - Transaction submission button (requires: `npx polkadot-ui add tx-button`)
 - `TxNotification` - Transaction status notifications (requires: `npx polkadot-ui add tx-notification`)
 - `AddressInput` - Address input with validation (requires: `npx polkadot-ui add address-input`)
 
 ### Custom Hooks
+
 - `useBlockNumber` - Subscribe to block number updates
 - `useBalance` - Fetch account balances
 - `useChainInfo` - Get chain metadata
@@ -97,11 +102,13 @@ npx polkadot-ui add tx-button tx-notification address-input
 ## Tech Stack
 
 **Core Framework:**
+
 - React 18.2 + TypeScript
 - Vite 7.x (fast builds & hot reload)
 - React Router DOM (routing)
 
 **Polkadot Integration:**
+
 - @polkadot/api - Polkadot.js API
 - @polkadot/extension-dapp - Browser extension integration
 - @polkadot/keyring - Account management
@@ -109,15 +116,18 @@ npx polkadot-ui add tx-button tx-notification address-input
 - typink - Type-safe wallet connector
 
 **UI & Styling:**
+
 - Tailwind CSS 4.0 (beta) - Utility-first styling
 - Framer Motion - Smooth animations
 - Radix UI - Accessible components
 - lucide-react - Icon library
 
 **State Management:**
+
 - @tanstack/react-query - Async state & caching
 
 **Dev Tools:**
+
 - TypeScript - Type safety
 - ESLint - Code linting
 - Vite Plugin React - Fast refresh
@@ -153,7 +163,7 @@ npx polkadot-ui add tx-button tx-notification address-input
 ### Connect a Wallet
 
 ```tsx
-import ConnectWallet from './components/ConnectWallet'
+import ConnectWallet from "./components/ConnectWallet";
 
 export default function App() {
   return (
@@ -161,32 +171,32 @@ export default function App() {
       <h1>My Polkadot App</h1>
       <ConnectWallet />
     </div>
-  )
+  );
 }
 ```
 
 ### Display Account Balance
 
 ```tsx
-import { BalanceDisplay } from './components/BalanceDisplay'
-import { useTypink } from 'typink'
+import { BalanceDisplay } from "./components/BalanceDisplay";
+import { useTypink } from "typink";
 
 export function MyBalance() {
-  const { accounts } = useTypink()
-  const address = accounts[0]?.address
+  const { accounts } = useTypink();
+  const address = accounts[0]?.address;
 
   return address ? (
     <BalanceDisplay address={address} />
   ) : (
     <p>Please connect your wallet</p>
-  )
+  );
 }
 ```
 
 ### Show Current Block Number
 
 ```tsx
-import { BlockNumber } from './components/BlockNumber'
+import { BlockNumber } from "./components/BlockNumber";
 
 export function NetworkStatus() {
   return (
@@ -194,26 +204,28 @@ export function NetworkStatus() {
       <h2>Network Status</h2>
       <BlockNumber />
     </div>
-  )
+  );
 }
 ```
 
 ### Use Custom Hooks
 
 ```tsx
-import { useBlockNumber } from './hooks/useBlockNumber'
-import { useBalance } from './hooks/useBalance'
+import { useBlockNumber } from "./hooks/useBlockNumber";
+import { useBalance } from "./hooks/useBalance";
 
 export function Dashboard() {
-  const { data: blockNumber } = useBlockNumber()
-  const { data: balance } = useBalance('5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY')
+  const { data: blockNumber } = useBlockNumber();
+  const { data: balance } = useBalance(
+    "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
+  );
 
   return (
     <div>
       <p>Current Block: {blockNumber}</p>
       <p>Balance: {balance?.free.toString()}</p>
     </div>
-  )
+  );
 }
 ```
 
@@ -242,6 +254,7 @@ pnpm preview
 This template works seamlessly with modern hosting platforms:
 
 **Vercel** (Recommended)
+
 ```bash
 # Install Vercel CLI
 npm i -g vercel
@@ -251,6 +264,7 @@ vercel
 ```
 
 **Netlify**
+
 ```bash
 # Install Netlify CLI
 npm i -g netlify-cli
@@ -260,11 +274,13 @@ netlify deploy --prod
 ```
 
 **Cloudflare Pages**
+
 - Connect your GitHub repo
 - Build command: `pnpm build`
 - Output directory: `dist`
 
 **GitHub Pages**
+
 ```bash
 # Install gh-pages
 pnpm add -D gh-pages
@@ -285,8 +301,9 @@ VITE_WS_ENDPOINT=wss://rpc.polkadot.io
 ```
 
 Access in your code:
+
 ```tsx
-const endpoint = import.meta.env.VITE_WS_ENDPOINT
+const endpoint = import.meta.env.VITE_WS_ENDPOINT;
 ```
 
 ## Project Structure
@@ -326,9 +343,9 @@ Edit your connection provider to target different networks:
 
 ```tsx
 // In your provider setup
-const endpoint = 'wss://westend-rpc.polkadot.io' // Westend testnet
+const endpoint = "wss://westend-rpc.polkadot.io"; // Westend testnet
 // or
-const endpoint = 'wss://kusama-rpc.polkadot.io' // Kusama
+const endpoint = "wss://kusama-rpc.polkadot.io"; // Kusama
 ```
 
 ### Customize Theme
@@ -358,16 +375,19 @@ npx polkadot-ui add [component-name]
 ## Troubleshooting
 
 **Wallet extension not detected?**
+
 - Make sure you have a Polkadot wallet extension installed (Polkadot.js, Talisman, or SubWallet)
 - Check that the extension is enabled for your site
 - Refresh the page after installing the extension
 
 **Build errors?**
+
 - Clear node_modules and reinstall: `rm -rf node_modules pnpm-lock.yaml && pnpm install`
 - Check Node.js version: `node --version` (should be 18+)
 - Update dependencies: `pnpm update`
 
 **TypeScript errors?**
+
 - Run type checking: `pnpm tsc --noEmit`
 - Check `tsconfig.json` configuration
 - Ensure all dependencies are properly installed
@@ -377,6 +397,7 @@ npx polkadot-ui add [component-name]
 This template includes comprehensive guides to help you build faster:
 
 ### For Developers
+
 - **[EXAMPLES.md](./EXAMPLES.md)** - 📝 Ready-to-use code snippets for common tasks
   - Wallet connection examples
   - Data fetching patterns
@@ -391,6 +412,7 @@ This template includes comprehensive guides to help you build faster:
   - Pull request process
 
 ### For AI-Assisted Development
+
 - **[AGENT_AI.md](./AGENT_AI.md)** - 🤖 AI Agent Guide
   - Optimized prompts for AI coding assistants
   - Feature-specific prompt templates
@@ -398,6 +420,7 @@ This template includes comprehensive guides to help you build faster:
   - Complete workflow examples
 
 ### Additional Resources
+
 - **[FEATURES.md](./FEATURES.md)** - Complete feature documentation
 - **Polkadot UI Components**: https://github.com/Polkadot-UI-Initiative/polkadot-ui
 - **Polkadot.js API Docs**: https://polkadot.js.org/docs/

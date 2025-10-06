@@ -23,8 +23,9 @@ When starting a new feature, use these prompts to get oriented:
 ### 1. Creating a New Component
 
 **Prompt:**
+
 ```
-Create a new component called [ComponentName] that displays [functionality]. 
+Create a new component called [ComponentName] that displays [functionality].
 It should:
 - Use TypeScript with proper types
 - Follow the existing design system (Tailwind + Polkadot colors)
@@ -36,6 +37,7 @@ Place it in src/components/[ComponentName].tsx
 ```
 
 **Example:**
+
 ```
 Create a new component called TransactionHistory that displays the last 10 transactions for a given address.
 It should:
@@ -51,6 +53,7 @@ Place it in src/components/TransactionHistory.tsx
 ### 2. Creating a New Page
 
 **Prompt:**
+
 ```
 Create a new page called [PageName] for [purpose].
 It should:
@@ -64,6 +67,7 @@ Place it in src/pages/[PageName].tsx and add the route to App.tsx
 ```
 
 **Example:**
+
 ```
 Create a new page called Staking that shows staking information for the connected account.
 Display: current stake, rewards, validators, and allow nominating.
@@ -73,6 +77,7 @@ Use useStakingInfo hook and follow the Dashboard page structure.
 ### 3. Creating Custom Hooks
 
 **Prompt:**
+
 ```
 Create a custom hook called use[HookName] that fetches [data] from the Polkadot API.
 It should:
@@ -87,6 +92,7 @@ Place it in src/hooks/use[HookName].ts
 ```
 
 **Example:**
+
 ```
 Create a custom hook called useValidators that fetches the list of validators.
 Return validator address, commission, total stake, and identity.
@@ -96,6 +102,7 @@ Cache the data for 30 seconds.
 ### 4. Adding Chain Support
 
 **Prompt:**
+
 ```
 Add support for [ChainName] to src/config/chains.ts.
 Include:
@@ -112,6 +119,7 @@ Follow the existing pattern for other chains.
 ### 5. Styling with Tailwind
 
 **Prompt:**
+
 ```
 Style this component using Tailwind CSS following the Polkadot design system:
 - Use glass-dark for cards
@@ -179,6 +187,7 @@ Style this component using Tailwind CSS following the Polkadot design system:
 ### State Management
 
 **Prompt:**
+
 ```
 "Show me the best practice for managing [state type] in this React + TypeScript app"
 
@@ -190,6 +199,7 @@ Style this component using Tailwind CSS following the Polkadot design system:
 ### Error Handling
 
 **Prompt:**
+
 ```
 "Add comprehensive error handling to this component with user-friendly error messages"
 
@@ -201,6 +211,7 @@ Style this component using Tailwind CSS following the Polkadot design system:
 ### Performance
 
 **Prompt:**
+
 ```
 "Optimize this component for performance using React.memo and useMemo"
 
@@ -262,26 +273,33 @@ Style this component using Tailwind CSS following the Polkadot design system:
 ## 💡 Best Practices for AI-Assisted Development
 
 ### 1. Be Specific
+
 ❌ "Create a component"
 ✅ "Create a TypeScript component called ValidatorList that displays validators in a responsive grid, with search and filter functionality"
 
 ### 2. Reference Existing Code
+
 ❌ "Add styling"
 ✅ "Style this component following the pattern in src/pages/Dashboard.tsx with glass-dark cards and text-gradient headings"
 
 ### 3. Include Context
+
 ❌ "Fix this error"
 ✅ "Fix this TypeScript error in useBalance hook. The API returns a Codec type but we're treating it as an object with a data property"
 
 ### 4. Request Documentation
+
 Always ask for:
+
 - JSDoc comments
 - Usage examples
 - Type definitions
 - Error handling
 
 ### 5. Iterate Incrementally
+
 Build features step-by-step:
+
 1. "Create the basic component structure"
 2. "Add data fetching with loading states"
 3. "Add error handling"
@@ -346,28 +364,35 @@ Build features step-by-step:
 ## 🎯 Pro Tips
 
 ### Tip 1: Use the Template as Reference
+
 When asking for new features, reference existing code:
+
 ```
 "Create a StakingPage following the same structure as DashboardPage"
 ```
 
 ### Tip 2: Request Type Safety
+
 Always emphasize TypeScript:
+
 ```
 "Create this with full TypeScript types, no 'any' types"
 ```
 
 ### Tip 3: Ask for Reusability
+
 ```
 "Make this component generic so it can be reused for different data types"
 ```
 
 ### Tip 4: Request Tests
+
 ```
 "Also create unit tests for this component"
 ```
 
 ### Tip 5: Iterate on Generated Code
+
 ```
 "The previous component you created works, but can you optimize it for performance?"
 "Add error boundaries to the component we just created"
@@ -378,34 +403,40 @@ Always emphasize TypeScript:
 Here's a complete workflow for building a "Token Transfer" feature:
 
 ### Step 1: Plan
+
 ```
 Prompt: "I want to build a token transfer feature. What components, hooks, and pages will I need?"
 ```
 
 ### Step 2: Create Hook
+
 ```
-Prompt: "Create a useTransfer hook that handles token transfers. Include balance checking, 
+Prompt: "Create a useTransfer hook that handles token transfers. Include balance checking,
 fee estimation, and transaction signing. Use React Query for state management."
 ```
 
 ### Step 3: Create Form Component
+
 ```
-Prompt: "Create a TransferForm component with inputs for recipient address and amount. 
+Prompt: "Create a TransferForm component with inputs for recipient address and amount.
 Include validation, max amount button, and fee display. Style it with our design system."
 ```
 
 ### Step 4: Create Page
+
 ```
-Prompt: "Create a Transfer page that uses TransferForm and shows transaction history. 
+Prompt: "Create a Transfer page that uses TransferForm and shows transaction history.
 Add it to the navigation and routing."
 ```
 
 ### Step 5: Add Notifications
+
 ```
 Prompt: "Add toast notifications for successful transfers and errors using Framer Motion"
 ```
 
 ### Step 6: Polish
+
 ```
 Prompt: "Add loading states, animation, and accessibility improvements to the Transfer page"
 ```
@@ -441,8 +472,9 @@ Create [Feature Name]:
 ## 🎉 Getting Started
 
 **Your first prompt should be:**
+
 ```
-"I want to build [describe your app idea] using this Polkadot template. 
+"I want to build [describe your app idea] using this Polkadot template.
 What features should I start with, and what's the recommended order to build them?"
 ```
 
@@ -451,6 +483,7 @@ Then follow up with specific implementation prompts from this guide!
 ---
 
 **Remember**: AI assistants work best when you:
+
 1. Are specific and detailed
 2. Reference existing code patterns
 3. Iterate incrementally

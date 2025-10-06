@@ -14,7 +14,7 @@
   "editor.guides.bracketPairs": true,
   "editor.inlineSuggest.enabled": true,
   "editor.suggestSelection": "first",
-  
+
   // Files
   "files.eol": "\n",
   "files.trimTrailingWhitespace": true,
@@ -26,14 +26,14 @@
     "**/.DS_Store": true,
     "**/pnpm-lock.yaml": true
   },
-  
+
   // TypeScript
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "typescript.preferences.importModuleSpecifier": "relative",
   "typescript.updateImportsOnFileMove.enabled": "always",
   "typescript.suggest.autoImports": true,
-  
+
   // ESLint
   "eslint.validate": [
     "javascript",
@@ -42,13 +42,13 @@
     "typescriptreact"
   ],
   "eslint.workingDirectories": [{ "mode": "auto" }],
-  
+
   // Tailwind CSS
   "tailwindCSS.experimental.classRegex": [
     ["cn\\(([^)]*)\\)", "(?:'|\"|`)([^\"'`]*)(?:'|\"|`)"]
   ],
   "tailwindCSS.emmetCompletions": true,
-  
+
   // Search
   "search.exclude": {
     "**/node_modules": true,
@@ -57,17 +57,17 @@
     "**/.vscode": true,
     "**/pnpm-lock.yaml": true
   },
-  
+
   // Emmet
   "emmet.includeLanguages": {
     "typescript": "typescriptreact",
     "javascript": "javascriptreact"
   },
-  
+
   // Git
   "git.enableSmartCommit": true,
   "git.confirmSync": false,
-  
+
   // Other
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
@@ -77,16 +77,16 @@
     "tsconfig.json": "tsconfig.*.json",
     "README.md": "CONTRIBUTING.md, EXAMPLES.md, AGENT_AI.md, FEATURES.md"
   },
-  
+
   // Terminal
   "terminal.integrated.defaultProfile.osx": "zsh",
   "terminal.integrated.defaultProfile.linux": "bash",
   "terminal.integrated.defaultProfile.windows": "PowerShell",
-  
+
   // Error Lens
   "errorLens.enabledDiagnosticLevels": ["error", "warning"],
   "errorLens.followCursor": "allLines",
-  
+
   // Path Intellisense
   "path-intellisense.mappings": {
     "@": "${workspaceRoot}/src"

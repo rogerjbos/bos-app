@@ -44,11 +44,11 @@ import { usePolkadot } from './providers/PolkadotProvider'
 
 function MyComponent() {
   const { api, status } = usePolkadot()
-  
+
   if (status === 'connecting') return <div>Connecting...</div>
   if (status === 'error') return <div>Connection failed</div>
   if (!api) return null
-  
+
   // Use api here
   return <div>Connected!</div>
 }
@@ -64,7 +64,7 @@ import { useTypink } from 'typink'
 
 function App() {
   const { connectedAccount, accounts } = useTypink()
-  
+
   return (
     <div>
       <ConnectWallet />
@@ -88,16 +88,16 @@ import AddressDisplay from './components/polkadot/AddressDisplay'
 
 function AccountInfo() {
   const { connectedAccount } = useTypink()
-  
+
   if (!connectedAccount) {
     return <div>Please connect your wallet</div>
   }
-  
+
   return (
     <div>
       <h3>Your Account</h3>
-      <AddressDisplay 
-        address={connectedAccount.address} 
+      <AddressDisplay
+        address={connectedAccount.address}
         name={connectedAccount.name}
       />
     </div>
@@ -113,7 +113,7 @@ import ConnectWallet from './components/ConnectWallet'
 
 function ProtectedFeature() {
   const { connectedAccount } = useTypink()
-  
+
   if (!connectedAccount) {
     return (
       <div className="text-center p-8">
@@ -123,7 +123,7 @@ function ProtectedFeature() {
       </div>
     )
   }
-  
+
   return <div>Protected content here</div>
 }
 ```
@@ -137,10 +137,10 @@ import { useBlockNumber } from './hooks/useBlockNumber'
 
 function BlockDisplay() {
   const { data: blockNumber, isLoading, error } = useBlockNumber()
-  
+
   if (isLoading) return <div>Loading block...</div>
   if (error) return <div>Error: {error.message}</div>
-  
+
   return <div>Current Block: #{blockNumber?.toLocaleString()}</div>
 }
 ```
@@ -153,9 +153,9 @@ import { formatTokenBalance } from './lib/polkadot'
 
 function BalanceDisplay({ address }: { address: string }) {
   const { data: balance, isLoading } = useBalance(address)
-  
+
   if (isLoading) return <div>Loading balance...</div>
-  
+
   return (
     <div>
       <div>Free: {formatTokenBalance(balance?.free, 10, 'DOT')}</div>
@@ -173,9 +173,9 @@ import { useChainInfo } from './hooks/useChainInfo'
 
 function ChainInfo() {
   const { data: chain, isLoading } = useChainInfo()
-  
+
   if (isLoading) return <div>Loading...</div>
-  
+
   return (
     <div>
       <h3>{chain?.chainName}</h3>
@@ -195,9 +195,9 @@ import { formatTokenBalance } from './lib/polkadot'
 
 function StakingStats() {
   const { data: staking, isLoading } = useStakingInfo()
-  
+
   if (isLoading) return <div>Loading staking info...</div>
-  
+
   return (
     <div>
       <div>Active Era: #{staking?.activeEra}</div>
@@ -216,9 +216,9 @@ import { useNonce } from './hooks/useNonce'
 
 function TransactionCount({ address }: { address: string }) {
   const { data: nonce, isLoading } = useNonce(address)
-  
+
   if (isLoading) return <div>Loading...</div>
-  
+
   return <div>Transactions: {nonce}</div>
 }
 ```
@@ -252,7 +252,7 @@ function AddressCard({ address }: { address: string }) {
     await copyToClipboard(address)
     alert('Address copied!')
   }
-  
+
   return (
     <div className="flex items-center gap-2">
       <span>{formatAddress(address)}</span>
@@ -273,7 +273,7 @@ import { formatTokenBalance } from './lib/polkadot'
 
 function BalanceCard({ address }: { address: string }) {
   const { data: balance, isLoading } = useBalance(address)
-  
+
   return (
     <Card>
       <CardHeader>
@@ -307,19 +307,19 @@ function TransferButton({ to, amount }: { to: string; amount: string }) {
   const { api } = usePolkadot()
   const { connectedAccount } = useTypink()
   const [loading, setLoading] = useState(false)
-  
+
   const handleTransfer = async () => {
     if (!api || !connectedAccount) return
-    
+
     try {
       setLoading(true)
-      
+
       // Get the injector
       const injector = await web3FromAddress(connectedAccount.address)
-      
+
       // Create transfer
       const transfer = api.tx.balances.transferKeepAlive(to, amount)
-      
+
       // Sign and send
       await transfer.signAndSend(
         connectedAccount.address,
@@ -341,7 +341,7 @@ function TransferButton({ to, amount }: { to: string; amount: string }) {
       setLoading(false)
     }
   }
-  
+
   return (
     <Button onClick={handleTransfer} disabled={loading}>
       {loading ? 'Sending...' : 'Send Transfer'}
@@ -358,21 +358,21 @@ import { usePolkadot } from './providers/PolkadotProvider'
 async function estimateFee(from: string, to: string, amount: string) {
   const { api } = usePolkadot()
   if (!api) return null
-  
+
   const transfer = api.tx.balances.transferKeepAlive(to, amount)
   const info = await transfer.paymentInfo(from)
-  
+
   return info.partialFee.toString()
 }
 
 // Usage in component
 function FeeEstimate({ from, to, amount }: Props) {
   const [fee, setFee] = useState<string>()
-  
+
   useEffect(() => {
     estimateFee(from, to, amount).then(setFee)
   }, [from, to, amount])
-  
+
   return <div>Est. Fee: {formatTokenBalance(fee, 10, 'DOT')}</div>
 }
 ```
@@ -388,23 +388,23 @@ import { useState, useEffect } from 'react'
 function LiveBlockNumber() {
   const { api, status } = usePolkadot()
   const [block, setBlock] = useState(0)
-  
+
   useEffect(() => {
     if (status !== 'connected' || !api) return
-    
+
     let unsub: any
-    
+
     api.rpc.chain.subscribeNewHeads((header) => {
       setBlock(header.number.toNumber())
     }).then((unsubscribe) => {
       unsub = unsubscribe
     })
-    
+
     return () => {
       if (unsub) unsub()
     }
   }, [api, status])
-  
+
   return <div>Block: #{block}</div>
 }
 ```
@@ -419,23 +419,23 @@ import { formatTokenBalance } from './lib/polkadot'
 function LiveBalance({ address }: { address: string }) {
   const { api, status } = usePolkadot()
   const [balance, setBalance] = useState('')
-  
+
   useEffect(() => {
     if (status !== 'connected' || !api || !address) return
-    
+
     let unsub: any
-    
+
     api.query.system.account(address, ({ data }: any) => {
       setBalance(data.free.toString())
     }).then((unsubscribe) => {
       unsub = unsubscribe
     })
-    
+
     return () => {
       if (unsub) unsub()
     }
   }, [api, status, address])
-  
+
   return <div>Balance: {formatTokenBalance(balance, 10, 'DOT')}</div>
 }
 ```
@@ -447,7 +447,7 @@ import { useEvents } from './hooks/useEvents'
 
 function EventFeed() {
   const events = useEvents(10) // Keep last 10 events
-  
+
   return (
     <div>
       <h3>Recent Events</h3>
@@ -471,98 +471,98 @@ function EventFeed() {
 ### Format Address
 
 ```typescript
-import { formatAddress } from './lib/polkadot'
+import { formatAddress } from "./lib/polkadot";
 
-const fullAddress = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
+const fullAddress = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 
 // Default: 6 chars prefix, 4 chars suffix
-formatAddress(fullAddress)
+formatAddress(fullAddress);
 // Output: '5Grwva...utQY'
 
 // Custom lengths
-formatAddress(fullAddress, 8, 6)
+formatAddress(fullAddress, 8, 6);
 // Output: '5GrwvaEF...GKutQY'
 ```
 
 ### Format Balance
 
 ```typescript
-import { formatTokenBalance } from './lib/polkadot'
+import { formatTokenBalance } from "./lib/polkadot";
 
-const balance = '12345678900000' // Planck units
+const balance = "12345678900000"; // Planck units
 
 // With symbol
-formatTokenBalance(balance, 10, 'DOT')
+formatTokenBalance(balance, 10, "DOT");
 // Output: '1.23 kDOT'
 
 // Without symbol
-formatTokenBalance(balance, 10, 'DOT', false)
+formatTokenBalance(balance, 10, "DOT", false);
 // Output: '1.23k'
 ```
 
 ### Validate Address
 
 ```typescript
-import { isValidAddress } from './lib/polkadot'
+import { isValidAddress } from "./lib/polkadot";
 
-isValidAddress('5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY')
+isValidAddress("5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY");
 // Output: true
 
-isValidAddress('invalid-address')
+isValidAddress("invalid-address");
 // Output: false
 ```
 
 ### Convert Address Format
 
 ```typescript
-import { convertAddress } from './lib/polkadot'
+import { convertAddress } from "./lib/polkadot";
 
-const polkadotAddress = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
+const polkadotAddress = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 
 // Convert to Kusama format (ss58Format: 2)
-const kusamaAddress = convertAddress(polkadotAddress, 2)
+const kusamaAddress = convertAddress(polkadotAddress, 2);
 
 // Convert to generic format (ss58Format: 42)
-const genericAddress = convertAddress(polkadotAddress, 42)
+const genericAddress = convertAddress(polkadotAddress, 42);
 ```
 
 ### Format Time Ago
 
 ```typescript
-import { formatTimeAgo } from './lib/polkadot'
+import { formatTimeAgo } from "./lib/polkadot";
 
-const timestamp = Date.now() - 3600000 // 1 hour ago
+const timestamp = Date.now() - 3600000; // 1 hour ago
 
-formatTimeAgo(timestamp)
+formatTimeAgo(timestamp);
 // Output: '1h ago'
 
-formatTimeAgo(Date.now() - 120000) // 2 minutes ago
+formatTimeAgo(Date.now() - 120000); // 2 minutes ago
 // Output: '2m ago'
 ```
 
 ### Calculate Percentage
 
 ```typescript
-import { calculatePercentage } from './lib/polkadot'
+import { calculatePercentage } from "./lib/polkadot";
 
-calculatePercentage(25, 100)
+calculatePercentage(25, 100);
 // Output: '25.00%'
 
-calculatePercentage(7, 13, 1)
+calculatePercentage(7, 13, 1);
 // Output: '53.8%'
 ```
 
 ### Copy to Clipboard
 
 ```typescript
-import { copyToClipboard } from './lib/polkadot'
+import { copyToClipboard } from "./lib/polkadot";
 
 async function handleCopy(text: string) {
   try {
-    await copyToClipboard(text)
-    alert('Copied!')
+    await copyToClipboard(text);
+    alert("Copied!");
   } catch (error) {
-    alert('Failed to copy')
+    alert("Failed to copy");
   }
 }
 ```
@@ -581,7 +581,7 @@ import { motion } from 'framer-motion'
 function DashboardStats() {
   const { data: blockNumber } = useBlockNumber()
   const { data: chain } = useChainInfo()
-  
+
   return (
     <div className="grid md:grid-cols-3 gap-6">
       <motion.div
@@ -602,7 +602,7 @@ function DashboardStats() {
           </CardContent>
         </Card>
       </motion.div>
-      
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -636,11 +636,11 @@ import AddressDisplay from './components/polkadot/AddressDisplay'
 
 function AccountSelector() {
   const { accounts, connectedAccount, selectAccount } = useTypink()
-  
+
   if (accounts.length === 0) {
     return <div>No accounts found</div>
   }
-  
+
   return (
     <div className="space-y-2">
       <h3>Select Account</h3>
@@ -656,7 +656,7 @@ function AccountSelector() {
             }
           `}
         >
-          <AddressDisplay 
+          <AddressDisplay
             address={account.address}
             name={account.name}
           />

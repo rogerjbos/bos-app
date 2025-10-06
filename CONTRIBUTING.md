@@ -30,6 +30,7 @@ git checkout -b fix/bug-description
 ```
 
 Branch naming conventions:
+
 - `feature/` - New features
 - `fix/` - Bug fixes
 - `docs/` - Documentation changes
@@ -65,6 +66,7 @@ git commit -m "docs: update README with new examples"
 ```
 
 Commit types:
+
 - `feat:` - New feature
 - `fix:` - Bug fix
 - `docs:` - Documentation
@@ -86,17 +88,18 @@ Then create a Pull Request on GitHub.
 ### TypeScript
 
 ✅ **DO:**
+
 ```typescript
 // Use explicit types
 interface UserBalance {
-  free: string
-  reserved: string
+  free: string;
+  reserved: string;
 }
 
 // Use proper naming
 const fetchAccountBalance = async (address: string): Promise<UserBalance> => {
   // ...
-}
+};
 
 // Document with JSDoc
 /**
@@ -110,22 +113,24 @@ export function getBalance(address: string): Promise<UserBalance> {
 ```
 
 ❌ **DON'T:**
+
 ```typescript
 // Avoid 'any' type
-const data: any = await api.query()
+const data: any = await api.query();
 
 // Don't use var
-var count = 0
+var count = 0;
 
 // Don't skip types
 function doSomething(param) {
-  return param
+  return param;
 }
 ```
 
 ### React Components
 
 ✅ **DO:**
+
 ```typescript
 import React from 'react'
 import { motion } from 'framer-motion'
@@ -140,7 +145,7 @@ interface Props {
  */
 export function BalanceDisplay({ address, onSuccess }: Props) {
   // Component logic
-  
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -154,6 +159,7 @@ export function BalanceDisplay({ address, onSuccess }: Props) {
 ```
 
 ❌ **DON'T:**
+
 ```typescript
 // Don't use default exports for components
 export default function Component() {}
@@ -168,6 +174,7 @@ function Component(props) {}
 ### Styling (Tailwind CSS)
 
 ✅ **DO:**
+
 ```tsx
 // Use design system classes
 <div className="glass-dark p-6 rounded-xl border border-white/10">
@@ -182,6 +189,7 @@ function Component(props) {}
 ```
 
 ❌ **DON'T:**
+
 ```tsx
 // Don't use inline styles
 <div style={{ background: 'rgba(255,255,255,0.1)' }}>
@@ -238,20 +246,20 @@ export function MyComponent({ address, showDetails = false }: Props) {
   // 4. Hooks
   const { api } = usePolkadot()
   const [data, setData] = useState(null)
-  
+
   // 5. Effects
   useEffect(() => {
     // Effect logic
   }, [api, address])
-  
+
   // 6. Event Handlers
   const handleClick = () => {
     // Handler logic
   }
-  
+
   // 7. Render Logic
   if (!data) return <div>Loading...</div>
-  
+
   // 8. Return JSX
   return (
     <motion.div>
@@ -266,11 +274,11 @@ export function MyComponent({ address, showDetails = false }: Props) {
 ```typescript
 export function DataComponent() {
   const { data, isLoading, error } = useBalance(address)
-  
+
   if (isLoading) return <LoadingSpinner />
   if (error) return <ErrorMessage error={error} />
   if (!data) return <EmptyState />
-  
+
   return <DisplayData data={data} />
 }
 ```
@@ -303,18 +311,18 @@ export function DataComponent() {
  * @returns Return value description
  */
 export function useCustomHook(param: string) {
-  const { api, status } = usePolkadot()
-  
+  const { api, status } = usePolkadot();
+
   return useQuery({
-    queryKey: ['unique-key', param],
+    queryKey: ["unique-key", param],
     queryFn: async () => {
-      if (!api) throw new Error('API not connected')
+      if (!api) throw new Error("API not connected");
       // Fetch logic
     },
-    enabled: status === 'connected' && !!api && !!param,
+    enabled: status === "connected" && !!api && !!param,
     refetchInterval: 10000, // If needed
     staleTime: 5000,
-  })
+  });
 }
 ```
 
@@ -331,15 +339,15 @@ export function useCustomHook(param: string) {
 
 ### JSDoc Comments
 
-```typescript
+````typescript
 /**
  * Formats a Polkadot address for display
- * 
+ *
  * @param address - The full address to format
  * @param prefixLength - Characters to show at start (default: 6)
  * @param suffixLength - Characters to show at end (default: 4)
  * @returns Truncated address string
- * 
+ *
  * @example
  * ```ts
  * formatAddress('5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY')
@@ -353,11 +361,12 @@ export function formatAddress(
 ): string {
   // Implementation
 }
-```
+````
 
 ### README Updates
 
 When adding new features, update:
+
 - Main README.md with feature description
 - Add usage examples
 - Update table of contents
@@ -379,6 +388,7 @@ Create an issue with:
 **Title**: Short, descriptive title
 
 **Description**:
+
 - What happened
 - What you expected
 - Steps to reproduce
@@ -386,6 +396,7 @@ Create an issue with:
 - Environment (OS, browser, wallet)
 
 **Example**:
+
 ```
 Title: Wallet connection fails on Firefox
 
