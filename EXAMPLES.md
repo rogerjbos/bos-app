@@ -669,12 +669,215 @@ function AccountSelector() {
 
 ---
 
-## 💡 Tips
+## �️ Error Handling
+
+### Using Error Boundary
+
+```typescript
+import { ErrorBoundary } from './components/ErrorBoundary'
+
+// Wrap your app or components
+function App() {
+  return (
+    <ErrorBoundary>
+      <YourAppContent />
+    </ErrorBoundary>
+  )
+}
+
+// Custom fallback UI
+<ErrorBoundary
+  fallback={
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-white">Something went wrong</p>
+    </div>
+  }
+>
+  <YourComponent />
+</ErrorBoundary>
+```
+
+### Using Toast Notifications
+
+```typescript
+import { ToastProvider, useToast } from './components/Toast'
+
+// 1. Wrap your app with ToastProvider
+function App() {
+  return (
+    <ToastProvider>
+      <YourAppContent />
+    </ToastProvider>
+  )
+}
+
+// 2. Use in any component
+function TransferButton() {
+  const { showToast } = useToast()
+
+  const handleTransfer = async () => {
+    try {
+      // Your transaction logic
+      await sendTransaction()
+      
+      showToast({
+        type: 'success',
+        message: 'Transaction sent!',
+        description: 'Your transfer is being processed'
+      })
+    } catch (error) {
+      showToast({
+        type: 'error',
+        message: 'Transaction failed',
+        description: error.message,
+        duration: 7000 // Optional, defaults to 5000ms
+      })
+    }
+  }
+
+  return <button onClick={handleTransfer}>Transfer</button>
+}
+
+// Different toast types
+showToast({ type: 'success', message: 'Success!' })
+showToast({ type: 'error', message: 'Error occurred' })
+showToast({ type: 'info', message: 'Did you know...' })
+showToast({ type: 'warning', message: 'Please wait...' })
+```
+
+---
+
+## 🎨 Loading States
+
+### Using Loading Skeletons
+
+```typescript
+import {
+  LoadingSkeleton,
+  CardSkeleton,
+  StatsBoxSkeleton,
+  TableRowSkeleton
+} from './components/LoadingSkeleton'
+
+// Basic skeleton
+function MyComponent() {
+  const { data, isLoading } = useBlockNumber()
+
+  if (isLoading) {
+    return <LoadingSkeleton variant="text" lines={3} />
+  }
+
+  return <div>{data?.blockNumber}</div>
+}
+
+// Card skeleton
+function CardList() {
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <CardSkeleton />
+        <CardSkeleton />
+        <CardSkeleton />
+      </div>
+    )
+  }
+  // ...
+}
+
+// Stats box skeleton
+function Dashboard() {
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatsBoxSkeleton />
+        <StatsBoxSkeleton />
+        <StatsBoxSkeleton />
+        <StatsBoxSkeleton />
+      </div>
+    )
+  }
+  // ...
+}
+
+// Table skeleton
+function DataTable() {
+  if (isLoading) {
+    return (
+      <div>
+        <TableRowSkeleton columns={5} />
+        <TableRowSkeleton columns={5} />
+        <TableRowSkeleton columns={5} />
+      </div>
+    )
+  }
+  // ...
+}
+
+// Custom skeleton with animation
+<LoadingSkeleton
+  className="h-32 w-full rounded-lg"
+  animation="wave" // or "pulse" or "none"
+/>
+```
+
+### Complete Loading Example
+
+```typescript
+import { useBalance } from './hooks/useBalance'
+import { LoadingSkeleton } from './components/LoadingSkeleton'
+import { useToast } from './components/Toast'
+
+function BalanceCard({ address }: { address: string }) {
+  const { data, isLoading, error } = useBalance(address)
+  const { showToast } = useToast()
+
+  // Show error toast
+  if (error) {
+    showToast({
+      type: 'error',
+      message: 'Failed to load balance',
+      description: error.message
+    })
+    return null
+  }
+
+  // Show loading skeleton
+  if (isLoading) {
+    return (
+      <div className="glass-dark p-6 rounded-xl">
+        <LoadingSkeleton variant="text" className="h-4 w-20 mb-2" />
+        <LoadingSkeleton variant="text" className="h-8 w-32 mb-1" />
+        <LoadingSkeleton variant="text" className="h-3 w-24" />
+      </div>
+    )
+  }
+
+  // Show data
+  return (
+    <div className="glass-dark p-6 rounded-xl">
+      <p className="text-sm text-white/60 mb-2">Total Balance</p>
+      <p className="text-3xl font-bold text-white mb-1">
+        {data?.total.toFixed(4)} DOT
+      </p>
+      <p className="text-xs text-white/40">
+        Free: {data?.free.toFixed(4)} DOT
+      </p>
+    </div>
+  )
+}
+```
+
+---
+
+## �💡 Tips
 
 1. **Always check loading states**: Show loading indicators while data is fetching
 2. **Handle errors gracefully**: Display user-friendly error messages
 3. **Use TypeScript**: Leverage types for better developer experience
 4. **Optimize re-renders**: Use React Query's caching to avoid unnecessary API calls
 5. **Test with different networks**: Switch between Polkadot, Kusama, and testnets
+6. **Wrap with ErrorBoundary**: Catch React errors in production
+7. **Use Toast for feedback**: Show success/error messages for user actions
+8. **Show loading skeletons**: Better UX than spinners or blank screens
 
 Need more examples? Check out the [Components Showcase](/components) page in the running app!
