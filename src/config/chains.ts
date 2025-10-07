@@ -95,10 +95,7 @@ export const PASEO: ChainConfig = {
   name: "Paseo",
   displayName: "Paseo Testnet",
   endpoint: "wss://paseo.rpc.amforc.com",
-  endpoints: [
-    "wss://paseo.rpc.amforc.com",
-    "wss://paseo-rpc.dwellir.com",
-  ],
+  endpoints: ["wss://paseo.rpc.amforc.com", "wss://paseo-rpc.dwellir.com"],
   tokenSymbol: "PAS",
   tokenDecimals: 10,
   ss58Format: 42,

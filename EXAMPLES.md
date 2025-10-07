@@ -108,15 +108,15 @@ import { CHAINS } from './config/chains'
 
 function CurrentNetwork() {
   const { currentEndpoint } = usePolkadotContext()
-  
+
   const currentChain = Object.values(CHAINS).find(
     (chain) => chain.endpoint === currentEndpoint
   )
 
   return (
     <div>
-      <div 
-        className="w-3 h-3 rounded-full" 
+      <div
+        className="w-3 h-3 rounded-full"
         style={{ backgroundColor: currentChain?.color }}
       />
       <span>{currentChain?.name || 'Unknown'}</span>
@@ -183,17 +183,17 @@ function AccountList() {
 ```typescript
 function saveAccountNickname(address: string, nickname: string) {
   const nicknames = JSON.parse(
-    localStorage.getItem('account_nicknames') || '{}'
-  )
-  nicknames[address] = nickname
-  localStorage.setItem('account_nicknames', JSON.stringify(nicknames))
+    localStorage.getItem("account_nicknames") || "{}"
+  );
+  nicknames[address] = nickname;
+  localStorage.setItem("account_nicknames", JSON.stringify(nicknames));
 }
 
 function getAccountNickname(address: string): string | null {
   const nicknames = JSON.parse(
-    localStorage.getItem('account_nicknames') || '{}'
-  )
-  return nicknames[address] || null
+    localStorage.getItem("account_nicknames") || "{}"
+  );
+  return nicknames[address] || null;
 }
 ```
 
@@ -237,24 +237,24 @@ function TransferButton() {
 
       // Send transaction
       const hash = await sendTransaction()
-      
+
       // Update with hash
-      updateTransaction(txId, { 
-        status: 'inBlock', 
+      updateTransaction(txId, {
+        status: 'inBlock',
         hash,
         explorerUrl: `https://polkadot.subscan.io/extrinsic/${hash}`
       })
 
       // Wait for finalization
       await waitForFinalization(hash)
-      
+
       // Mark as finalized
       updateTransaction(txId, { status: 'finalized' })
     } catch (error) {
       // Mark as error
-      updateTransaction(txId, { 
-        status: 'error', 
-        error: error.message 
+      updateTransaction(txId, {
+        status: 'error',
+        error: error.message
       })
     }
   }
@@ -266,7 +266,7 @@ function TransferButton() {
 ### Transaction Queue with Custom Settings
 
 ```typescript
-<TransactionQueue 
+<TransactionQueue
   maxVisible={3}           // Show max 3 transactions
   autoRemoveDelay={10000}  // Remove after 10s
 />
@@ -337,7 +337,7 @@ function ExplorerOptions({ address }: { address: string }) {
   return (
     <div>
       {explorers.map((explorer) => (
-        <a 
+        <a
           key={explorer.name}
           href={`${explorer.url}/account/${address}`}
           target="_blank"

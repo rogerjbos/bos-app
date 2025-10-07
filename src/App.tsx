@@ -1,37 +1,36 @@
-import React from 'react'
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { Home, Wallet, Users, Sparkles, Github } from 'lucide-react'
-import Homepage from './pages/Homepage'
-import WalletPage from './pages/WalletPage'
-import Dashboard from './pages/Dashboard'
-import Accounts from './pages/Accounts'
-import Examples from './pages/Examples'
-import ComponentsShowcase from './pages/ComponentsShowcase'
-import { PolkadotProvider } from './providers/PolkadotProvider'
-import { Button } from './components/ui/Button'
-import { Package } from 'lucide-react'
-import ConnectWallet from './components/ConnectWallet'
-import { NetworkSwitcher } from './components/NetworkSwitcher'
+import { Home, Package, Sparkles, Wallet } from "lucide-react";
+import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
+import ConnectWallet from "./components/ConnectWallet";
+import { NetworkSwitcher } from "./components/NetworkSwitcher";
+import Accounts from "./pages/Accounts";
+import ComponentsShowcase from "./pages/ComponentsShowcase";
+import Dashboard from "./pages/Dashboard";
+import Examples from "./pages/Examples";
+import Homepage from "./pages/Homepage";
+import WalletPage from "./pages/WalletPage";
+import { PolkadotProvider } from "./providers/PolkadotProvider";
 
 function Navigation() {
   const links = [
-    { to: '/', label: 'Home', icon: Home },
-    { to: '/dashboard', label: 'Dashboard', icon: Sparkles },
-    { to: '/wallet', label: 'Wallet', icon: Wallet },
-    { to: '/components', label: 'Components', icon: Package },
-    { to: '/examples', label: 'Examples', icon: Sparkles },
-  ]
+    { to: "/", label: "Home", icon: Home },
+    { to: "/dashboard", label: "Dashboard", icon: Sparkles },
+    { to: "/wallet", label: "Wallet", icon: Wallet },
+    { to: "/components", label: "Components", icon: Package },
+    { to: "/examples", label: "Examples", icon: Sparkles },
+  ];
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-dark border-b border-white/10 backdrop-blur-xl">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <Link
+            to="/"
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          >
             <div className="w-8 h-8 rounded-lg bg-gradient-polkadot"></div>
             <span className="text-xl font-bold text-white">Polkadot UI</span>
           </Link>
-          
+
           <div className="hidden md:flex items-center gap-6">
             {links.map((link) => (
               <Link
@@ -52,7 +51,7 @@ function Navigation() {
         </div>
       </div>
     </nav>
-  )
+  );
 }
 
 function Footer() {
@@ -62,26 +61,37 @@ function Footer() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-lg bg-gradient-polkadot"></div>
-            <span className="text-white/70 text-sm">Built with Polkadot UI</span>
+            <span className="text-white/70 text-sm">
+              Built with Polkadot UI
+            </span>
           </div>
           <div className="flex items-center gap-6">
-            <a href="https://polkadot-ui.com" className="text-white/60 hover:text-white transition-colors text-sm">
+            <a
+              href="https://polkadot-ui.com"
+              className="text-white/60 hover:text-white transition-colors text-sm"
+            >
               Documentation
             </a>
-            <a href="https://github.com/Polkadot-UI-Initiative" className="text-white/60 hover:text-white transition-colors text-sm">
+            <a
+              href="https://github.com/Polkadot-UI-Initiative"
+              className="text-white/60 hover:text-white transition-colors text-sm"
+            >
               GitHub
             </a>
-            <a href="https://polkadot.network" className="text-white/60 hover:text-white transition-colors text-sm">
+            <a
+              href="https://polkadot.network"
+              className="text-white/60 hover:text-white transition-colors text-sm"
+            >
               Polkadot
             </a>
           </div>
         </div>
       </div>
     </footer>
-  )
+  );
 }
 
-export default function App(){
+export default function App() {
   return (
     <PolkadotProvider>
       <BrowserRouter>
@@ -101,5 +111,5 @@ export default function App(){
         </div>
       </BrowserRouter>
     </PolkadotProvider>
-  )
+  );
 }

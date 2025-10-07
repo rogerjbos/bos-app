@@ -1,25 +1,24 @@
-import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Users, Copy, Check, ExternalLink, Edit2, Trash2, Plus } from 'lucide-react'
-import { usePolkadot } from '@/providers/PolkadotProvider'
-import { useTypink } from 'typink'
-import { formatAddress, copyToClipboard } from '@/lib/polkadot'
-import { useBalance } from '@/hooks/useBalance'
-import { cn } from '@/lib/utils'
-import { Button } from './ui/Button'
-import { CHAINS } from '@/config/chains'
-import Identicon from '@polkadot/react-identicon'
+import { useBalance } from "@/hooks/useBalance";
+import { copyToClipboard, formatAddress } from "@/lib/polkadot";
+import { cn } from "@/lib/utils";
+import { usePolkadot } from "@/providers/PolkadotProvider";
+import Identicon from "@polkadot/react-identicon";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, Copy, Edit2, ExternalLink, Plus, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTypink } from "typink";
+import { Button } from "./ui/Button";
 
 interface Account {
-  address: string
-  name?: string
-  source?: string
-  balance?: string
+  address: string;
+  name?: string;
+  source?: string;
+  balance?: string;
 }
 
 /**
  * Account Manager Component
- * 
+ *
  * Manages multiple accounts with the following features:
  * - List all connected accounts
  * - Switch active account
@@ -27,70 +26,70 @@ interface Account {
  * - Edit account nicknames
  * - Copy addresses
  * - View on block explorer
- * 
+ *
  * @example
  * ```tsx
  * <AccountManager />
  * ```
  */
 export function AccountManager() {
-  const [isOpen, setIsOpen] = useState(false)
-  const [copiedAddress, setCopiedAddress] = useState<string | null>(null)
-  const [editingAccount, setEditingAccount] = useState<string | null>(null)
-  const [nickname, setNickname] = useState('')
-  const [nicknames, setNicknames] = useState<Record<string, string>>({})
+  const [isOpen, setIsOpen] = useState(false);
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+  const [editingAccount, setEditingAccount] = useState<string | null>(null);
+  const [nickname, setNickname] = useState("");
+  const [nicknames, setNicknames] = useState<Record<string, string>>({});
 
-  const { accounts, connectedAccount, setConnectedAccount } = useTypink()
-  const { api } = usePolkadot()
+  const { accounts, connectedAccount, setConnectedAccount } = useTypink();
+  const { api } = usePolkadot();
 
   // Load saved nicknames from localStorage
   useEffect(() => {
     const savedNicknames = JSON.parse(
-      localStorage.getItem('account_nicknames') || '{}'
-    )
-    setNicknames(savedNicknames)
-  }, [])
+      localStorage.getItem("account_nicknames") || "{}"
+    );
+    setNicknames(savedNicknames);
+  }, []);
 
   const handleCopy = async (address: string) => {
-    await copyToClipboard(address)
-    setCopiedAddress(address)
-    setTimeout(() => setCopiedAddress(null), 2000)
-  }
+    await copyToClipboard(address);
+    setCopiedAddress(address);
+    setTimeout(() => setCopiedAddress(null), 2000);
+  };
 
   const handleEditNickname = (address: string, currentName?: string) => {
-    setEditingAccount(address)
-    setNickname(currentName || '')
-  }
+    setEditingAccount(address);
+    setNickname(currentName || "");
+  };
 
   const saveNickname = (address: string) => {
     const updatedNicknames = {
       ...nicknames,
-      [address]: nickname
-    }
-    setNicknames(updatedNicknames)
-    localStorage.setItem('account_nicknames', JSON.stringify(updatedNicknames))
-    setEditingAccount(null)
-    setNickname('')
-  }
+      [address]: nickname,
+    };
+    setNicknames(updatedNicknames);
+    localStorage.setItem("account_nicknames", JSON.stringify(updatedNicknames));
+    setEditingAccount(null);
+    setNickname("");
+  };
 
   const getExplorerUrl = (address: string) => {
     // This will be dynamic based on current network
-    return `https://polkadot.subscan.io/account/${address}`
-  }
+    return `https://polkadot.subscan.io/account/${address}`;
+  };
 
   return (
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'flex items-center gap-2 px-4 py-2 rounded-lg',
-          'bg-white/5 hover:bg-white/10 border border-white/10',
-          'transition-all duration-200'
+          "flex items-center gap-2 px-4 py-2 rounded-lg",
+          "bg-white/5 hover:bg-white/10 border border-white/10",
+          "transition-all duration-200"
         )}
       >
         <Users className="w-4 h-4 text-white/60" />
         <span className="text-sm font-medium text-white">
-          {accounts.length} Account{accounts.length !== 1 ? 's' : ''}
+          {accounts.length} Account{accounts.length !== 1 ? "s" : ""}
         </span>
       </button>
 
@@ -110,9 +109,9 @@ export function AccountManager() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.15 }}
               className={cn(
-                'absolute right-0 mt-2 w-96 max-h-[600px] overflow-auto z-50',
-                'glass-dark rounded-xl border border-white/10',
-                'shadow-xl'
+                "absolute right-0 mt-2 w-96 max-h-[600px] overflow-auto z-50",
+                "glass-dark rounded-xl border border-white/10",
+                "shadow-xl"
               )}
             >
               {/* Header */}
@@ -125,7 +124,7 @@ export function AccountManager() {
                     className="gap-2"
                     onClick={() => {
                       // Trigger wallet connection
-                      setIsOpen(false)
+                      setIsOpen(false);
                     }}
                   >
                     <Plus className="w-3 h-3" />
@@ -156,7 +155,7 @@ export function AccountManager() {
                       account={{
                         address: account.address,
                         name: nicknames[account.address] || account.name,
-                        source: account.source
+                        source: account.source,
                       }}
                       isActive={account.address === connectedAccount?.address}
                       onCopy={handleCopy}
@@ -186,21 +185,21 @@ export function AccountManager() {
         )}
       </AnimatePresence>
     </div>
-  )
+  );
 }
 
 interface AccountItemProps {
-  account: Account
-  isActive: boolean
-  onCopy: (address: string) => void
-  copiedAddress: string | null
-  onEdit: (address: string, name?: string) => void
-  editingAccount: string | null
-  nickname: string
-  setNickname: (name: string) => void
-  saveNickname: (address: string) => void
-  getExplorerUrl: (address: string) => string
-  onSelect: () => void
+  account: Account;
+  isActive: boolean;
+  onCopy: (address: string) => void;
+  copiedAddress: string | null;
+  onEdit: (address: string, name?: string) => void;
+  editingAccount: string | null;
+  nickname: string;
+  setNickname: (name: string) => void;
+  saveNickname: (address: string) => void;
+  getExplorerUrl: (address: string) => string;
+  onSelect: () => void;
 }
 
 function AccountItem({
@@ -216,18 +215,18 @@ function AccountItem({
   getExplorerUrl,
   onSelect,
 }: AccountItemProps) {
-  const { data: balance, isLoading } = useBalance(account.address)
+  const { data: balance, isLoading } = useBalance(account.address);
 
-  const isEditing = editingAccount === account.address
+  const isEditing = editingAccount === account.address;
 
   return (
     <div
       onClick={!isActive ? onSelect : undefined}
       className={cn(
-        'p-3 rounded-lg mb-2 transition-all',
+        "p-3 rounded-lg mb-2 transition-all",
         isActive
-          ? 'bg-gradient-to-r from-pink-500/10 to-purple-500/10 border-2 border-pink-500/30'
-          : 'bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer'
+          ? "bg-gradient-to-r from-pink-500/10 to-purple-500/10 border-2 border-pink-500/30"
+          : "bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer"
       )}
     >
       <div className="flex items-start gap-3">
@@ -245,10 +244,10 @@ function AccountItem({
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveNickname(account.address)
-                  if (e.key === 'Escape') {
-                    setNickname('')
-                    onEdit('', '')
+                  if (e.key === "Enter") saveNickname(account.address);
+                  if (e.key === "Escape") {
+                    setNickname("");
+                    onEdit("", "");
                   }
                 }}
                 className="flex-1 px-2 py-1 bg-white/10 border border-white/20 rounded text-sm text-white focus:outline-none focus:border-pink-500"
@@ -265,7 +264,7 @@ function AccountItem({
           ) : (
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm font-medium text-white truncate">
-                {account.name || 'Unnamed Account'}
+                {account.name || "Unnamed Account"}
               </span>
               {isActive && (
                 <span className="px-2 py-0.5 text-xs font-semibold text-pink-400 bg-pink-500/10 border border-pink-500/20 rounded">
@@ -286,7 +285,10 @@ function AccountItem({
               <div className="h-4 w-24 bg-white/10 animate-pulse rounded" />
             ) : (
               <span>
-                {balance ? (parseFloat(balance.total) / 1e10).toFixed(4) : '0.0000'} DOT
+                {balance
+                  ? (parseFloat(balance.total) / 1e10).toFixed(4)
+                  : "0.0000"}{" "}
+                DOT
               </span>
             )}
           </div>
@@ -331,7 +333,7 @@ function AccountItem({
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default AccountManager
+export default AccountManager;

@@ -1,59 +1,59 @@
-import React, { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Check, ChevronDown, Wifi } from 'lucide-react'
-import { usePolkadotContext } from '@/providers/PolkadotProvider'
-import { CHAINS, ChainConfig } from '@/config/chains'
-import { cn } from '@/lib/utils'
+import { CHAINS, ChainConfig } from "@/config/chains";
+import { cn } from "@/lib/utils";
+import { usePolkadotContext } from "@/providers/PolkadotProvider";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, ChevronDown, Wifi } from "lucide-react";
+import { useState } from "react";
 
 /**
  * Network Switcher Component
- * 
+ *
  * Allows users to switch between different Polkadot networks.
  * Persists selection in localStorage and automatically reconnects the API.
- * 
+ *
  * @example
  * ```tsx
  * <NetworkSwitcher />
  * ```
  */
 export function NetworkSwitcher() {
-  const { currentEndpoint, switchNetwork } = usePolkadotContext()
-  const [isOpen, setIsOpen] = useState(false)
-  const [isSwitching, setIsSwitching] = useState(false)
+  const { currentEndpoint, switchNetwork } = usePolkadotContext();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
 
   // Find current network from endpoint
   const currentNetwork = Object.values(CHAINS).find(
     (chain) => chain.endpoint === currentEndpoint
-  )
+  );
 
   const handleNetworkSwitch = async (chain: ChainConfig) => {
-    if (chain.endpoint === currentEndpoint || isSwitching) return
+    if (chain.endpoint === currentEndpoint || isSwitching) return;
 
-    setIsSwitching(true)
-    setIsOpen(false)
+    setIsSwitching(true);
+    setIsOpen(false);
 
     try {
       // Persist selection
-      localStorage.setItem('selected_network', chain.name)
-      
+      localStorage.setItem("selected_network", chain.name);
+
       // Switch network
-      await switchNetwork(chain.endpoint)
-      
+      await switchNetwork(chain.endpoint);
+
       // Reload page to reinitialize with new network
-      window.location.reload()
+      window.location.reload();
     } catch (error) {
-      console.error('Failed to switch network:', error)
-      setIsSwitching(false)
+      console.error("Failed to switch network:", error);
+      setIsSwitching(false);
     }
-  }
+  };
 
   const getNetworkCategories = () => {
-    const mainnets = Object.values(CHAINS).filter((c) => !c.testnet)
-    const testnets = Object.values(CHAINS).filter((c) => c.testnet)
-    return { mainnets, testnets }
-  }
+    const mainnets = Object.values(CHAINS).filter((c) => !c.testnet);
+    const testnets = Object.values(CHAINS).filter((c) => c.testnet);
+    return { mainnets, testnets };
+  };
 
-  const { mainnets, testnets } = getNetworkCategories()
+  const { mainnets, testnets } = getNetworkCategories();
 
   return (
     <div className="relative">
@@ -61,23 +61,23 @@ export function NetworkSwitcher() {
         onClick={() => setIsOpen(!isOpen)}
         disabled={isSwitching}
         className={cn(
-          'flex items-center gap-2 px-4 py-2 rounded-lg',
-          'bg-white/5 hover:bg-white/10 border border-white/10',
-          'transition-all duration-200',
-          'disabled:opacity-50 disabled:cursor-not-allowed'
+          "flex items-center gap-2 px-4 py-2 rounded-lg",
+          "bg-white/5 hover:bg-white/10 border border-white/10",
+          "transition-all duration-200",
+          "disabled:opacity-50 disabled:cursor-not-allowed"
         )}
       >
         <div
           className="w-2 h-2 rounded-full"
-          style={{ backgroundColor: currentNetwork?.color || '#E6007A' }}
+          style={{ backgroundColor: currentNetwork?.color || "#E6007A" }}
         />
         <span className="text-sm font-medium text-white">
-          {isSwitching ? 'Switching...' : currentNetwork?.name || 'Unknown'}
+          {isSwitching ? "Switching..." : currentNetwork?.name || "Unknown"}
         </span>
         <ChevronDown
           className={cn(
-            'w-4 h-4 text-white/60 transition-transform',
-            isOpen && 'rotate-180'
+            "w-4 h-4 text-white/60 transition-transform",
+            isOpen && "rotate-180"
           )}
         />
       </button>
@@ -98,9 +98,9 @@ export function NetworkSwitcher() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.15 }}
               className={cn(
-                'absolute right-0 mt-2 w-64 z-50',
-                'glass-dark rounded-xl border border-white/10',
-                'shadow-xl overflow-hidden'
+                "absolute right-0 mt-2 w-64 z-50",
+                "glass-dark rounded-xl border border-white/10",
+                "shadow-xl overflow-hidden"
               )}
             >
               {/* Mainnets */}
@@ -148,13 +148,13 @@ export function NetworkSwitcher() {
         )}
       </AnimatePresence>
     </div>
-  )
+  );
 }
 
 interface NetworkItemProps {
-  chain: ChainConfig
-  isActive: boolean
-  onClick: () => void
+  chain: ChainConfig;
+  isActive: boolean;
+  onClick: () => void;
 }
 
 function NetworkItem({ chain, isActive, onClick }: NetworkItemProps) {
@@ -162,11 +162,11 @@ function NetworkItem({ chain, isActive, onClick }: NetworkItemProps) {
     <button
       onClick={onClick}
       className={cn(
-        'w-full flex items-center gap-3 px-3 py-2 rounded-lg',
-        'transition-all duration-150',
+        "w-full flex items-center gap-3 px-3 py-2 rounded-lg",
+        "transition-all duration-150",
         isActive
-          ? 'bg-white/10 text-white'
-          : 'hover:bg-white/5 text-white/80 hover:text-white'
+          ? "bg-white/10 text-white"
+          : "hover:bg-white/5 text-white/80 hover:text-white"
       )}
     >
       <div
@@ -177,11 +177,9 @@ function NetworkItem({ chain, isActive, onClick }: NetworkItemProps) {
         <div className="text-sm font-medium">{chain.displayName}</div>
         <div className="text-xs text-white/40">{chain.tokenSymbol}</div>
       </div>
-      {isActive && (
-        <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
-      )}
+      {isActive && <Check className="w-4 h-4 text-green-400 flex-shrink-0" />}
     </button>
-  )
+  );
 }
 
-export default NetworkSwitcher
+export default NetworkSwitcher;
