@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ConnectWallet from "../components/ConnectWallet";
+import { TransactionQueue } from "../components/TransactionQueue";
 import { Button } from "../components/ui/Button";
 
 export default function Homepage() {
@@ -450,6 +451,9 @@ export default function Homepage() {
           </div>
         </section>
       </div>
+
+      {/* Transaction Queue (fixed position) */}
+      <TransactionQueue />
     </div>
   );
 }

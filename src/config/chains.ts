@@ -1,168 +1,206 @@
 /**
  * Common Polkadot ecosystem chain configurations
- * 
+ *
  * This file contains pre-configured settings for popular chains,
  * making it easy to switch networks or support multiple chains.
- * 
+ *
  * @module config/chains
  */
 
 export interface ChainConfig {
-  id: string
-  name: string
-  displayName: string
-  endpoint: string
-  tokenSymbol: string
-  tokenDecimals: number
-  ss58Format: number
-  explorerUrl: string
-  color: string
-  icon?: string
-  testnet?: boolean
+  id: string;
+  name: string;
+  displayName: string;
+  endpoint: string; // Primary endpoint
+  endpoints: string[]; // All available endpoints (including primary)
+  tokenSymbol: string;
+  tokenDecimals: number;
+  ss58Format: number;
+  explorerUrl: string;
+  color: string;
+  icon?: string;
+  testnet?: boolean;
 }
 
 /**
  * Polkadot Mainnet Configuration
  */
 export const POLKADOT: ChainConfig = {
-  id: 'polkadot',
-  name: 'Polkadot',
-  displayName: 'Polkadot Relay Chain',
-  endpoint: 'wss://rpc.polkadot.io',
-  tokenSymbol: 'DOT',
+  id: "polkadot",
+  name: "Polkadot",
+  displayName: "Polkadot Relay Chain",
+  endpoint: "wss://rpc.polkadot.io",
+  endpoints: [
+    "wss://rpc.polkadot.io",
+    "wss://polkadot-rpc.dwellir.com",
+    "wss://polkadot.public.curie.radiumblock.co/ws",
+    "wss://polkadot-rpc-tn.dwellir.com",
+  ],
+  tokenSymbol: "DOT",
   tokenDecimals: 10,
   ss58Format: 0,
-  explorerUrl: 'https://polkadot.subscan.io',
-  color: '#E6007A',
+  explorerUrl: "https://polkadot.subscan.io",
+  color: "#E6007A",
   testnet: false,
-}
+};
 
 /**
  * Kusama Network Configuration
  */
 export const KUSAMA: ChainConfig = {
-  id: 'kusama',
-  name: 'Kusama',
-  displayName: 'Kusama Network',
-  endpoint: 'wss://kusama-rpc.polkadot.io',
-  tokenSymbol: 'KSM',
+  id: "kusama",
+  name: "Kusama",
+  displayName: "Kusama Network",
+  endpoint: "wss://kusama-rpc.polkadot.io",
+  endpoints: [
+    "wss://kusama-rpc.polkadot.io",
+    "wss://kusama-rpc.dwellir.com",
+    "wss://kusama.public.curie.radiumblock.co/ws",
+    "wss://kusama-rpc-tn.dwellir.com",
+  ],
+  tokenSymbol: "KSM",
   tokenDecimals: 12,
   ss58Format: 2,
-  explorerUrl: 'https://kusama.subscan.io',
-  color: '#000000',
+  explorerUrl: "https://kusama.subscan.io",
+  color: "#000000",
   testnet: false,
-}
+};
 
 /**
  * Westend Testnet Configuration
  */
 export const WESTEND: ChainConfig = {
-  id: 'westend',
-  name: 'Westend',
-  displayName: 'Westend Testnet',
-  endpoint: 'wss://westend-rpc.polkadot.io',
-  tokenSymbol: 'WND',
+  id: "westend",
+  name: "Westend",
+  displayName: "Westend Testnet",
+  endpoint: "wss://westend-rpc.polkadot.io",
+  endpoints: [
+    "wss://westend-rpc.polkadot.io",
+    "wss://westend-rpc.dwellir.com",
+    "wss://westend.public.curie.radiumblock.co/ws",
+  ],
+  tokenSymbol: "WND",
   tokenDecimals: 12,
   ss58Format: 42,
-  explorerUrl: 'https://westend.subscan.io',
-  color: '#DA68A7',
+  explorerUrl: "https://westend.subscan.io",
+  color: "#DA68A7",
   testnet: true,
-}
+};
 
 /**
  * Paseo Testnet Configuration
  */
 export const PASEO: ChainConfig = {
-  id: 'paseo',
-  name: 'Paseo',
-  displayName: 'Paseo Testnet',
-  endpoint: 'wss://paseo.rpc.amforc.com',
-  tokenSymbol: 'PAS',
+  id: "paseo",
+  name: "Paseo",
+  displayName: "Paseo Testnet",
+  endpoint: "wss://paseo.rpc.amforc.com",
+  endpoints: [
+    "wss://paseo.rpc.amforc.com",
+    "wss://paseo-rpc.dwellir.com",
+  ],
+  tokenSymbol: "PAS",
   tokenDecimals: 10,
   ss58Format: 42,
-  explorerUrl: 'https://paseo.subscan.io',
-  color: '#6D3AEE',
+  explorerUrl: "https://paseo.subscan.io",
+  color: "#6D3AEE",
   testnet: true,
-}
+};
 
 /**
- * Local Development Node Configuration
+ * AssetHub Parachains - System parachains for asset management
  */
-export const LOCAL: ChainConfig = {
-  id: 'local',
-  name: 'Local',
-  displayName: 'Local Development Node',
-  endpoint: 'ws://127.0.0.1:9944',
-  tokenSymbol: 'UNIT',
+export const ASSETHUB_POLKADOT: ChainConfig = {
+  id: "assethub-polkadot",
+  name: "AssetHub Polkadot",
+  displayName: "AssetHub Polkadot",
+  endpoint: "wss://polkadot-asset-hub-rpc.polkadot.io",
+  endpoints: [
+    "wss://polkadot-asset-hub-rpc.polkadot.io",
+    "wss://sys.ibp.network/asset-hub-polkadot",
+    "wss://statemint-rpc.dwellir.com",
+  ],
+  tokenSymbol: "DOT",
+  tokenDecimals: 10,
+  ss58Format: 0,
+  explorerUrl: "https://assethub-polkadot.subscan.io",
+  color: "#E6007A",
+  testnet: false,
+};
+
+export const ASSETHUB_KUSAMA: ChainConfig = {
+  id: "assethub-kusama",
+  name: "AssetHub Kusama",
+  displayName: "AssetHub Kusama",
+  endpoint: "wss://kusama-asset-hub-rpc.polkadot.io",
+  endpoints: [
+    "wss://kusama-asset-hub-rpc.polkadot.io",
+    "wss://sys.ibp.network/asset-hub-kusama",
+    "wss://statemine-rpc.dwellir.com",
+  ],
+  tokenSymbol: "KSM",
+  tokenDecimals: 12,
+  ss58Format: 2,
+  explorerUrl: "https://assethub-kusama.subscan.io",
+  color: "#000000",
+  testnet: false,
+};
+
+export const ASSETHUB_WESTEND: ChainConfig = {
+  id: "assethub-westend",
+  name: "AssetHub Westend",
+  displayName: "AssetHub Westend Testnet",
+  endpoint: "wss://westend-asset-hub-rpc.polkadot.io",
+  endpoints: [
+    "wss://westend-asset-hub-rpc.polkadot.io",
+    "wss://sys.ibp.network/asset-hub-westend",
+  ],
+  tokenSymbol: "WND",
   tokenDecimals: 12,
   ss58Format: 42,
-  explorerUrl: '',
-  color: '#888888',
+  explorerUrl: "https://assethub-westend.subscan.io",
+  color: "#DA68A7",
   testnet: true,
-}
+};
 
-/**
- * Popular Polkadot Parachains
- */
-export const ASTAR: ChainConfig = {
-  id: 'astar',
-  name: 'Astar',
-  displayName: 'Astar Network',
-  endpoint: 'wss://rpc.astar.network',
-  tokenSymbol: 'ASTR',
-  tokenDecimals: 18,
-  ss58Format: 5,
-  explorerUrl: 'https://astar.subscan.io',
-  color: '#0AE2FF',
-  testnet: false,
-}
-
-export const MOONBEAM: ChainConfig = {
-  id: 'moonbeam',
-  name: 'Moonbeam',
-  displayName: 'Moonbeam Network',
-  endpoint: 'wss://wss.api.moonbeam.network',
-  tokenSymbol: 'GLMR',
-  tokenDecimals: 18,
-  ss58Format: 1284,
-  explorerUrl: 'https://moonbeam.subscan.io',
-  color: '#53CBC9',
-  testnet: false,
-}
-
-export const ACALA: ChainConfig = {
-  id: 'acala',
-  name: 'Acala',
-  displayName: 'Acala Network',
-  endpoint: 'wss://acala-rpc.dwellir.com',
-  tokenSymbol: 'ACA',
-  tokenDecimals: 12,
-  ss58Format: 10,
-  explorerUrl: 'https://acala.subscan.io',
-  color: '#E40C5B',
-  testnet: false,
-}
+export const ASSETHUB_PASEO: ChainConfig = {
+  id: "assethub-paseo",
+  name: "AssetHub Paseo",
+  displayName: "AssetHub Paseo Testnet",
+  endpoint: "wss://paseo-asset-hub-rpc.polkadot.io",
+  endpoints: [
+    "wss://paseo-asset-hub-rpc.polkadot.io",
+    "wss://sys.ibp.network/asset-hub-paseo",
+  ],
+  tokenSymbol: "PAS",
+  tokenDecimals: 10,
+  ss58Format: 42,
+  explorerUrl: "https://assethub-paseo.subscan.io",
+  color: "#6D3AEE",
+  testnet: true,
+};
 
 /**
  * All available chain configurations
+ * Includes relay chains and their AssetHub system parachains
  */
 export const CHAINS: Record<string, ChainConfig> = {
   polkadot: POLKADOT,
   kusama: KUSAMA,
   westend: WESTEND,
   paseo: PASEO,
-  local: LOCAL,
-  astar: ASTAR,
-  moonbeam: MOONBEAM,
-  acala: ACALA,
-}
+  "assethub-polkadot": ASSETHUB_POLKADOT,
+  "assethub-kusama": ASSETHUB_KUSAMA,
+  "assethub-westend": ASSETHUB_WESTEND,
+  "assethub-paseo": ASSETHUB_PASEO,
+};
 
 /**
  * Get chain configuration by ID
- * 
+ *
  * @param chainId - The chain identifier
  * @returns Chain configuration or undefined
- * 
+ *
  * @example
  * ```ts
  * const config = getChainConfig('polkadot')
@@ -170,29 +208,30 @@ export const CHAINS: Record<string, ChainConfig> = {
  * ```
  */
 export function getChainConfig(chainId: string): ChainConfig | undefined {
-  return CHAINS[chainId]
+  return CHAINS[chainId];
 }
 
 /**
  * Get all mainnet chains (non-testnet)
  */
 export function getMainnets(): ChainConfig[] {
-  return Object.values(CHAINS).filter((chain) => !chain.testnet)
+  return Object.values(CHAINS).filter((chain) => !chain.testnet);
 }
 
 /**
  * Get all testnet chains
  */
 export function getTestnets(): ChainConfig[] {
-  return Object.values(CHAINS).filter((chain) => chain.testnet)
+  return Object.values(CHAINS).filter((chain) => chain.testnet);
 }
 
 /**
  * Default chain ID from environment or fallback to Polkadot
  */
-export const DEFAULT_CHAIN_ID = (import.meta as any).env?.VITE_DEFAULT_CHAIN || 'polkadot'
+export const DEFAULT_CHAIN_ID =
+  (import.meta as any).env?.VITE_DEFAULT_CHAIN || "polkadot";
 
 /**
  * Default chain configuration
  */
-export const DEFAULT_CHAIN = getChainConfig(DEFAULT_CHAIN_ID) || POLKADOT
+export const DEFAULT_CHAIN = getChainConfig(DEFAULT_CHAIN_ID) || POLKADOT;

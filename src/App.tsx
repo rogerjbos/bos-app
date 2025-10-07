@@ -12,6 +12,7 @@ import { PolkadotProvider } from './providers/PolkadotProvider'
 import { Button } from './components/ui/Button'
 import { Package } from 'lucide-react'
 import ConnectWallet from './components/ConnectWallet'
+import { NetworkSwitcher } from './components/NetworkSwitcher'
 
 function Navigation() {
   const links = [
@@ -44,7 +45,8 @@ function Navigation() {
             ))}
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <NetworkSwitcher />
             <ConnectWallet />
           </div>
         </div>

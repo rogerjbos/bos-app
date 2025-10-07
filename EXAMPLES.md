@@ -5,6 +5,10 @@ Ready-to-use code snippets for common Polkadot development tasks. Just copy, pas
 ## 📋 Table of Contents
 
 - [Basic Setup](#basic-setup)
+- [Network Management](#network-management)
+- [Account Management](#account-management)
+- [Transaction Queue](#transaction-queue)
+- [Block Explorer Integration](#block-explorer-integration)
 - [Wallet Connection](#wallet-connection)
 - [Fetching Data](#fetching-data)
 - [Displaying Components](#displaying-components)
@@ -53,6 +57,300 @@ function MyComponent() {
   return <div>Connected!</div>
 }
 ```
+
+---
+
+## 🌐 Network Management
+
+### Network Switcher Component
+
+```typescript
+import { NetworkSwitcher } from './components/NetworkSwitcher'
+
+function Header() {
+  return (
+    <div className="flex items-center gap-4">
+      <h1>My dApp</h1>
+      <NetworkSwitcher />
+    </div>
+  )
+}
+```
+
+### Switch Network Programmatically
+
+```typescript
+import { usePolkadotContext } from './providers/PolkadotProvider'
+import { KUSAMA, WESTEND } from './config/chains'
+
+function NetworkButtons() {
+  const { switchNetwork, currentEndpoint } = usePolkadotContext()
+
+  return (
+    <div>
+      <button onClick={() => switchNetwork(KUSAMA.endpoint)}>
+        Switch to Kusama
+      </button>
+      <button onClick={() => switchNetwork(WESTEND.endpoint)}>
+        Switch to Westend
+      </button>
+      <p>Current: {currentEndpoint}</p>
+    </div>
+  )
+}
+```
+
+### Get Current Network Info
+
+```typescript
+import { usePolkadotContext } from './providers/PolkadotProvider'
+import { CHAINS } from './config/chains'
+
+function CurrentNetwork() {
+  const { currentEndpoint } = usePolkadotContext()
+  
+  const currentChain = Object.values(CHAINS).find(
+    (chain) => chain.endpoint === currentEndpoint
+  )
+
+  return (
+    <div>
+      <div 
+        className="w-3 h-3 rounded-full" 
+        style={{ backgroundColor: currentChain?.color }}
+      />
+      <span>{currentChain?.name || 'Unknown'}</span>
+      <span>{currentChain?.tokenSymbol}</span>
+    </div>
+  )
+}
+```
+
+---
+
+## 👤 Account Management
+
+### Account Manager Component
+
+```typescript
+import { AccountManager } from './components/AccountManager'
+
+function Header() {
+  return (
+    <div className="flex items-center gap-4">
+      <NetworkSwitcher />
+      <AccountManager />
+    </div>
+  )
+}
+```
+
+### List All Accounts
+
+```typescript
+import { useEffect, useState } from 'react'
+
+function AccountList() {
+  const [accounts, setAccounts] = useState([])
+
+  useEffect(() => {
+    const loadAccounts = async () => {
+      if (!window.injectedWeb3) return
+
+      const extension = await window.injectedWeb3['polkadot-js']
+        .enable('My dApp')
+      const accounts = await extension.accounts.get()
+      setAccounts(accounts)
+    }
+
+    loadAccounts()
+  }, [])
+
+  return (
+    <ul>
+      {accounts.map((account) => (
+        <li key={account.address}>
+          {account.name} - {account.address}
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+### Save Account Nicknames
+
+```typescript
+function saveAccountNickname(address: string, nickname: string) {
+  const nicknames = JSON.parse(
+    localStorage.getItem('account_nicknames') || '{}'
+  )
+  nicknames[address] = nickname
+  localStorage.setItem('account_nicknames', JSON.stringify(nicknames))
+}
+
+function getAccountNickname(address: string): string | null {
+  const nicknames = JSON.parse(
+    localStorage.getItem('account_nicknames') || '{}'
+  )
+  return nicknames[address] || null
+}
+```
+
+---
+
+## 📊 Transaction Queue
+
+### Basic Transaction Queue
+
+```typescript
+import { TransactionQueue, useTransactionQueue } from './components/TransactionQueue'
+
+function App() {
+  return (
+    <div>
+      <YourAppContent />
+      <TransactionQueue />
+    </div>
+  )
+}
+```
+
+### Add Transactions to Queue
+
+```typescript
+import { useTransactionQueue } from './components/TransactionQueue'
+
+function TransferButton() {
+  const { addTransaction, updateTransaction } = useTransactionQueue()
+
+  const handleTransfer = async () => {
+    // Add to queue
+    const txId = addTransaction({
+      type: 'transfer',
+      description: 'Transfer 10 DOT to Alice',
+    })
+
+    try {
+      // Update status: broadcasting
+      updateTransaction(txId, { status: 'broadcasting' })
+
+      // Send transaction
+      const hash = await sendTransaction()
+      
+      // Update with hash
+      updateTransaction(txId, { 
+        status: 'inBlock', 
+        hash,
+        explorerUrl: `https://polkadot.subscan.io/extrinsic/${hash}`
+      })
+
+      // Wait for finalization
+      await waitForFinalization(hash)
+      
+      // Mark as finalized
+      updateTransaction(txId, { status: 'finalized' })
+    } catch (error) {
+      // Mark as error
+      updateTransaction(txId, { 
+        status: 'error', 
+        error: error.message 
+      })
+    }
+  }
+
+  return <button onClick={handleTransfer}>Transfer</button>
+}
+```
+
+### Transaction Queue with Custom Settings
+
+```typescript
+<TransactionQueue 
+  maxVisible={3}           // Show max 3 transactions
+  autoRemoveDelay={10000}  // Remove after 10s
+/>
+```
+
+---
+
+## 🔍 Block Explorer Integration
+
+### Generate Explorer Links
+
+```typescript
+import { getExplorerLink } from './lib/explorer'
+
+function ExplorerLinks() {
+  const accountUrl = getExplorerLink('Polkadot', 'account', '1234...')
+  const blockUrl = getExplorerLink('Polkadot', 'block', '12345')
+  const extrinsicUrl = getExplorerLink('Polkadot', 'extrinsic', '0x1234...')
+
+  return (
+    <div>
+      <a href={accountUrl} target="_blank">View Account</a>
+      <a href={blockUrl} target="_blank">View Block</a>
+      <a href={extrinsicUrl} target="_blank">View Extrinsic</a>
+    </div>
+  )
+}
+```
+
+### Open Explorer Programmatically
+
+```typescript
+import { openExplorerLink } from './lib/explorer'
+
+function AccountButton({ address }: { address: string }) {
+  return (
+    <button onClick={() => openExplorerLink('Polkadot', 'account', address)}>
+      View on Explorer
+    </button>
+  )
+}
+```
+
+### Format Explorer Links
+
+```typescript
+import { formatExplorerLink } from './lib/explorer'
+
+function TransactionHash({ hash }: { hash: string }) {
+  const { url, text } = formatExplorerLink('Polkadot', 'extrinsic', hash)
+
+  return (
+    <a href={url} target="_blank" className="font-mono">
+      {text}
+    </a>
+  )
+}
+```
+
+### Get Multiple Explorers
+
+```typescript
+import { getChainExplorers } from './lib/explorer'
+
+function ExplorerOptions({ address }: { address: string }) {
+  const explorers = getChainExplorers('Polkadot')
+
+  return (
+    <div>
+      {explorers.map((explorer) => (
+        <a 
+          key={explorer.name}
+          href={`${explorer.url}/account/${address}`}
+          target="_blank"
+        >
+          View on {explorer.name}
+        </a>
+      ))}
+    </div>
+  )
+}
+```
+
+---
 
 ## 🔐 Wallet Connection
 
