@@ -1,22 +1,23 @@
-import React, { useState } from 'react'
-import { useTypink } from 'typink'
-import { Wallet, ChevronRight, Check, Download, User } from 'lucide-react'
-import { Button } from './ui/Button'
+import Identicon from "@polkadot/react-identicon";
+import { Check, ChevronRight, Download, User, Wallet } from "lucide-react";
+import { useState } from "react";
+import { useTypink } from "typink";
+import ConnectMetaMask from "./ConnectMetaMask";
+import { Button } from "./ui/Button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-} from './ui/Dialog'
-import Identicon from '@polkadot/react-identicon'
+} from "./ui/Dialog";
 
-type View = 'wallets' | 'accounts'
+type View = "wallets" | "accounts";
 
 export default function ConnectWallet() {
-  const [open, setOpen] = useState(false)
-  const [view, setView] = useState<View>('wallets')
-  
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<View>("wallets");
+
   const {
     wallets,
     connectedWallets,
@@ -25,45 +26,45 @@ export default function ConnectWallet() {
     connectWallet,
     disconnect,
     setConnectedAccount,
-  } = useTypink()
+  } = useTypink();
 
   const handleConnectWallet = async (walletId: string) => {
     try {
-      await connectWallet(walletId)
-      setView('accounts')
+      await connectWallet(walletId);
+      setView("accounts");
     } catch (error) {
-      console.error('Failed to connect wallet:', error)
+      console.error("Failed to connect wallet:", error);
     }
-  }
+  };
 
   const handleSelectAccount = (account: any) => {
-    setConnectedAccount(account)
-    setOpen(false)
-    setView('wallets')
-  }
+    setConnectedAccount(account);
+    setOpen(false);
+    setView("wallets");
+  };
 
   const handleDisconnect = () => {
-    disconnect()
-    setOpen(false)
-    setView('wallets')
-  }
+    disconnect();
+    setOpen(false);
+    setView("wallets");
+  };
 
   const handleOpenChange = (isOpen: boolean) => {
-    setOpen(isOpen)
+    setOpen(isOpen);
     if (!isOpen) {
       // Reset to wallets view when closing
-      setTimeout(() => setView('wallets'), 200)
+      setTimeout(() => setView("wallets"), 200);
     }
-  }
+  };
 
   const truncateAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-6)}`
-  }
+    return `${address.slice(0, 6)}...${address.slice(-6)}`;
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <Button
-        variant={connectedAccount ? 'gradient' : 'default'}
+        variant={connectedAccount ? "gradient" : "default"}
         size="lg"
         onClick={() => setOpen(true)}
         className="gap-2"
@@ -76,7 +77,10 @@ export default function ConnectWallet() {
                 size={24}
                 theme="polkadot"
               />
-              <span>{connectedAccount.name || truncateAddress(connectedAccount.address)}</span>
+              <span>
+                {connectedAccount.name ||
+                  truncateAddress(connectedAccount.address)}
+              </span>
             </div>
           </>
         ) : (
@@ -88,30 +92,39 @@ export default function ConnectWallet() {
       </Button>
 
       <DialogContent className="sm:max-w-[500px]">
-        {view === 'wallets' ? (
+        {view === "wallets" ? (
           <>
             <DialogHeader>
               <DialogTitle className="text-gradient">
-                {connectedWallets.length > 0 ? 'Connected Wallets' : 'Connect Wallet'}
+                {connectedWallets.length > 0
+                  ? "Connected Wallets"
+                  : "Connect Wallet"}
               </DialogTitle>
               <DialogDescription>
                 {connectedWallets.length > 0
-                  ? 'Select a wallet to view accounts or connect a new one'
-                  : 'Choose a wallet to connect to your Polkadot account'}
+                  ? "Select a wallet to view accounts or connect a new one"
+                  : "Choose a wallet to connect to your Polkadot account"}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-3 mt-4">
+              {/* MetaMask (EVM) option */}
+              <ConnectMetaMask />
+
               {/* Sort: installed first, then not installed */}
               {[...wallets]
                 .sort((a, b) => {
-                  if (a.installed && !b.installed) return -1
-                  if (!a.installed && b.installed) return 1
-                  return 0
+                  if (a.installed && !b.installed) return -1;
+                  if (!a.installed && b.installed) return 1;
+                  return 0;
                 })
                 .map((wallet) => {
-                  const isConnected = connectedWallets.some((w) => w.id === wallet.id)
-                  const accountCount = accounts.filter((a) => a.source === wallet.id).length
+                  const isConnected = connectedWallets.some(
+                    (w) => w.id === wallet.id
+                  );
+                  const accountCount = accounts.filter(
+                    (a) => a.source === wallet.id
+                  ).length;
 
                   return (
                     <div
@@ -132,7 +145,9 @@ export default function ConnectWallet() {
                         )}
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-white">{wallet.name}</span>
+                            <span className="font-semibold text-white">
+                              {wallet.name}
+                            </span>
                             {isConnected && (
                               <div className="flex items-center gap-1 text-xs text-green-400">
                                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
@@ -142,7 +157,8 @@ export default function ConnectWallet() {
                           </div>
                           {isConnected && accountCount > 0 && (
                             <p className="text-xs text-gray-400 mt-0.5">
-                              {accountCount} account{accountCount !== 1 ? 's' : ''}
+                              {accountCount} account
+                              {accountCount !== 1 ? "s" : ""}
                             </p>
                           )}
                         </div>
@@ -155,7 +171,7 @@ export default function ConnectWallet() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => setView('accounts')}
+                                onClick={() => setView("accounts")}
                                 className="gap-1"
                               >
                                 View Accounts
@@ -187,13 +203,14 @@ export default function ConnectWallet() {
                             onClick={() => {
                               // Typink wallets have different install URLs based on wallet type
                               const installUrls: Record<string, string> = {
-                                'polkadot-js': 'https://polkadot.js.org/extension/',
-                                'talisman': 'https://talisman.xyz/',
-                                'subwallet-js': 'https://subwallet.app/',
-                                'nova': 'https://novawallet.io/',
-                              }
-                              const url = installUrls[wallet.id]
-                              if (url) window.open(url, '_blank')
+                                "polkadot-js":
+                                  "https://polkadot.js.org/extension/",
+                                talisman: "https://talisman.xyz/",
+                                "subwallet-js": "https://subwallet.app/",
+                                nova: "https://novawallet.io/",
+                              };
+                              const url = installUrls[wallet.id];
+                              if (url) window.open(url, "_blank");
                             }}
                             className="gap-1"
                           >
@@ -203,9 +220,9 @@ export default function ConnectWallet() {
                         )}
                       </div>
                     </div>
-                  )
+                  );
                 })}
-              </div>
+            </div>
 
             {connectedAccount && (
               <div className="mt-6 pt-6 border-t border-white/10">
@@ -226,12 +243,14 @@ export default function ConnectWallet() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setView('wallets')}
+                onClick={() => setView("wallets")}
                 className="w-fit mb-2"
               >
                 ← Back to Wallets
               </Button>
-              <DialogTitle className="text-gradient">Select Account</DialogTitle>
+              <DialogTitle className="text-gradient">
+                Select Account
+              </DialogTitle>
               <DialogDescription>
                 Choose an account to use with this application
               </DialogDescription>
@@ -248,7 +267,8 @@ export default function ConnectWallet() {
                 </div>
               ) : (
                 accounts.map((account) => {
-                  const isSelected = connectedAccount?.address === account.address
+                  const isSelected =
+                    connectedAccount?.address === account.address;
 
                   return (
                     <button
@@ -259,8 +279,8 @@ export default function ConnectWallet() {
                         transition-all duration-300 text-left
                         ${
                           isSelected
-                            ? 'border-pink-500 bg-pink-500/10'
-                            : 'border-white/10 bg-white/5 hover:bg-white/10 hover:border-violet-500/50'
+                            ? "border-pink-500 bg-pink-500/10"
+                            : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-violet-500/50"
                         }
                       `}
                     >
@@ -272,7 +292,7 @@ export default function ConnectWallet() {
                         />
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-white flex items-center gap-2">
-                            {account.name || 'Unnamed Account'}
+                            {account.name || "Unnamed Account"}
                             {isSelected && (
                               <Check className="w-4 h-4 text-pink-500" />
                             )}
@@ -286,7 +306,7 @@ export default function ConnectWallet() {
                         </div>
                       </div>
                     </button>
-                  )
+                  );
                 })
               )}
             </div>
@@ -294,5 +314,5 @@ export default function ConnectWallet() {
         )}
       </DialogContent>
     </Dialog>
-  )
+  );
 }
