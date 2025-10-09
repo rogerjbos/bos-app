@@ -1,7 +1,6 @@
 {
   "name": "polkadot-ui-template",
   "version": "0.1.0",
-  "private": false,
   "type": "module",
   "description": "A beautiful, production-ready React template for building Polkadot applications",
   "repository": {
@@ -26,6 +25,9 @@
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx"
   },
   "dependencies": {
+    "@dedot/contracts": "^0.18.3",
+    "@dedot/shape": "^0.18.3",
+    "@dedot/utils": "^0.18.3",
     "@polkadot/api": "^10.12.0",
     "@polkadot/extension-dapp": "^0.44.0",
     "@polkadot/keyring": "^10.0.0",
@@ -41,6 +43,8 @@
     "@tanstack/react-query": "^5.90.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dedot": "^0.18.3",
+    "ethers": "^6.15.0",
     "framer-motion": "^11.18.2",
     "lucide-react": "^0.344.0",
     "react": "18.2.0",

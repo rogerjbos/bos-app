@@ -4,6 +4,7 @@ import ConnectWallet from "./components/ConnectWallet";
 import { NetworkSwitcher } from "./components/NetworkSwitcher";
 import Accounts from "./pages/Accounts";
 import ComponentsShowcase from "./pages/ComponentsShowcase";
+import Counter from "./pages/Counter";
 import Dashboard from "./pages/Dashboard";
 import Examples from "./pages/Examples";
 import Homepage from "./pages/Homepage";
@@ -15,6 +16,7 @@ function Navigation() {
     { to: "/", label: "Home", icon: Home },
     { to: "/dashboard", label: "Dashboard", icon: Sparkles },
     { to: "/wallet", label: "Wallet", icon: Wallet },
+    { to: "/counter", label: "Counter", icon: Package },
     { to: "/components", label: "Components", icon: Package },
     { to: "/examples", label: "Examples", icon: Sparkles },
   ];
@@ -103,6 +105,7 @@ export default function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/accounts" element={<Accounts />} />
               <Route path="/wallet" element={<WalletPage />} />
+              <Route path="/counter" element={<Counter />} />
               <Route path="/components" element={<ComponentsShowcase />} />
               <Route path="/examples" element={<Examples />} />
             </Routes>
