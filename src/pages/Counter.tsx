@@ -57,7 +57,6 @@ export default function Counter() {
   const { connected, chainId } = useMetaMask();
   const [number, setNumber] = useState<string>("0");
   const [newNumber, setNewNumber] = useState<string>("");
-  const [privateKey, setPrivateKey] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
@@ -108,35 +107,31 @@ export default function Counter() {
     }
   };
 
-  const getRpcProvider = () => {
-    return new ethers.JsonRpcProvider(
-      "https://testnet-passet-hub-eth-rpc.polkadot.io"
-    );
+  const getProvider = () => {
+    if (!(window as any).ethereum) {
+      throw new Error("MetaMask not detected.");
+    }
+    return new ethers.BrowserProvider((window as any).ethereum);
   };
 
-  const getSigner = () => {
-    if (!privateKey) {
-      throw new Error("Private key is not provided.");
-    }
-    if (!privateKey.startsWith("0x")) {
-      return new ethers.Wallet("0x" + privateKey, getRpcProvider());
-    }
-    return new ethers.Wallet(privateKey, getRpcProvider());
+  const getSigner = async () => {
+    const provider = getProvider();
+    return provider.getSigner();
   };
 
-  const getContract = (signer: ethers.Wallet) => {
-    return new ethers.Contract(CONTRACT_ADDRESS, counterABI, signer);
+  const getContract = async (withSigner = false) => {
+    const provider = getProvider();
+    if (withSigner) {
+      const signer = await provider.getSigner();
+      return new ethers.Contract(CONTRACT_ADDRESS, counterABI, signer);
+    }
+    return new ethers.Contract(CONTRACT_ADDRESS, counterABI, provider);
   };
 
   const fetchNumber = async () => {
     try {
       console.log("Fetching current number...");
-      const provider = getRpcProvider();
-      const contract = new ethers.Contract(
-        CONTRACT_ADDRESS,
-        counterABI,
-        provider
-      );
+      const contract = await getContract();
       const currentNumber = await contract.number();
       console.log("Contract number():", currentNumber.toString());
       setNumber(currentNumber.toString());
@@ -147,19 +142,16 @@ export default function Counter() {
   };
 
   const handleIncrement = async () => {
-    if (!privateKey) {
-      setError("Please provide a private key to sign the transaction.");
-      return;
-    }
     setLoading(true);
     setError("");
     try {
       console.log("Starting increment transaction...");
-      const signer = getSigner();
-      const contract = getContract(signer);
+      const contract = await getContract(true);
 
       console.log(
-        `Sending 'increment' transaction from address: ${signer.address}`
+        `Sending 'increment' transaction from address: ${await (
+          await getSigner()
+        ).getAddress()}`
       );
       const tx = await contract.increment();
 
@@ -176,22 +168,19 @@ export default function Counter() {
   };
 
   const handleSetNumber = async () => {
-    if (!privateKey) {
-      setError("Please provide a private key to sign the transaction.");
-      return;
-    }
     if (!newNumber.trim()) return;
 
     setLoading(true);
     setError("");
     try {
       console.log("Starting setNumber transaction...");
-      const signer = getSigner();
-      const contract = getContract(signer);
+      const contract = await getContract(true);
       const value = BigInt(newNumber);
 
       console.log(
-        `Sending 'setNumber(${value})' transaction from address: ${signer.address}`
+        `Sending 'setNumber(${value})' transaction from address: ${await (
+          await getSigner()
+        ).getAddress()}`
       );
       const tx = await contract.setNumber(value);
 
@@ -255,29 +244,6 @@ export default function Counter() {
 
   return (
     <div className="container mx-auto px-6 py-8 space-y-8">
-      <Card className="bg-yellow-50 border-yellow-300">
-        <CardHeader>
-          <CardTitle className="text-yellow-800">Security Warning</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-yellow-700">
-            You are about to enter your private key. This is **not secure** and
-            should only be done with a temporary test account. Never use a
-            private key that holds real assets. The key is only held in memory
-            and is not stored.
-          </p>
-          <div className="mt-4">
-            <Input
-              type="password"
-              placeholder="Enter your 0x-prefixed private key"
-              value={privateKey}
-              onChange={(e) => setPrivateKey(e.target.value)}
-              className="font-mono"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
       <Card>
         <CardHeader>
           <CardTitle>Counter Contract</CardTitle>
@@ -293,11 +259,15 @@ export default function Counter() {
             <div className="flex gap-4">
               <Button
                 onClick={handleIncrement}
-                disabled={loading || !privateKey}
+                disabled={loading || !isCorrectNetwork}
               >
                 {loading ? "Incrementing..." : "Increment"}
               </Button>
-              <Button onClick={fetchNumber} variant="outline">
+              <Button
+                onClick={fetchNumber}
+                variant="outline"
+                disabled={!isCorrectNetwork}
+              >
                 Refresh
               </Button>
             </div>
@@ -307,14 +277,21 @@ export default function Counter() {
                 placeholder="Enter new number"
                 value={newNumber}
                 onChange={(e) => setNewNumber(e.target.value)}
+                disabled={!isCorrectNetwork}
               />
               <Button
                 onClick={handleSetNumber}
-                disabled={loading || !newNumber || !privateKey}
+                disabled={loading || !newNumber || !isCorrectNetwork}
               >
                 {loading ? "Setting..." : "Set Number"}
               </Button>
             </div>
+            {!isCorrectNetwork && (
+              <p className="text-yellow-600">
+                Please switch to the Paseo Asset Hub network to interact with
+                the contract.
+              </p>
+            )}
             {error && <p className="text-red-500">{error}</p>}
           </div>
         </CardContent>
