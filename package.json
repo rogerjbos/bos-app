@@ -1,11 +1,11 @@
 {
-  "name": "polkadot-ui-template",
+  "name": "bos-app",
   "version": "0.1.0",
   "type": "module",
-  "description": "A beautiful, production-ready React template for building Polkadot applications",
+  "description": "Bos App - Ported from portfolio-app using polkadot-ui-template",
   "repository": {
     "type": "git",
-    "url": "https://github.com/paritytech/polkadot-ui-template.git"
+    "url": "https://github.com/rogerjbos/bos-app.git"
   },
   "keywords": [
     "polkadot",
@@ -13,10 +13,10 @@
     "typescript",
     "web3",
     "blockchain",
-    "template",
-    "ui"
+    "portfolio",
+    "charts"
   ],
-  "author": "Parity Technologies",
+  "author": "Roger Bos",
   "license": "MIT",
   "scripts": {
     "dev": "vite",
@@ -28,6 +28,7 @@
     "@dedot/contracts": "^0.18.3",
     "@dedot/shape": "^0.18.3",
     "@dedot/utils": "^0.18.3",
+    "@polkadot-api/descriptors": "file:.papi/descriptors",
     "@polkadot/api": "^10.12.0",
     "@polkadot/extension-dapp": "^0.44.0",
     "@polkadot/keyring": "^10.0.0",
@@ -40,28 +41,38 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@react-oauth/google": "^0.12.2",
     "@tanstack/react-query": "^5.90.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dedot": "^0.18.3",
+    "echarts": "^5.6.0",
+    "echarts-for-react": "^3.0.2",
     "ethers": "^6.15.0",
     "framer-motion": "^11.18.2",
+    "jwt-decode": "^4.0.0",
     "lucide-react": "^0.344.0",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-icons": "^5.5.0",
     "react-router-dom": "^6.18.0",
-    "tailwind-merge": "^2.6.0",
-    "typink": "^0.5.0"
+    "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
+    "@headlessui/react": "^2.2.4",
+    "@heroicons/react": "^2.2.0",
     "@polkadot/types": "^16.4.8",
-    "@tailwindcss/vite": "4.0.0-beta.6",
+    "@types/node": "^24.2.0",
     "@types/react": "18.2.21",
     "@types/react-dom": "18.2.7",
+    "@types/react-router": "^5.1.20",
+    "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.21",
     "eslint": "8.54.0",
     "eslint-plugin-react": "7.32.2",
-    "tailwindcss": "4.0.0-beta.6",
+    "postcss": "^8.5.6",
+  "tailwindcss": "^3.4.14",
     "typescript": "5.9.3",
     "vite": "^7.1.9"
   }
