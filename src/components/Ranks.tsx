@@ -27,10 +27,10 @@ const Ranks: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // API configuration with debugging
+  // API configuration (similar to Staking.tsx)
   const API_BASE_URL = import.meta.env.DEV 
-    ? 'http://127.0.0.1:3333/api'
-    : (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:3333/api');
+    ? 'http://127.0.0.1:4000/api'
+    : (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:4000/api');
   const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
 
   const fetchRankData = async (selectedTicker: string) => {
