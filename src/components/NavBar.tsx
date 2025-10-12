@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ThemeContext } from '../context/ThemeContext';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import ConnectMetaMask from './ConnectMetaMask';
+import pulseLogo from '../assets/pulse_logo.jpg';
 
 const NavBar: React.FC = () => {
   const { theme, toggleTheme } = useContext(ThemeContext);
@@ -19,9 +20,13 @@ const NavBar: React.FC = () => {
           <div className="flex items-center">
             <Link
               to="/"
-              className="text-xl font-bold text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200"
+              className="flex items-center hover:opacity-80 transition-opacity duration-200"
             >
-              Bos App
+              <img
+                src={pulseLogo}
+                alt="Pulse Logo"
+                className="h-8 w-auto"
+              />
             </Link>
           </div>
 

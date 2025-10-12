@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { FaTrash, FaExternalLinkAlt, FaSave, FaTimes, FaPlusSquare } from 'react-icons/fa';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FaExternalLinkAlt, FaPlusSquare, FaSave, FaTimes, FaTrash } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 
 
@@ -24,15 +24,13 @@ interface PriceData {
 const APP_VERSION = '1.0.0';
 
 // API configuration (similar to Ranks.tsx)
-const API_BASE_URL = import.meta.env.DEV 
-  ? 'http://127.0.0.1:4000/api'
-  : (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:4000/api');
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
 
 const Staking: React.FC = () => {
   // Get the authenticated user
   const { user } = useAuth();
-  
+
   // Define the storage helper BEFORE any useState that uses it
   const storage = {
     save: (key: string, data: any) => {
@@ -63,7 +61,7 @@ const Staking: React.FC = () => {
       }
     }
   };
-    
+
   // Now you can safely use storage in useState initializers
   const [stakingItems, setStakingItems] = useState<StakingItem[]>(() => {
     // Try to load from localStorage immediately during state initialization
@@ -78,10 +76,10 @@ const Staking: React.FC = () => {
     if (saved && Array.isArray(saved) && saved.length > 0) {
       return saved;
     }
-    
+
     return []; // Default to empty array
   });
-  
+
   // Add these calculations at the component level
   const calculatedValues = useMemo(() => {
     return stakingItems.map(item => {
@@ -124,7 +122,7 @@ const Staking: React.FC = () => {
   const [priceUpdateDate, setPriceUpdateDate] = useState<string>('');
   const [priceUpdateError, setPriceUpdateError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // ADD HIDE VALUES STATE HERE
   const [hideValues, setHideValues] = useState(() => {
     const saved = storage.load('hideStakingValues');
@@ -158,17 +156,17 @@ const Staking: React.FC = () => {
             }
           }
         }
-        
+
         // Always load prices
         await fetchPriceData();
-        
+
       } catch (e) {
         console.error("Error in loadInitialData:", e);
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     loadInitialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]); // Intentionally excluding other dependencies to prevent infinite loops
@@ -181,62 +179,101 @@ const Staking: React.FC = () => {
   const fetchPriceData = useCallback(async () => {
     // setIsUpdatingPrices(true);
     setPriceUpdateError(null);
-    
+
+    showStatus('Updating prices...', 'success');
+
     try {
-      const response = await fetch('/data/crypto_prices.csv');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch price data: ${response.status} ${response.statusText}`);
+      // Get unique tickers from staking items
+      const uniqueTickers = [...new Set(stakingItems.map(item => item.ticker?.toUpperCase()).filter(Boolean))];
+
+      if (uniqueTickers.length === 0) {
+        showStatus('No tickers to update prices for', 'error');
+        return;
       }
-      
-      const csvText = await response.text();
-      
-      const { prices, date } = parseCsvPrices(csvText);
-      
+
+      console.log('Fetching prices for tickers:', uniqueTickers);
+
+      // Build URL with multiple symbols using the new endpoint
+      // Handle both relative and absolute URLs
+      const baseUrl = API_BASE_URL.startsWith('http')
+        ? API_BASE_URL
+        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
+
+      const url = new URL(`${baseUrl}/latest_crypto_price`);
+      uniqueTickers.forEach(ticker => {
+        url.searchParams.append('symbols', ticker);
+      });
+
+
+
+      // Fetch prices for all tickers at once using the new endpoint
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch crypto prices: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // Process results into price data
+      let prices: PriceData = {};
+      let latestDate = '';
+
+      // The new endpoint returns an array of price objects
+      if (data && Array.isArray(data)) {
+        data.forEach((priceInfo: any) => {
+          if (priceInfo && typeof priceInfo === 'object' && priceInfo.symbol) {
+            const symbol = priceInfo.symbol.toLowerCase();
+            const price = priceInfo.close;
+            const date = priceInfo.date;
+
+            if (price !== undefined && price !== null && !isNaN(price)) {
+              prices[symbol] = parseFloat(price.toString());
+
+              // Update latest date if this is more recent
+              if (date && (!latestDate || new Date(date) > new Date(latestDate))) {
+                latestDate = date;
+              }
+
+
+            } else {
+              console.log(`No valid price found for ${symbol}:`, priceInfo);
+            }
+          } else {
+            console.log(`Invalid price data:`, priceInfo);
+          }
+        });
+      } else {
+        throw new Error('Invalid response format from price API - expected array');
+      }
+
       setPriceData(prices);
-      setPriceUpdateDate(date);
-      
+      setPriceUpdateDate(latestDate || new Date().toISOString());
+
       // Update staking item prices
-      updateStakingPrices(prices, date);
-      
+      updateStakingPrices(prices, latestDate || new Date().toISOString());
+
+      const updatedCount = Object.keys(prices).length;
+      showStatus(`Successfully updated prices for ${updatedCount} ticker${updatedCount !== 1 ? 's' : ''}`, 'success');
+
+      console.log('Price update complete. Updated prices for:', Object.keys(prices));
+
     } catch (error) {
       console.error('Error fetching price data:', error);
-      setPriceUpdateError(`Failed to load price data: ${error instanceof Error ? error.message : String(error)}`);
+      const errorMessage = `Failed to load price data: ${error instanceof Error ? error.message : String(error)}`;
+      setPriceUpdateError(errorMessage);
+      showStatus(errorMessage, 'error');
     } finally {
       // setIsUpdatingPrices(false);
     }
-  }, [stakingItems]); // Add stakingItems as dependency since updateStakingPrices uses it
-  
-  const parseCsvPrices = (csvText: string): { prices: PriceData, date: string } => {
-    const lines = csvText.trim().split('\n');
-    const prices: PriceData = {};
-    let latestDate = '';
-    
-    // Skip header row
-    for (let i = 1; i < lines.length; i++) {
-      const columns = lines[i].split(',');
-      if (columns.length >= 3) {
-        const symbol = columns[0].toLowerCase().trim();
-        const date = columns[1].trim();
-        const priceStr = columns[2].trim();
-        const price = parseFloat(priceStr);
-        
-        if (!isNaN(price)) {
-          // If we already have this symbol, keep the latest entry
-          if (!prices[symbol] || date > latestDate) {
-            prices[symbol] = price;
-          }
-          
-          // Keep track of the latest date in the CSV
-          if (date > latestDate) {
-            latestDate = date;
-          }
-        }
-      }
-    }
-    
-    return { prices, date: latestDate };
-  };
-  
+  }, [API_BASE_URL, API_TOKEN, stakingItems, showStatus]);
+
   // Update staking items with latest prices
   const updateStakingPrices = (prices: PriceData, date: string) => {
     const updatedItems = stakingItems.map(item => {
@@ -250,7 +287,7 @@ const Staking: React.FC = () => {
       }
       return item;
     });
-    
+
     setStakingItems(updatedItems);
   };
 
@@ -264,7 +301,7 @@ const Staking: React.FC = () => {
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!editItem) return;
-    
+
     const { name, value } = e.target;
     setEditItem({
       ...editItem,
@@ -284,7 +321,7 @@ const Staking: React.FC = () => {
 
   const saveEdit = () => {
     if (editIndex === null || !editItem) return;
-    
+
     const updatedItems = [...stakingItems];
     updatedItems[editIndex] = editItem;
     setStakingItems(updatedItems);
@@ -298,13 +335,13 @@ const Staking: React.FC = () => {
       alert('Please enter a ticker symbol');
       return;
     }
-    
+
     // Check for duplicates
-    const isDuplicate = stakingItems.some(item => 
-      item.ticker.toLowerCase() === newItem.ticker.toLowerCase() && 
+    const isDuplicate = stakingItems.some(item =>
+      item.ticker.toLowerCase() === newItem.ticker.toLowerCase() &&
       item.account.toLowerCase() === newItem.account.toLowerCase()
     );
-    
+
     if (isDuplicate) {
       const confirmMessage = `An item with ticker "${newItem.ticker}" and account "${newItem.account}" already exists. Add anyway?`;
       if (!window.confirm(confirmMessage)) {
@@ -316,18 +353,18 @@ const Staking: React.FC = () => {
       // Check if we have a price for this ticker
       const ticker = newItem.ticker.toLowerCase();
       const price = priceData[ticker] !== undefined ? priceData[ticker].toString() : newItem.price;
-      
+
       const newStakingItem = {
         ...newItem,
-        username: user?.name || user?.email || 'Unknown User',
+        username: user?.name || 'Unknown User',
         price,
         priceLastUpdated: priceData[ticker] !== undefined ? priceUpdateDate : undefined
       };
-      
+
       // Add to local state
       const updatedItems = [...stakingItems, newStakingItem];
       setStakingItems(updatedItems);
-      
+
       // Reset form
       setNewItem({
         username: '',
@@ -338,10 +375,10 @@ const Staking: React.FC = () => {
         price: '0',
         stakingUrl: ''
       });
-      
+
       // Hide form after successful add
       setShowForm(false);
-      
+
     } catch (error) {
       console.error('Error adding item:', error);
       alert(`Failed to add item: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -353,7 +390,7 @@ const Staking: React.FC = () => {
     // Show confirmation dialog
     const itemToDelete = stakingItems[index];
     const confirmMessage = `Are you sure you want to delete ${itemToDelete.ticker} from ${itemToDelete.account}?`;
-    
+
     if (!window.confirm(confirmMessage)) {
       return; // User cancelled
     }
@@ -362,16 +399,16 @@ const Staking: React.FC = () => {
       // Remove from local state first
       const updatedItems = stakingItems.filter((_, i) => i !== index);
       setStakingItems(updatedItems);
-      
+
       // Also sync the updated list to API immediately
       if (user?.name) {
         await saveStakingToAPI(updatedItems);
         console.log('Successfully deleted item and synced with API');
       }
-      
+
     } catch (error) {
       console.error('Error deleting item:', error);
-      
+
       // Show error message but don't revert the deletion from UI
       // since the user might want to try syncing again later
       alert(`Item deleted locally, but failed to sync with server: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -383,7 +420,7 @@ const Staking: React.FC = () => {
     if (editIndex === index && editItem) {
       return (
         <input
-          type={isNumeric ? "number" : "text"} 
+          type={isNumeric ? "number" : "text"}
           name={field}
           value={editItem[field]}
           onChange={handleEditChange}
@@ -393,14 +430,14 @@ const Staking: React.FC = () => {
       );
     } else {
       return (
-        <div 
+        <div
           onClick={() => startEditing(index)}
           className="cursor-pointer editable-cell hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1 py-1"
         >
-          {isNumeric 
-            ? (field === 'price' ? '$' : '') + 
-              (hideWhenPrivate && hideValues 
-                ? '***' 
+          {isNumeric
+            ? (field === 'price' ? '$' : '') +
+              (hideWhenPrivate && hideValues
+                ? '***'
                 : formatNumber(parseFloat(item[field] || '0'), field === 'price' ? 2 : 4))
             : item[field]
           }
@@ -410,9 +447,9 @@ const Staking: React.FC = () => {
   };
 
   const formatNumber = (value: number, decimals: number = 2): string => {
-    return new Intl.NumberFormat('en-US', { 
+    return new Intl.NumberFormat('en-US', {
       minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals 
+      maximumFractionDigits: decimals
     }).format(value);
   };
 
@@ -439,7 +476,7 @@ const Staking: React.FC = () => {
 
       const data = await response.json();
       console.log('API response:', data);
-      
+
       // Handle the response based on your API structure
       let apiData = [];
       if (Array.isArray(data)) {
@@ -453,62 +490,18 @@ const Staking: React.FC = () => {
 
       // Migrate data structure if needed
       const migratedData = migrateDataStructure(apiData);
-      
+
       setStakingItems(migratedData);
       storage.save('stakingData', migratedData);
-      
+
       return migratedData;
     } catch (error) {
       console.error('Error fetching staking data from API:', error);
-      
-      // Fallback to backup JSON file if API fails
-      try {
-        console.log('Falling back to JSON file...');
-        return await fetchBackupData();
-      } catch (backupError) {
-        console.error('Backup also failed:', backupError);
-        
-        // Fix: Properly handle unknown error types
-        const errorMessage = error instanceof Error ? error.message : 'Unknown API error';
-        const backupErrorMessage = backupError instanceof Error ? backupError.message : 'Unknown backup error';
-        
-        throw new Error(`API failed: ${errorMessage}. Backup also failed: ${backupErrorMessage}`);
-      }
-    }
-  }, [user?.name, API_BASE_URL, API_TOKEN]);
 
-  // Keep the original fetchBackupData as a fallback
-  const fetchBackupData = async () => {
-    try {
-      const response = await fetch('/data/default_staking.json');
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch backup: ${response.status}`);
-      }
-      
-      const text = await response.text();
-      if (!text || text.trim() === '') {
-        throw new Error("Empty backup file");
-      }
-      
-      const backupData = JSON.parse(text);
-      if (!Array.isArray(backupData)) {
-        throw new Error("Invalid backup format");
-      }
-      
-      // Migrate data structure if needed
-      const migratedData = migrateDataStructure(backupData);
-        
-      // Set state directly here and return the data
-      setStakingItems(migratedData);
-      storage.save('stakingData', migratedData);
-    
-      return migratedData;
-    } catch (error) {
-      console.error("Backup loading failed:", error);
+      // No fallback - just throw the error
       throw error;
     }
-  };
+  }, [user?.name, API_BASE_URL, API_TOKEN]);
 
   // Add this function to handle data migration
   const migrateDataStructure = (items: any[]): StakingItem[] => {
@@ -516,7 +509,7 @@ const Staking: React.FC = () => {
       // If the item doesn't have username, add it
       if (!item.username) {
         return {
-          username: user?.name || user?.email || 'Legacy User',
+          username: user?.name || 'Legacy User',
           ...item
         };
       }
@@ -530,7 +523,7 @@ const Staking: React.FC = () => {
       // Save to localStorage immediately
       const timer = setTimeout(() => {
         storage.save('stakingData', stakingItems);
-        
+
         // Also try to save to API (don't block on this)
         if (user?.name) {
           saveStakingToAPI(stakingItems).catch(error => {
@@ -538,7 +531,7 @@ const Staking: React.FC = () => {
           });
         }
       }, 50);
-      
+
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -570,11 +563,11 @@ const Staking: React.FC = () => {
       }
 
       console.log('Successfully saved to API');
-      
+
       if (showSuccessMessage) {
         alert('Data successfully synced with server!');
       }
-      
+
       return true;
     } catch (error) {
       console.error('Error saving to API:', error);
@@ -600,12 +593,12 @@ const Staking: React.FC = () => {
   const updateAllItemsWithUsername = () => {
     const updatedItems = stakingItems.map(item => ({
       ...item,
-      username: item.username || user?.name || user?.email || 'Unknown User'
+      username: item.username || user?.name || 'Unknown User'
     }));
-    
+
     setStakingItems(updatedItems);
     storage.save('stakingData', updatedItems);
-    
+
     alert(`Updated ${updatedItems.length} items with username: ${user?.name}`);
   };
 
@@ -617,7 +610,7 @@ const Staking: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Staking Value</h1>
         <div className="flex gap-2 flex-wrap">
           {/* Sync button */}
-          <button 
+          <button
             onClick={refreshFromAPI}
             disabled={!user || isLoading}
             title="Get latest data from server"
@@ -626,9 +619,19 @@ const Staking: React.FC = () => {
             🔄 Sync Data
           </button>
 
+          {/* Refresh Prices button */}
+          <button
+            onClick={fetchPriceData}
+            disabled={stakingItems.length === 0}
+            title="Update prices for all staking items"
+            className="inline-flex items-center px-3 py-2 border border-green-300 dark:border-green-600 text-sm font-medium rounded-md text-green-700 dark:text-green-400 bg-white dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
+          >
+            💰 Refresh Prices
+          </button>
+
           {/* Update username button (conditional) */}
           {user && stakingItems.some(item => !item.username) && (
-            <button 
+            <button
               onClick={updateAllItemsWithUsername}
               title="Add username to existing items"
               className="inline-flex items-center px-3 py-2 border border-yellow-300 dark:border-yellow-600 text-sm font-medium rounded-md text-yellow-700 dark:text-yellow-400 bg-white dark:bg-gray-800 hover:bg-yellow-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition duration-150 ease-in-out"
@@ -636,9 +639,9 @@ const Staking: React.FC = () => {
               🔄 Update Items with Username
             </button>
           )}
-          
+
           {/* Hide values toggle */}
-          <button 
+          <button
             onClick={() => setHideValues(!hideValues)}
             title={hideValues ? "Show values" : "Hide values"}
             className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-400 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition duration-150 ease-in-out"
@@ -647,15 +650,15 @@ const Staking: React.FC = () => {
           </button>
 
           {/* Add form toggle */}
-          <button 
+          <button
             onClick={() => setShowForm(!showForm)}
             className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 focus:outline-none transition duration-150 ease-in-out"
           >
-            {FaPlusSquare({ 
-              style: { 
+            {FaPlusSquare({
+              style: {
                 marginRight: showForm ? '8px' : 0,
                 fontSize: '0.875rem'
-              } 
+              }
             })}
             {showForm ? 'Hide Form' : ''}
           </button>
@@ -667,7 +670,7 @@ const Staking: React.FC = () => {
           {priceUpdateError}
         </div>
       )}
-      
+
       {priceUpdateDate && (
         <div className="text-gray-500 dark:text-gray-400 text-sm mb-6">
           Price data last updated: {priceUpdateDate}
@@ -687,7 +690,7 @@ const Staking: React.FC = () => {
                   id="username"
                   type="text"
                   name="username"
-                  value={user?.name || user?.email || 'Not logged in'}
+                  value={user?.name || 'Not logged in'}
                   disabled
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                 />
@@ -797,7 +800,7 @@ const Staking: React.FC = () => {
         </div>
       ) : stakingItems.length === 0 ? (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400 px-4 py-3 rounded">
-          {user 
+          {user
             ? `No staking assets found for ${user.name}. ${Object.keys(priceData).length} prices loaded.`
             : 'Please log in to view staking data.'
           }
@@ -881,7 +884,7 @@ const Staking: React.FC = () => {
                               {FaExternalLinkAlt({ style: { fontSize: '10px' } })} Visit
                             </a>
                           ) : (
-                            <div 
+                            <div
                               onClick={() => startEditing(idx)}
                               className="cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 editable-cell text-xs"
                             >
@@ -900,12 +903,12 @@ const Staking: React.FC = () => {
                             className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
                         ) : (
-                          <div 
+                          <div
                             onClick={() => startEditing(idx)}
                             className="cursor-pointer editable-cell hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1 py-1"
                             title={item.account ? `Full account: ${item.account}` : 'No account specified'}
                           >
-                            {item.account && item.account.length > 12 
+                            {item.account && item.account.length > 12
                               ? item.account.substring(0, 12) + '...'
                               : item.account || 'N/A'
                             }
@@ -932,10 +935,38 @@ const Staking: React.FC = () => {
         </div>
       )}
 
+      {/* Price Update Status */}
+      {(priceUpdateDate || priceUpdateError) && (
+        <div className="mt-6 px-4 py-3 rounded border bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400">
+          <div className="flex items-center justify-between">
+            <div>
+              {priceUpdateDate && (
+                <div className="text-sm">
+                  <strong>Prices last updated:</strong> {new Date(priceUpdateDate).toLocaleString()}
+                </div>
+              )}
+              {priceUpdateError && (
+                <div className="text-sm text-red-600 dark:text-red-400 mt-1">
+                  <strong>Price update error:</strong> {priceUpdateError}
+                </div>
+              )}
+            </div>
+            {priceUpdateError && (
+              <button
+                onClick={() => setPriceUpdateError(null)}
+                className="text-blue-700 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-200"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {statusMessage && (
         <div className={`mt-6 px-4 py-3 rounded relative ${
-          statusMessage.type === 'success' 
-            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400' 
+          statusMessage.type === 'success'
+            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
             : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
         }`}>
           <span className="block sm:inline">{statusMessage.text}</span>
@@ -948,7 +979,7 @@ const Staking: React.FC = () => {
           </button>
         </div>
       )}
-      
+
       </div>
     </div>
   );
