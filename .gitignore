@@ -3,6 +3,9 @@
 
 # Build output
 /dist
+/public/data
+/public/reports
+
 
 # Logs
 npm-debug.log*

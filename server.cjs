@@ -5,6 +5,9 @@ const path = require('path');
 const fs = require('fs');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
+// Load environment variables from .env file
+require('dotenv').config();
+
 const app = express();
 const port = 3000;
 
