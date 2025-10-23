@@ -1,9 +1,9 @@
-import React, { useState, useContext } from 'react';
-import { Link } from 'react-router-dom';
-import { ThemeContext } from '../context/ThemeContext';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
-import ConnectMetaMask from './ConnectMetaMask';
+import React, { useContext, useState } from 'react';
+import { Link } from 'react-router-dom';
 import pulseLogo from '../assets/pulse_logo.jpg';
+import { ThemeContext } from '../context/ThemeContext';
+import ConnectMetaMask from './ConnectMetaMask';
 
 const NavBar: React.FC = () => {
   const { theme, toggleTheme } = useContext(ThemeContext);
@@ -55,6 +55,12 @@ const NavBar: React.FC = () => {
               className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
             >
               Staking
+            </Link>
+            <Link
+              to="/trading-config"
+              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+            >
+              Trading Config
             </Link>
             <Link
               to="/ranks"
@@ -132,6 +138,13 @@ const NavBar: React.FC = () => {
               className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
             >
               Staking
+            </Link>
+            <Link
+              to="/trading-config"
+              onClick={toggleMenu}
+              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+            >
+              Trading Config
             </Link>
             <Link
               to="/ranks"
