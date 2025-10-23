@@ -1,14 +1,15 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import NavBar from './components/NavBar';
-import HomePage from './pages/HomePage';
-import ChartsPage from './pages/ChartsPage';
-import StakingPage from './pages/StakingPage';
-import ReportsPage from './pages/ReportsPage';
-import LoginPage from './pages/LoginPage';
-import Counter from './pages/Counter';
 import ProtectedRoute from './components/ProtectedRoute';
 import Ranks from './components/Ranks';
+import ChartsPage from './pages/ChartsPage';
+import Counter from './pages/Counter';
+import HomePage from './pages/HomePage';
+import LoginPage from './pages/LoginPage';
+import ReportsPage from './pages/ReportsPage';
+import StakingPage from './pages/StakingPage';
+import TradingConfigPage from './pages/TradingConfigPage';
 
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -34,6 +35,7 @@ const App: React.FC = () => {
                 <Route path="/charts" element={<ChartsPage />} />
                 <Route path="/reports" element={<ProtectedRoute element={<ReportsPage />} />} />
                 <Route path="/staking" element={<ProtectedRoute element={<StakingPage />} />} />
+                <Route path="/trading-config" element={<ProtectedRoute element={<TradingConfigPage />} />} />
                 <Route path="/ranks" element={<Ranks />} />
                 <Route path="/counter" element={<Counter />} />
               </Routes>

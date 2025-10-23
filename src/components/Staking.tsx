@@ -13,6 +13,7 @@ interface StakingItem {
   price: string;
   stakingUrl: string;
   priceLastUpdated?: string;
+  return30d?: string;
 }
 
 // Interface for price data from CSV
@@ -20,65 +21,23 @@ interface PriceData {
   [symbol: string]: number;
 }
 
-// Define constants at the top of your component
-const APP_VERSION = '1.0.0';
+// Interface for return data
+interface ReturnData {
+  [symbol: string]: number;
+}
 
-// API configuration (similar to Ranks.tsx)
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
+  // Define constants at the top of your component
+  const APP_VERSION = '1.0.0';
 
-const Staking: React.FC = () => {
-  // Get the authenticated user
-  const { user } = useAuth();
+  // API configuration (similar to Ranks.tsx)
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+  const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
 
-  // Define the storage helper BEFORE any useState that uses it
-  const storage = {
-    save: (key: string, data: any) => {
-      try {
-        localStorage.setItem(key, JSON.stringify(data));
-        return true;
-      } catch (e) {
-        console.error(`Failed to save ${key} to storage:`, e);
-        return false;
-      }
-    },
-    load: (key: string) => {
-      try {
-        const data = localStorage.getItem(key);
-        if (!data) return null;
-        return JSON.parse(data);
-      } catch (e) {
-        console.error(`Failed to load ${key} from storage:`, e);
-        return null;
-      }
-    },
-    clear: (key: string) => {
-      try {
-        localStorage.removeItem(key);
-        return true;
-      } catch (e) {
-        return false;
-      }
-    }
-  };
+  const Staking: React.FC = () => {
+    // Get the authenticated user
+    const { user } = useAuth();
 
-  // Now you can safely use storage in useState initializers
-  const [stakingItems, setStakingItems] = useState<StakingItem[]>(() => {
-    // Try to load from localStorage immediately during state initialization
-    const savedVersion = storage.load('appVersion');
-    if (savedVersion !== APP_VERSION) {
-      storage.clear('stakingData');
-      storage.save('appVersion', APP_VERSION);
-      return []; // Return empty array to initialize state
-    }
-
-    const saved = storage.load('stakingData');
-    if (saved && Array.isArray(saved) && saved.length > 0) {
-      return saved;
-    }
-
-    return []; // Default to empty array
-  });
+  const [stakingItems, setStakingItems] = useState<StakingItem[]>([]);
 
   // Add these calculations at the component level
   const calculatedValues = useMemo(() => {
@@ -93,18 +52,61 @@ const Staking: React.FC = () => {
     return calculatedValues.reduce((sum, { itemValue }) => sum + itemValue, 0);
   }, [calculatedValues]);
 
-  // Sort stakingItems by percent of total value descending
-  const sortedStakingItems = useMemo(() => {
-    if (stakingItems.length === 0) return [];
-    return stakingItems
+  // Filter staking items by account type
+  const otherItems = stakingItems.filter(item => !item.account?.toLowerCase().startsWith('solo'));
+  const soloItems = stakingItems.filter(item => item.account?.toLowerCase().startsWith('solo'));
+
+  // Calculate values for Other items (everything except Solo)
+  const otherCalculatedValues = useMemo(() => {
+    return otherItems.map(item => {
+      const totalQuantity = parseFloat(item.stakedQuantity || '0') + parseFloat(item.unclaimedQuantity || '0');
+      const itemValue = totalQuantity * parseFloat(item.price || '0');
+      return { totalQuantity, itemValue };
+    });
+  }, [otherItems]);
+
+  const otherTotalValue = useMemo(() => {
+    return otherCalculatedValues.reduce((sum, { itemValue }) => sum + itemValue, 0);
+  }, [otherCalculatedValues]);
+
+  // Sort Other items by percent of total value descending
+  const sortedOtherItems = useMemo(() => {
+    if (otherItems.length === 0) return [];
+    return otherItems
       .map((item, idx) => {
-        const { itemValue } = calculatedValues[idx];
-        const percentOfTotal = totalValue > 0 ? (itemValue / totalValue) * 100 : 0;
+        const { itemValue } = otherCalculatedValues[idx];
+        const percentOfTotal = otherTotalValue > 0 ? (itemValue / otherTotalValue) * 100 : 0;
         return { item, idx, percentOfTotal };
       })
       .sort((a, b) => b.percentOfTotal - a.percentOfTotal)
       .map(({ item, idx }) => ({ item, idx }));
-  }, [stakingItems, calculatedValues, totalValue]);
+  }, [otherItems, otherCalculatedValues, otherTotalValue]);
+
+  // Calculate values for Solo items
+  const soloCalculatedValues = useMemo(() => {
+    return soloItems.map(item => {
+      const totalQuantity = parseFloat(item.stakedQuantity || '0') + parseFloat(item.unclaimedQuantity || '0');
+      const itemValue = totalQuantity * parseFloat(item.price || '0');
+      return { totalQuantity, itemValue };
+    });
+  }, [soloItems]);
+
+  const soloTotalValue = useMemo(() => {
+    return soloCalculatedValues.reduce((sum, { itemValue }) => sum + itemValue, 0);
+  }, [soloCalculatedValues]);
+
+  // Sort Solo items by percent of total value descending
+  const sortedSoloItems = useMemo(() => {
+    if (soloItems.length === 0) return [];
+    return soloItems
+      .map((item, idx) => {
+        const { itemValue } = soloCalculatedValues[idx];
+        const percentOfTotal = soloTotalValue > 0 ? (itemValue / soloTotalValue) * 100 : 0;
+        return { item, idx, percentOfTotal };
+      })
+      .sort((a, b) => b.percentOfTotal - a.percentOfTotal)
+      .map(({ item, idx }) => ({ item, idx }));
+  }, [soloItems, soloCalculatedValues, soloTotalValue]);
 
   const [newItem, setNewItem] = useState<StakingItem>({
     account: '',
@@ -119,15 +121,13 @@ const Staking: React.FC = () => {
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [editItem, setEditItem] = useState<StakingItem | null>(null);
   const [priceData, setPriceData] = useState<PriceData>({});
+  const [returnData, setReturnData] = useState<ReturnData>({});
   const [priceUpdateDate, setPriceUpdateDate] = useState<string>('');
   const [priceUpdateError, setPriceUpdateError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // ADD HIDE VALUES STATE HERE
-  const [hideValues, setHideValues] = useState(() => {
-    const saved = storage.load('hideStakingValues');
-    return saved === true;
-  });
+  const [hideValues, setHideValues] = useState(false);
 
   // Add this state
   const [statusMessage, setStatusMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
@@ -144,16 +144,13 @@ const Staking: React.FC = () => {
       try {
         // Wait for user to be available before fetching data
         if (user) {
-          // Only try loading from API if we have no items OR if user changed
-          if (stakingItems.length === 0) {
-            try {
-              await fetchStakingData(); // Changed from fetchBackupData
-            } catch (dataError) {
-              console.error("Failed to load staking data:", dataError);
-              // Fix: Properly handle the unknown error type
-              const errorMessage = dataError instanceof Error ? dataError.message : 'Unknown error occurred';
-              setPriceUpdateError(`Failed to load staking data: ${errorMessage}`);
-            }
+          try {
+            await fetchStakingData(); // Changed from fetchBackupData
+          } catch (dataError) {
+            console.error("Failed to load staking data:", dataError);
+            // Fix: Properly handle the unknown error type
+            const errorMessage = dataError instanceof Error ? dataError.message : 'Unknown error occurred';
+            setPriceUpdateError(`Failed to load staking data: ${errorMessage}`);
           }
         }
 
@@ -173,7 +170,7 @@ const Staking: React.FC = () => {
 
   // ADD EFFECT TO SAVE HIDE VALUES PREFERENCE
   useEffect(() => {
-    storage.save('hideStakingValues', hideValues);
+    // No longer saving to localStorage
   }, [hideValues]);
 
   const fetchPriceData = useCallback(async () => {
@@ -191,9 +188,9 @@ const Staking: React.FC = () => {
         return;
       }
 
-      console.log('Fetching prices for tickers:', uniqueTickers);
+      // console.log('Fetching prices for tickers:', uniqueTickers);
 
-      // Build URL with multiple symbols using the new endpoint
+      // Build URL with multiple symbols using the endpoint
       // Handle both relative and absolute URLs
       const baseUrl = API_BASE_URL.startsWith('http')
         ? API_BASE_URL
@@ -205,8 +202,7 @@ const Staking: React.FC = () => {
       });
 
 
-
-      // Fetch prices for all tickers at once using the new endpoint
+      // Fetch prices for all tickers at once using the endpoint
       const response = await fetch(url.toString(), {
         method: 'GET',
         headers: {
@@ -223,41 +219,57 @@ const Staking: React.FC = () => {
 
       // Process results into price data
       let prices: PriceData = {};
+      let returns: ReturnData = {};
       let latestDate = '';
 
-      // The new endpoint returns an array of price objects
-      if (data && Array.isArray(data)) {
-        data.forEach((priceInfo: any) => {
-          if (priceInfo && typeof priceInfo === 'object' && priceInfo.symbol) {
-            const symbol = priceInfo.symbol.toLowerCase();
-            const price = priceInfo.close;
-            const date = priceInfo.date;
+      // Group data by symbol and pick the USD entry (or first available)
+      const symbolData: { [symbol: string]: any } = {};
 
-            if (price !== undefined && price !== null && !isNaN(price)) {
-              prices[symbol] = parseFloat(price.toString());
+      data.forEach((priceInfo: any) => {
+        if (priceInfo && typeof priceInfo === 'object' && priceInfo.symbol) {
+          const symbol = priceInfo.symbol.toLowerCase();
 
-              // Update latest date if this is more recent
-              if (date && (!latestDate || new Date(date) > new Date(latestDate))) {
-                latestDate = date;
-              }
+          // Prefer USD, then USDT, then USDC, then any other
+          const priority = priceInfo.quoteCurrency?.toLowerCase() === 'usd' ? 4 :
+                          priceInfo.quoteCurrency?.toLowerCase() === 'usdt' ? 3 :
+                          priceInfo.quoteCurrency?.toLowerCase() === 'usdc' ? 2 : 1;
 
-
-            } else {
-              console.log(`No valid price found for ${symbol}:`, priceInfo);
-            }
-          } else {
-            console.log(`Invalid price data:`, priceInfo);
+          if (!symbolData[symbol] || priority > (symbolData[symbol].priority || 0)) {
+            symbolData[symbol] = { ...priceInfo, priority };
           }
-        });
-      } else {
-        throw new Error('Invalid response format from price API - expected array');
-      }
+        }
+      });
+
+      // Process the selected entries for each symbol
+      Object.entries(symbolData).forEach(([symbol, priceInfo]: [string, any]) => {
+        const price = priceInfo.close;
+        const return30d = priceInfo.return30d;
+        const date = priceInfo.date;
+
+        if (price !== undefined && price !== null && !isNaN(price)) {
+          prices[symbol] = parseFloat(price.toString());
+
+          if (return30d !== undefined && return30d !== null && !isNaN(return30d)) {
+            returns[symbol] = parseFloat(return30d.toString());
+          }
+
+          // Update latest date if this is more recent
+          if (date && (!latestDate || new Date(date) > new Date(latestDate))) {
+            latestDate = date;
+          }
+
+          console.log(`Updated price for ${symbol.toUpperCase()}: $${price}, 30d return: ${return30d}%`);
+        } else {
+          console.log(`No valid price found for ${symbol}:`, priceInfo);
+        }
+      });
 
       setPriceData(prices);
+      setReturnData(returns);
       setPriceUpdateDate(latestDate || new Date().toISOString());
 
       // Update staking item prices
-      updateStakingPrices(prices, latestDate || new Date().toISOString());
+      updateStakingPrices(prices, returns, latestDate || new Date().toISOString());
 
       const updatedCount = Object.keys(prices).length;
       showStatus(`Successfully updated prices for ${updatedCount} ticker${updatedCount !== 1 ? 's' : ''}`, 'success');
@@ -275,13 +287,14 @@ const Staking: React.FC = () => {
   }, [API_BASE_URL, API_TOKEN, stakingItems, showStatus]);
 
   // Update staking items with latest prices
-  const updateStakingPrices = (prices: PriceData, date: string) => {
+  const updateStakingPrices = (prices: PriceData, returns: ReturnData, date: string) => {
     const updatedItems = stakingItems.map(item => {
       const ticker = item.ticker.toLowerCase();
       if (prices[ticker] !== undefined) {
         return {
           ...item,
           price: prices[ticker].toString(),
+          return30d: returns[ticker] !== undefined ? returns[ticker].toString() : item.return30d,
           priceLastUpdated: date
         };
       }
@@ -289,9 +302,7 @@ const Staking: React.FC = () => {
     });
 
     setStakingItems(updatedItems);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  };  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setNewItem({
       ...newItem,
@@ -353,11 +364,13 @@ const Staking: React.FC = () => {
       // Check if we have a price for this ticker
       const ticker = newItem.ticker.toLowerCase();
       const price = priceData[ticker] !== undefined ? priceData[ticker].toString() : newItem.price;
+      const return30d = returnData[ticker] !== undefined ? returnData[ticker].toString() : undefined;
 
       const newStakingItem = {
         ...newItem,
         username: user?.name || 'Unknown User',
         price,
+        return30d,
         priceLastUpdated: priceData[ticker] !== undefined ? priceUpdateDate : undefined
       };
 
@@ -492,7 +505,6 @@ const Staking: React.FC = () => {
       const migratedData = migrateDataStructure(apiData);
 
       setStakingItems(migratedData);
-      storage.save('stakingData', migratedData);
 
       return migratedData;
     } catch (error) {
@@ -520,22 +532,15 @@ const Staking: React.FC = () => {
   // Replace the existing useEffect that saves data (around line 533)
   useEffect(() => {
     if (stakingItems.length > 0) {
-      // Save to localStorage immediately
-      const timer = setTimeout(() => {
-        storage.save('stakingData', stakingItems);
-
-        // Also try to save to API (don't block on this)
-        if (user?.name) {
-          saveStakingToAPI(stakingItems).catch(error => {
-            console.warn('Failed to sync with API:', error);
-          });
-        }
-      }, 50);
-
-      return () => clearTimeout(timer);
+      // Save to API immediately
+      if (user?.name) {
+        saveStakingToAPI(stakingItems).catch(error => {
+          console.warn('Failed to sync with API:', error);
+        });
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stakingItems, user?.name]); // Exclude storage and saveStakingToAPI to prevent infinite loops
+  }, [stakingItems, user?.name]); // Exclude saveStakingToAPI to prevent infinite loops
 
 
   // Replace the existing saveStakingToAPI function
@@ -589,6 +594,176 @@ const Staking: React.FC = () => {
     }
   };
 
+  // StakingTable component for reusable table rendering
+  const StakingTable: React.FC<{
+    title: string;
+    items: Array<{ item: StakingItem; idx: number }>;
+    calculatedValues: Array<{ totalQuantity: number; itemValue: number }>;
+    totalValue: number;
+    hideValues: boolean;
+    editIndex: number | null;
+    editItem: StakingItem | null;
+    onStartEditing: (index: number) => void;
+    onSaveEdit: () => void;
+    onCancelEditing: () => void;
+    onRemoveItem: (index: number) => void;
+    onEditChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  }> = ({
+    title,
+    items,
+    calculatedValues,
+    totalValue,
+    hideValues,
+    editIndex,
+    editItem,
+    onStartEditing,
+    onSaveEdit,
+    onCancelEditing,
+    onRemoveItem,
+    onEditChange
+  }) => {
+    if (items.length === 0) return null;
+
+    return (
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{title}</h2>
+        <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300"></th>
+                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ticker</th>
+                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Staked</th>
+                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unclaimed</th>
+                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total</th>
+                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Price</th>
+                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">30d Return</th>
+                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Value</th>
+                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">%</th>
+                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Site</th>
+                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {items.map(({ item, idx }) => {
+                  const { totalQuantity, itemValue } = calculatedValues[idx];
+                  const percentOfTotal = totalValue > 0 ? (itemValue / totalValue) * 100 : 0;
+
+                  return (
+                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-2 py-2 whitespace-nowrap text-xs">
+                        {editIndex === idx ? (
+                          <div className="flex space-x-1">
+                            <button
+                              onClick={onSaveEdit}
+                              className="inline-flex items-center px-1 py-1 border border-transparent text-xs rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-1 focus:ring-green-500"
+                            >
+                              {FaSave({ style: { fontSize: '10px' } })}
+                            </button>
+                            <button
+                              onClick={onCancelEditing}
+                              className="inline-flex items-center px-1 py-1 border border-transparent text-xs rounded text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-500"
+                            >
+                              {FaTimes({ style: { fontSize: '10px' } })}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => onRemoveItem(idx)}
+                            className="inline-flex items-center px-1 py-1 border border-transparent text-xs rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-1 focus:ring-red-500"
+                          >
+                            {FaTrash({ style: { fontSize: '10px' } })}
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{renderEditableCell('ticker', item, idx)}</td>
+                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('stakedQuantity', item, idx, true, true)}</td>
+                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('unclaimedQuantity', item, idx, true, true)}</td>
+                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(totalQuantity, 4)}</td>
+                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                        {renderEditableCell('price', item, idx, true)}
+                      </td>
+                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                        {item.return30d ? (
+                          <span className={parseFloat(item.return30d) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                            {parseFloat(item.return30d) >= 0 ? '+' : ''}{formatNumber(parseFloat(item.return30d), 2)}%
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">N/A</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{hideValues ? '***' : `$${formatNumber(itemValue)}`}</td>
+                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{formatNumber(percentOfTotal, 1)}%</td>
+                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                        {editIndex === idx && editItem ? (
+                          <input
+                            type="text"
+                            name="stakingUrl"
+                            value={editItem.stakingUrl}
+                            onChange={onEditChange}
+                            placeholder="https://..."
+                            className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        ) : (
+                          item.stakingUrl ? (
+                            <a href={item.stakingUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-xs">
+                              {FaExternalLinkAlt({ style: { fontSize: '10px' } })} Visit
+                            </a>
+                          ) : (
+                            <div
+                              onClick={() => onStartEditing(idx)}
+                              className="cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 editable-cell text-xs"
+                            >
+                              Add
+                            </div>
+                          )
+                        )}
+                      </td>
+                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                        {editIndex === idx && editItem ? (
+                          <input
+                            type="text"
+                            name="account"
+                            value={editItem.account}
+                            onChange={onEditChange}
+                            className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        ) : (
+                          <div
+                            onClick={() => onStartEditing(idx)}
+                            className="cursor-pointer editable-cell hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1 py-1"
+                            title={item.account ? `Full account: ${item.account}` : 'No account specified'}
+                          >
+                            {item.account && item.account.length > 12
+                              ? item.account.substring(0, 12) + '...'
+                              : item.account || 'N/A'
+                            }
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <td colSpan={6} className="px-2 py-2 text-xs font-medium text-gray-900 dark:text-white">
+                    <strong>Total {title} Value:</strong>
+                  </td>
+                  <td colSpan={5} className="px-2 py-2 text-xs font-medium text-gray-900 dark:text-white">
+                    <strong>{hideValues ? '***' : `$${formatNumber(totalValue)}`}</strong>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Add this button to your UI near the other action buttons
   // Move this function INSIDE the Staking component, before the return statement
   const updateAllItemsWithUsername = () => {
     const updatedItems = stakingItems.map(item => ({
@@ -597,12 +772,10 @@ const Staking: React.FC = () => {
     }));
 
     setStakingItems(updatedItems);
-    storage.save('stakingData', updatedItems);
 
     alert(`Updated ${updatedItems.length} items with username: ${user?.name}`);
   };
 
-  // Add this button to your UI near the other action buttons
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -806,132 +979,60 @@ const Staking: React.FC = () => {
           }
         </div>
       ) : (
-        <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300"></th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ticker</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Staked</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unclaimed</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Price</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Value</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">%</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Site</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">User</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {sortedStakingItems.map(({ item, idx }) => {
-                  const { totalQuantity, itemValue } = calculatedValues[idx];
-                  const percentOfTotal = totalValue > 0 ? (itemValue / totalValue) * 100 : 0;
+        <div>
+          <StakingTable
+            title="Personal Accounts"
+            items={sortedOtherItems}
+            calculatedValues={otherCalculatedValues}
+            totalValue={otherTotalValue}
+            hideValues={hideValues}
+            editIndex={editIndex}
+            editItem={editItem}
+            onStartEditing={startEditing}
+            onSaveEdit={saveEdit}
+            onCancelEditing={cancelEditing}
+            onRemoveItem={(idx) => {
+              // Find the original index in the full stakingItems array
+              const originalIndex = stakingItems.findIndex(item =>
+                item.account === otherItems[idx].account &&
+                item.ticker === otherItems[idx].ticker
+              );
+              if (originalIndex !== -1) {
+                removeStakingItem(originalIndex);
+              }
+            }}
+            onEditChange={handleEditChange}
+          />
 
-                  return (
-                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-2 py-2 whitespace-nowrap text-xs">
-                        {editIndex === idx ? (
-                          <div className="flex space-x-1">
-                            <button
-                              onClick={saveEdit}
-                              className="inline-flex items-center px-1 py-1 border border-transparent text-xs rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-1 focus:ring-green-500"
-                            >
-                              {FaSave({ style: { fontSize: '10px' } })}
-                            </button>
-                            <button
-                              onClick={cancelEditing}
-                              className="inline-flex items-center px-1 py-1 border border-transparent text-xs rounded text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-500"
-                            >
-                              {FaTimes({ style: { fontSize: '10px' } })}
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => removeStakingItem(idx)}
-                            className="inline-flex items-center px-1 py-1 border border-transparent text-xs rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-1 focus:ring-red-500"
-                          >
-                            {FaTrash({ style: { fontSize: '10px' } })}
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{renderEditableCell('ticker', item, idx)}</td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('stakedQuantity', item, idx, true, true)}</td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('unclaimedQuantity', item, idx, true, true)}</td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(totalQuantity, 4)}</td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
-                        {renderEditableCell('price', item, idx, true)}
-                        {/* {item.priceLastUpdated && (
-                          <div className="text-gray-500 dark:text-gray-400 text-xs">{item.priceLastUpdated}</div>
-                        )} */}
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{hideValues ? '***' : `$${formatNumber(itemValue)}`}</td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{formatNumber(percentOfTotal, 1)}%</td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
-                        {editIndex === idx && editItem ? (
-                          <input
-                            type="text"
-                            name="stakingUrl"
-                            value={editItem.stakingUrl}
-                            onChange={handleEditChange}
-                            placeholder="https://..."
-                            className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                        ) : (
-                          item.stakingUrl ? (
-                            <a href={item.stakingUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-xs">
-                              {FaExternalLinkAlt({ style: { fontSize: '10px' } })} Visit
-                            </a>
-                          ) : (
-                            <div
-                              onClick={() => startEditing(idx)}
-                              className="cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 editable-cell text-xs"
-                            >
-                              Add
-                            </div>
-                          )
-                        )}
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
-                        {editIndex === idx && editItem ? (
-                          <input
-                            type="text"
-                            name="account"
-                            value={editItem.account}
-                            onChange={handleEditChange}
-                            className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                        ) : (
-                          <div
-                            onClick={() => startEditing(idx)}
-                            className="cursor-pointer editable-cell hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1 py-1"
-                            title={item.account ? `Full account: ${item.account}` : 'No account specified'}
-                          >
-                            {item.account && item.account.length > 12
-                              ? item.account.substring(0, 12) + '...'
-                              : item.account || 'N/A'
-                            }
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">{item.username || 'N/A'}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <td colSpan={6} className="px-2 py-2 text-xs font-medium text-gray-900 dark:text-white">
-                    <strong>Total Staking Value:</strong>
-                  </td>
-                  <td colSpan={5} className="px-2 py-2 text-xs font-medium text-gray-900 dark:text-white">
-                    <strong>{hideValues ? '***' : `$${formatNumber(totalValue)}`}</strong>
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          <StakingTable
+            title="Solo Accounts"
+            items={sortedSoloItems}
+            calculatedValues={soloCalculatedValues}
+            totalValue={soloTotalValue}
+            hideValues={hideValues}
+            editIndex={editIndex}
+            editItem={editItem}
+            onStartEditing={startEditing}
+            onSaveEdit={saveEdit}
+            onCancelEditing={cancelEditing}
+            onRemoveItem={(idx) => {
+              // Find the original index in the full stakingItems array
+              const originalIndex = stakingItems.findIndex(item =>
+                item.account === soloItems[idx].account &&
+                item.ticker === soloItems[idx].ticker
+              );
+              if (originalIndex !== -1) {
+                removeStakingItem(originalIndex);
+              }
+            }}
+            onEditChange={handleEditChange}
+          />
+
+          {otherItems.length === 0 && soloItems.length === 0 && (
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400 px-4 py-3 rounded">
+              No staking assets found.
+            </div>
+          )}
         </div>
       )}
 
