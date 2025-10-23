@@ -90,5 +90,8 @@
   // Path Intellisense
   "path-intellisense.mappings": {
     "@": "${workspaceRoot}/src"
-  }
+  },
+
+  // NPM
+  "npm.packageManager": "pnpm"
 }
