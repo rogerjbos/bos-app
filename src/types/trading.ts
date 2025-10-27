@@ -5,6 +5,7 @@ export interface KrakenBotSymbol {
   entry_threshold: number;
   exit_amount: number;
   exit_threshold: number;
+  max_amount: number;
 }
 
 export type KrakenBotSymbolsConfig = KrakenBotSymbol[];
