@@ -7,6 +7,41 @@ import { KrakenBotSymbol, KrakenBotSymbolsConfig, SchwabBotSymbol, SchwabBotSymb
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
 
+// Helper function to sanitize numeric fields
+const sanitizeNumericField = (value: any, defaultValue: number = 0): number => {
+  if (value === null || value === undefined || isNaN(Number(value))) {
+    return defaultValue;
+  }
+  return Number(value);
+};
+
+// Helper function to sanitize trading symbol data
+const sanitizeKrakenBotSymbol = (item: any): KrakenBotSymbol => {
+  return {
+    symbol: item.symbol || '',
+    entry_amount: sanitizeNumericField(item.entry_amount),
+    entry_threshold: sanitizeNumericField(item.entry_threshold),
+    exit_amount: sanitizeNumericField(item.exit_amount),
+    exit_threshold: sanitizeNumericField(item.exit_threshold),
+    max_amount: sanitizeNumericField(item.max_amount)
+  };
+};
+
+// Helper function to sanitize Schwab symbol data
+const sanitizeSchwabBotSymbol = (item: any): SchwabBotSymbol => {
+  return {
+    symbol: item.symbol || '',
+    account_hash: item.account_hash || '',
+    entry_amount: sanitizeNumericField(item.entry_amount),
+    entry_threshold: sanitizeNumericField(item.entry_threshold),
+    exit_amount: sanitizeNumericField(item.exit_amount),
+    exit_threshold: sanitizeNumericField(item.exit_threshold),
+    max_weight: sanitizeNumericField(item.max_weight),
+    strategy: item.strategy || 'volatility_capture',
+    api: item.api || 'schwab'
+  };
+};
+
 const TradingConfig: React.FC = () => {
   // Get the authenticated user
   const { user } = useAuth();
@@ -19,7 +54,8 @@ const TradingConfig: React.FC = () => {
     entry_amount: 0,
     entry_threshold: 0,
     exit_amount: 0,
-    exit_threshold: 0
+    exit_threshold: 0,
+    max_amount: 0
   });
 
   const [newSchwabItem, setNewSchwabItem] = useState({
@@ -113,8 +149,10 @@ const TradingConfig: React.FC = () => {
         apiData = [data];
       }
 
-      setTradingSymbols(apiData);
-      return apiData;
+      // Sanitize the data to ensure numeric fields are properly handled
+      const sanitizedData = apiData.map(sanitizeKrakenBotSymbol);
+      setTradingSymbols(sanitizedData);
+      return sanitizedData;
     } catch (error) {
       console.error('Error fetching trading config from API:', error);
       throw error;
@@ -185,8 +223,10 @@ const TradingConfig: React.FC = () => {
         apiData = [data];
       }
 
-      setSchwabSymbols(apiData);
-      return apiData;
+      // Sanitize the data to ensure numeric fields are properly handled
+      const sanitizedData = apiData.map(sanitizeSchwabBotSymbol);
+      setSchwabSymbols(sanitizedData);
+      return sanitizedData;
     } catch (error) {
       console.error('Error fetching schwab config from API:', error);
       throw error;
@@ -397,7 +437,8 @@ const TradingConfig: React.FC = () => {
         entry_amount: 0,
         entry_threshold: 0,
         exit_amount: 0,
-        exit_threshold: 0
+        exit_threshold: 0,
+        max_amount: 0
       });
 
       // Hide form after successful add
@@ -524,7 +565,7 @@ const TradingConfig: React.FC = () => {
           onClick={() => startEditing(index)}
           className="cursor-pointer editable-cell hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1 py-1"
         >
-          {isNumeric ? (item[field] as number).toFixed(1) : item[field]}
+          {isNumeric ? ((item[field] as number) ?? 0).toFixed(1) : item[field]}
         </div>
       );
     }
@@ -563,7 +604,7 @@ const TradingConfig: React.FC = () => {
           onClick={() => startSchwabEditing(index)}
           className="cursor-pointer editable-cell hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1 py-1"
         >
-          {isNumeric ? (item[field] as number).toFixed(field === 'max_weight' ? 2 : 1) : item[field]}
+          {isNumeric ? ((item[field] as number) ?? 0).toFixed(field === 'max_weight' ? 2 : 1) : item[field]}
         </div>
       );
     }
@@ -624,7 +665,7 @@ const TradingConfig: React.FC = () => {
           <div className="mb-8">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Add New Trading Symbol</h3>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div>
                   <label htmlFor="symbol" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Symbol
@@ -710,6 +751,21 @@ const TradingConfig: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                <div>
+                  <label htmlFor="max_amount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Max Amount
+                  </label>
+                  <input
+                    id="max_amount"
+                    type="number"
+                    name="max_amount"
+                    value={newItem.max_amount}
+                    onChange={handleInputChange}
+                    step="0.1"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -743,6 +799,7 @@ const TradingConfig: React.FC = () => {
                     <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Entry Threshold</th>
                     <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Exit Amount</th>
                     <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Exit Threshold</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Max Amount</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -778,6 +835,7 @@ const TradingConfig: React.FC = () => {
                       <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('entry_threshold', item, idx)}</td>
                       <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('exit_amount', item, idx)}</td>
                       <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('exit_threshold', item, idx)}</td>
+                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('max_amount', item, idx)}</td>
                     </tr>
                   ))}
                 </tbody>
