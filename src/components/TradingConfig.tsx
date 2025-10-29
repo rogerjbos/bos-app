@@ -89,6 +89,7 @@ const TradingConfig: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [cryptoThresholds, setCryptoThresholds] = useState<{[key: string]: {min_entry_threshold: number, min_exit_threshold: number}}>({});
+  const [stockThresholds, setStockThresholds] = useState<{[key: string]: {entry_threshold: number, exit_threshold: number}}>({});
 
   // Helper function
   const showStatus = (text: string, type: 'success' | 'error' = 'success') => {
@@ -106,6 +107,10 @@ const TradingConfig: React.FC = () => {
           const baseCurrencies: string[] = [...new Set(symbols.map((s: KrakenBotSymbol) => s.symbol.split('/')[0].toLowerCase()))];
           await fetchCryptoThresholds(baseCurrencies);
           await fetchSchwabConfig();
+          // Extract unique symbols from schwab symbols
+          const schwabSymbols: SchwabBotSymbolsConfig = await fetchSchwabConfig();
+          const stockSymbols: string[] = [...new Set(schwabSymbols.map((s: SchwabBotSymbol) => s.symbol))];
+          await fetchStockThresholds(stockSymbols);
         }
       } catch (e) {
         console.error("Error in loadInitialData:", e);
@@ -618,7 +623,9 @@ const TradingConfig: React.FC = () => {
       const symbols = await fetchTradingConfig();
       const baseCurrencies: string[] = [...new Set(symbols.map((s: KrakenBotSymbol) => s.symbol.split('/')[0].toLowerCase()))];
       await fetchCryptoThresholds(baseCurrencies);
-      await fetchSchwabConfig();
+      const schwabSymbols: SchwabBotSymbolsConfig = await fetchSchwabConfig();
+      const stockSymbols: string[] = [...new Set(schwabSymbols.map((s: SchwabBotSymbol) => s.symbol))];
+      await fetchStockThresholds(stockSymbols);
       showStatus('Configuration refreshed successfully!');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -659,6 +666,41 @@ const TradingConfig: React.FC = () => {
       setCryptoThresholds(thresholdsMap);
     } catch (error) {
       console.error('Error fetching crypto thresholds:', error);
+      // Don't show error for thresholds, just log it
+    }
+  }, [API_BASE_URL, API_TOKEN]);
+
+  const fetchStockThresholds = useCallback(async (symbols: string[]) => {
+    if (symbols.length === 0) return;
+
+    try {
+      const queryParams = symbols.map(sym => `symbols=${encodeURIComponent(sym)}`).join('&');
+      const response = await fetch(`${API_BASE_URL}/stock_thresholds?${queryParams}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Transform into a map keyed by symbol
+      const thresholdsMap: {[key: string]: {entry_threshold: number, exit_threshold: number}} = {};
+      data.forEach((item: any) => {
+        thresholdsMap[item.symbol] = {
+          entry_threshold: item.entry_threshold,
+          exit_threshold: item.exit_threshold
+        };
+      });
+
+      setStockThresholds(thresholdsMap);
+    } catch (error) {
+      console.error('Error fetching stock thresholds:', error);
       // Don't show error for thresholds, just log it
     }
   }, [API_BASE_URL, API_TOKEN]);
@@ -1090,6 +1132,8 @@ const TradingConfig: React.FC = () => {
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Max Wt</th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Strategy</th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">API</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">90d Entry Thr</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">90d Exit Thr</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -1133,6 +1177,18 @@ const TradingConfig: React.FC = () => {
                         <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderSchwabEditableCell('max_weight', item, idx)}</td>
                         <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderSchwabEditableCell('strategy', item, idx, false, true, ['volatility_capture', 'momentum', 'mean_reversion'])}</td>
                         <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderSchwabEditableCell('api', item, idx, false, true, ['schwab', 'ibkr'])}</td>
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                          {(() => {
+                            const threshold = stockThresholds[item.symbol];
+                            return threshold ? threshold.entry_threshold.toFixed(1) : '-';
+                          })()}
+                        </td>
+                        <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                          {(() => {
+                            const threshold = stockThresholds[item.symbol];
+                            return threshold ? threshold.exit_threshold.toFixed(1) : '-';
+                          })()}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
