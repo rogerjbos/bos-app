@@ -88,6 +88,7 @@ const TradingConfig: React.FC = () => {
   } | null>(null);
   const [statusMessage, setStatusMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [cryptoThresholds, setCryptoThresholds] = useState<{[key: string]: {min_entry_threshold: number, min_exit_threshold: number}}>({});
 
   // Helper function
   const showStatus = (text: string, type: 'success' | 'error' = 'success') => {
@@ -100,7 +101,10 @@ const TradingConfig: React.FC = () => {
       setIsLoading(true);
       try {
         if (user) {
-          await fetchTradingConfig();
+          const symbols = await fetchTradingConfig();
+          // Extract unique baseCurrencies from trading symbols, lowercase
+          const baseCurrencies: string[] = [...new Set(symbols.map((s: KrakenBotSymbol) => s.symbol.split('/')[0].toLowerCase()))];
+          await fetchCryptoThresholds(baseCurrencies);
           await fetchSchwabConfig();
         }
       } catch (e) {
@@ -116,9 +120,8 @@ const TradingConfig: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const fetchTradingConfig = useCallback(async () => {
+  const fetchTradingConfig = useCallback(async (): Promise<KrakenBotSymbolsConfig> => {
     if (!user?.name) {
-      console.log('No user logged in, skipping API fetch');
       return [];
     }
 
@@ -136,7 +139,6 @@ const TradingConfig: React.FC = () => {
       }
 
       const data = await response.json();
-      console.log('API response:', data);
 
       // Handle the response based on your API structure
       let apiData = [];
@@ -161,7 +163,6 @@ const TradingConfig: React.FC = () => {
 
   const saveTradingConfigToAPI = useCallback(async (data: KrakenBotSymbolsConfig) => {
     if (!user?.name) {
-      console.log('No user logged in, skipping API save');
       return false;
     }
 
@@ -182,7 +183,6 @@ const TradingConfig: React.FC = () => {
         throw new Error(`Failed to save to API: ${response.status} ${response.statusText}`);
       }
 
-      console.log('Successfully saved to API');
       return true;
     } catch (error) {
       console.error('Error saving to API:', error);
@@ -192,7 +192,6 @@ const TradingConfig: React.FC = () => {
 
   const fetchSchwabConfig = useCallback(async () => {
     if (!user?.name) {
-      console.log('No user logged in, skipping API fetch');
       return [];
     }
 
@@ -210,7 +209,6 @@ const TradingConfig: React.FC = () => {
       }
 
       const data = await response.json();
-      console.log('Schwab API response:', data);
 
       // Handle the response based on your API structure
       let apiData = [];
@@ -235,12 +233,10 @@ const TradingConfig: React.FC = () => {
 
   const saveSchwabConfigToAPI = useCallback(async (data: SchwabBotSymbolsConfig) => {
     if (!user?.name) {
-      console.log('No user logged in, skipping API save');
       return false;
     }
 
     try {
-      console.log('Saving schwab config to API:', { username: user.name, count: data.length });
       const response = await fetch(`${API_BASE_URL}/schwab-bot-symbols`, {
         method: 'POST',
         headers: {
@@ -278,7 +274,6 @@ const TradingConfig: React.FC = () => {
       }
 
       const result = await response.json();
-      console.log('Successfully saved schwab config to API:', result);
       return true;
     } catch (error) {
       console.error('Error saving schwab config to API:', error);
@@ -620,7 +615,9 @@ const TradingConfig: React.FC = () => {
   const refreshFromAPI = async () => {
     setIsLoading(true);
     try {
-      await fetchTradingConfig();
+      const symbols = await fetchTradingConfig();
+      const baseCurrencies: string[] = [...new Set(symbols.map((s: KrakenBotSymbol) => s.symbol.split('/')[0].toLowerCase()))];
+      await fetchCryptoThresholds(baseCurrencies);
       await fetchSchwabConfig();
       showStatus('Configuration refreshed successfully!');
     } catch (error) {
@@ -630,6 +627,41 @@ const TradingConfig: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  const fetchCryptoThresholds = useCallback(async (symbols: string[]) => {
+    if (symbols.length === 0) return;
+
+    try {
+      const queryParams = symbols.map(sym => `symbols=${encodeURIComponent(sym)}`).join('&');
+      const response = await fetch(`${API_BASE_URL}/crypto_thresholds?${queryParams}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Transform into a map keyed by baseCurrency
+      const thresholdsMap: {[key: string]: {min_entry_threshold: number, min_exit_threshold: number}} = {};
+      data.forEach((item: any) => {
+        thresholdsMap[item.baseCurrency] = {
+          min_entry_threshold: item.min_entry_threshold,
+          min_exit_threshold: item.min_exit_threshold
+        };
+      });
+
+      setCryptoThresholds(thresholdsMap);
+    } catch (error) {
+      console.error('Error fetching crypto thresholds:', error);
+      // Don't show error for thresholds, just log it
+    }
+  }, [API_BASE_URL, API_TOKEN]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -801,6 +833,8 @@ const TradingConfig: React.FC = () => {
                     <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Exit Amount</th>
                     <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Exit Threshold</th>
                     <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Max Amount</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">90d Entry Thr</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">90d Exit Thr</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -837,6 +871,20 @@ const TradingConfig: React.FC = () => {
                       <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('exit_amount', item, idx)}</td>
                       <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('exit_threshold', item, idx)}</td>
                       <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('max_amount', item, idx)}</td>
+                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                        {(() => {
+                          const baseCurrency = item.symbol.split('/')[0].toLowerCase();
+                          const threshold = cryptoThresholds[baseCurrency];
+                          return threshold ? threshold.min_entry_threshold.toFixed(1) : '-';
+                        })()}
+                      </td>
+                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                        {(() => {
+                          const baseCurrency = item.symbol.split('/')[0].toLowerCase();
+                          const threshold = cryptoThresholds[baseCurrency];
+                          return threshold ? threshold.min_exit_threshold.toFixed(1) : '-';
+                        })()}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
