@@ -1,3 +1,4 @@
+import * as echarts from 'echarts';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FaExternalLinkAlt, FaPlusSquare, FaSave, FaTimes, FaTrash } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
@@ -33,9 +34,118 @@ interface ReturnData {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
   const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
 
-  const Staking: React.FC = () => {
-    // Get the authenticated user
-    const { user } = useAuth();
+// Treemap component for staking data
+const StakingTreemap: React.FC<{
+  title: string;
+  items: StakingItem[];
+  calculatedValues: Array<{ totalQuantity: number; itemValue: number }>;
+  isDark: boolean;
+  hideValues: boolean;
+}> = ({ title, items, calculatedValues, isDark, hideValues }) => {
+  const chartRef = React.useRef<HTMLDivElement>(null);
+  const chartInstance = React.useRef<echarts.ECharts | null>(null);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    // Initialize chart
+    chartInstance.current = echarts.init(chartRef.current, isDark ? 'dark' : 'light');
+
+    // Prepare data for treemap with color based on 30D returns
+    const data = items.map((item, idx) => {
+      const { itemValue } = calculatedValues[idx];
+      const return30d = item.return30d ? parseFloat(item.return30d) : 0;
+
+      // Calculate color based on return
+      let color: string;
+      if (return30d > 0) {
+        // Green shades for positive returns (brighter = better performance)
+        const intensity = Math.min(return30d / 50, 1); // Scale based on return percentage
+        const greenValue = Math.floor(100 + (intensity * 155)); // Range: 100-255
+        color = `rgb(0, ${greenValue}, 0)`;
+      } else if (return30d < 0) {
+        // Red shades for negative returns (brighter = worse performance)
+        const intensity = Math.min(Math.abs(return30d) / 50, 1); // Scale based on loss percentage
+        const redValue = Math.floor(100 + (intensity * 155)); // Range: 100-255
+        color = `rgb(${redValue}, 0, 0)`;
+      } else {
+        // Neutral gray for zero returns
+        color = 'rgb(128, 128, 128)';
+      }
+
+      return {
+        name: item.ticker,
+        value: itemValue,
+        return30d: return30d,
+        // Store additional data for tooltips
+        quantity: calculatedValues[idx].totalQuantity,
+        account: item.account,
+        // Set individual item color
+        itemStyle: {
+          color: color
+        }
+      };
+    });
+
+    const option = {
+      title: {
+        text: `${title} 30D Return`,
+        left: 'center',
+        textStyle: {
+          color: isDark ? '#ffffff' : '#000000'
+        }
+      },
+      tooltip: {
+        formatter: (params: any) => {
+          const data = params.data;
+          const valueDisplay = hideValues ? '***' : `$${data.value.toLocaleString()}`;
+          const quantityDisplay = hideValues ? '***' : data.quantity.toFixed(4);
+          return `${data.name}<br/>Value: ${valueDisplay}<br/>Quantity: ${quantityDisplay}<br/>30D Return: ${data.return30d.toFixed(2)}%<br/>Account: ${data.account}`;
+        }
+      },
+      series: [{
+        name: '30 Day Return',
+        type: 'treemap',
+        data: data,
+        label: {
+          show: true,
+          formatter: '{b}',
+          color: isDark ? '#ffffff' : '#000000',
+          fontSize: 12
+        },
+        itemStyle: {
+          borderColor: isDark ? '#ffffff' : '#000000',
+          borderWidth: 1
+        },
+        emphasis: {
+          label: {
+            fontSize: 14,
+            fontWeight: 'bold'
+          }
+        }
+      }]
+    };
+
+    chartInstance.current.setOption(option);
+
+    // Handle resize
+    const handleResize = () => {
+      chartInstance.current?.resize();
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chartInstance.current?.dispose();
+    };
+  }, [title, items, calculatedValues, isDark, hideValues]);
+
+  return <div ref={chartRef} style={{ width: '100%', height: '400px' }} />;
+};
+
+const Staking: React.FC = () => {
+  // Get the authenticated user
+  const { user } = useAuth();
 
   const [stakingItems, setStakingItems] = useState<StakingItem[]>([]);
 
@@ -125,12 +235,16 @@ interface ReturnData {
   const [priceUpdateDate, setPriceUpdateDate] = useState<string>('');
   const [priceUpdateError, setPriceUpdateError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [pricesLoaded, setPricesLoaded] = useState(false);
 
   // ADD HIDE VALUES STATE HERE
   const [hideValues, setHideValues] = useState(false);
 
   // Add this state
   const [statusMessage, setStatusMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
+
+  // Theme detection for heatmaps
+  const [isDark, setIsDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   // Helper function
   const showStatus = (text: string, type: 'success' | 'error' = 'success') => {
@@ -141,11 +255,13 @@ interface ReturnData {
   useEffect(() => {
     const loadInitialData = async () => {
       setIsLoading(true);
+      setPricesLoaded(false);
       try {
         // Wait for user to be available before fetching data
+        let loadedItems: StakingItem[] = [];
         if (user) {
           try {
-            await fetchStakingData(); // Changed from fetchBackupData
+            loadedItems = await fetchStakingData(); // Changed from fetchBackupData
           } catch (dataError) {
             console.error("Failed to load staking data:", dataError);
             // Fix: Properly handle the unknown error type
@@ -154,8 +270,11 @@ interface ReturnData {
           }
         }
 
-        // Always load prices
-        await fetchPriceData();
+        // Always load prices - pass the loaded items to fetchPriceData
+        if (loadedItems.length > 0) {
+          await fetchPriceData(loadedItems);
+        }
+        setPricesLoaded(true);
 
       } catch (e) {
         console.error("Error in loadInitialData:", e);
@@ -173,18 +292,31 @@ interface ReturnData {
     // No longer saving to localStorage
   }, [hideValues]);
 
-  const fetchPriceData = useCallback(async () => {
+  // Listen for theme changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsDark(e.matches);
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  const fetchPriceData = useCallback(async (itemsToUse?: StakingItem[]) => {
     // setIsUpdatingPrices(true);
     setPriceUpdateError(null);
 
     showStatus('Updating prices...', 'success');
 
     try {
-      // Get unique tickers from staking items
-      const uniqueTickers = [...new Set(stakingItems.map(item => item.ticker?.toUpperCase()).filter(Boolean))];
+      // Get unique tickers from staking items (use provided items or current state)
+      const currentStakingItems = itemsToUse || stakingItems;
+      const uniqueTickers = [...new Set(currentStakingItems.map(item => item.ticker?.toUpperCase()).filter(Boolean))];
 
       if (uniqueTickers.length === 0) {
         showStatus('No tickers to update prices for', 'error');
+        setPricesLoaded(true); // Still mark as loaded even if no tickers
         return;
       }
 
@@ -269,12 +401,13 @@ interface ReturnData {
       setPriceUpdateDate(latestDate || new Date().toISOString());
 
       // Update staking item prices
-      updateStakingPrices(prices, returns, latestDate || new Date().toISOString());
+      updateStakingPrices(prices, returns, latestDate || new Date().toISOString(), currentStakingItems);
 
       const updatedCount = Object.keys(prices).length;
       showStatus(`Successfully updated prices for ${updatedCount} ticker${updatedCount !== 1 ? 's' : ''}`, 'success');
 
       console.log('Price update complete. Updated prices for:', Object.keys(prices));
+      setPricesLoaded(true);
 
     } catch (error) {
       console.error('Error fetching price data:', error);
@@ -287,8 +420,8 @@ interface ReturnData {
   }, [API_BASE_URL, API_TOKEN, stakingItems, showStatus]);
 
   // Update staking items with latest prices
-  const updateStakingPrices = (prices: PriceData, returns: ReturnData, date: string) => {
-    const updatedItems = stakingItems.map(item => {
+  const updateStakingPrices = (prices: PriceData, returns: ReturnData, date: string, currentItems: StakingItem[]) => {
+    const updatedItems = currentItems.map(item => {
       const ticker = item.ticker.toLowerCase();
       if (prices[ticker] !== undefined) {
         return {
@@ -794,7 +927,7 @@ interface ReturnData {
 
           {/* Refresh Prices button */}
           <button
-            onClick={fetchPriceData}
+            onClick={() => fetchPriceData()}
             disabled={stakingItems.length === 0}
             title="Update prices for all staking items"
             className="inline-flex items-center px-3 py-2 border border-green-300 dark:border-green-600 text-sm font-medium rounded-md text-green-700 dark:text-green-400 bg-white dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
@@ -1031,6 +1164,42 @@ interface ReturnData {
           {otherItems.length === 0 && soloItems.length === 0 && (
             <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400 px-4 py-3 rounded">
               No staking assets found.
+            </div>
+          )}
+
+          {/* Staking Performance Treemaps */}
+          {pricesLoaded && otherItems.length > 0 && (
+            <div className="mb-8">
+              <StakingTreemap
+                title="Personal Accounts"
+                items={otherItems}
+                calculatedValues={otherCalculatedValues}
+                isDark={isDark}
+                hideValues={hideValues}
+              />
+            </div>
+          )}
+
+          {pricesLoaded && soloItems.length > 0 && (
+            <div className="mb-8">
+              <StakingTreemap
+                title="Solo Accounts"
+                items={soloItems}
+                calculatedValues={soloCalculatedValues}
+                isDark={isDark}
+                hideValues={hideValues}
+              />
+            </div>
+          )}
+
+          {!pricesLoaded && stakingItems.length > 0 && (
+            <div className="mb-8 text-center">
+              <div className="inline-flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="text-gray-600 dark:text-gray-400 text-sm">
+                  Loading price data for charts...
+                </span>
+              </div>
             </div>
           )}
         </div>
