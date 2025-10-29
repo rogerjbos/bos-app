@@ -3,13 +3,13 @@ import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import NavBar from './components/NavBar';
 import ProtectedRoute from './components/ProtectedRoute';
 import Ranks from './components/Ranks';
+import BotsPage from './pages/BotsPage';
 import ChartsPage from './pages/ChartsPage';
 import Counter from './pages/Counter';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import ReportsPage from './pages/ReportsPage';
 import StakingPage from './pages/StakingPage';
-import TradingConfigPage from './pages/TradingConfigPage';
 
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -35,7 +35,7 @@ const App: React.FC = () => {
                 <Route path="/charts" element={<ChartsPage />} />
                 <Route path="/reports" element={<ProtectedRoute element={<ReportsPage />} />} />
                 <Route path="/staking" element={<ProtectedRoute element={<StakingPage />} />} />
-                <Route path="/trading-config" element={<ProtectedRoute element={<TradingConfigPage />} />} />
+                <Route path="/bots" element={<ProtectedRoute element={<BotsPage />} />} />
                 <Route path="/ranks" element={<Ranks />} />
                 <Route path="/counter" element={<Counter />} />
               </Routes>
