@@ -1,7 +1,15 @@
+import { cn } from '@/lib/utils';
 import * as echarts from 'echarts';
+import { ExternalLink, Eye, EyeOff, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FaExternalLinkAlt, FaPlusSquare, FaSave, FaTimes, FaTrash } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { Badge } from './ui/badge';
+import { Button } from './ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
+import { Input } from './ui/Input';
+import { Label } from './ui/label';
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from './ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 
 
 // Check your interface definition to ensure all required fields are present
@@ -217,6 +225,37 @@ const Staking: React.FC = () => {
       .sort((a, b) => b.percentOfTotal - a.percentOfTotal)
       .map(({ item, idx }) => ({ item, idx }));
   }, [soloItems, soloCalculatedValues, soloTotalValue]);
+
+  // Combined items for "All" tab
+  const combinedItems = useMemo(() => {
+    return [...otherItems, ...soloItems];
+  }, [otherItems, soloItems]);
+
+  // Calculate values for combined items
+  const combinedCalculatedValues = useMemo(() => {
+    return combinedItems.map(item => {
+      const totalQuantity = parseFloat(item.stakedQuantity || '0') + parseFloat(item.unclaimedQuantity || '0');
+      const itemValue = totalQuantity * parseFloat(item.price || '0');
+      return { totalQuantity, itemValue };
+    });
+  }, [combinedItems]);
+
+  const combinedTotalValue = useMemo(() => {
+    return combinedCalculatedValues.reduce((sum, { itemValue }) => sum + itemValue, 0);
+  }, [combinedCalculatedValues]);
+
+  // Sort combined items by percent of total value descending
+  const sortedCombinedItems = useMemo(() => {
+    if (combinedItems.length === 0) return [];
+    return combinedItems
+      .map((item, idx) => {
+        const { itemValue } = combinedCalculatedValues[idx];
+        const percentOfTotal = combinedTotalValue > 0 ? (itemValue / combinedTotalValue) * 100 : 0;
+        return { item, idx, percentOfTotal };
+      })
+      .sort((a, b) => b.percentOfTotal - a.percentOfTotal)
+      .map(({ item, idx }) => ({ item, idx }));
+  }, [combinedItems, combinedCalculatedValues, combinedTotalValue]);
 
   const [newItem, setNewItem] = useState<StakingItem>({
     account: '',
@@ -565,20 +604,20 @@ const Staking: React.FC = () => {
   const renderEditableCell = (field: keyof StakingItem, item: StakingItem, index: number, isNumeric: boolean = false, hideWhenPrivate: boolean = false) => {
     if (editIndex === index && editItem) {
       return (
-        <input
+        <Input
           type={isNumeric ? "number" : "text"}
           name={field}
           value={editItem[field]}
           onChange={handleEditChange}
           step={isNumeric ? "any" : undefined}
-          className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="h-8 text-xs"
         />
       );
     } else {
       return (
         <div
           onClick={() => startEditing(index)}
-          className="cursor-pointer editable-cell hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1 py-1"
+          className="cursor-pointer hover:bg-accent rounded px-1 py-1"
         >
           {isNumeric
             ? (field === 'price' ? '$' : '') +
@@ -758,141 +797,157 @@ const Staking: React.FC = () => {
     if (items.length === 0) return null;
 
     return (
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{title}</h2>
-        <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300"></th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ticker</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Staked</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unclaimed</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Price</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">30d Return</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Value</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">%</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Site</th>
-                  <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {items.map(({ item, idx }) => {
-                  const { totalQuantity, itemValue } = calculatedValues[idx];
-                  const percentOfTotal = totalValue > 0 ? (itemValue / totalValue) * 100 : 0;
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle className="text-xl">{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[50px]"></TableHead>
+                <TableHead>Ticker</TableHead>
+                <TableHead>Staked</TableHead>
+                <TableHead>Unclaimed</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>30d Return</TableHead>
+                <TableHead>Value</TableHead>
+                <TableHead>%</TableHead>
+                <TableHead>Site</TableHead>
+                <TableHead>Account</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map(({ item, idx }) => {
+                const { totalQuantity, itemValue } = calculatedValues[idx];
+                const percentOfTotal = totalValue > 0 ? (itemValue / totalValue) * 100 : 0;
 
-                  return (
-                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-2 py-2 whitespace-nowrap text-xs">
-                        {editIndex === idx ? (
-                          <div className="flex space-x-1">
-                            <button
-                              onClick={onSaveEdit}
-                              className="inline-flex items-center px-1 py-1 border border-transparent text-xs rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-1 focus:ring-green-500"
-                            >
-                              {FaSave({ style: { fontSize: '10px' } })}
-                            </button>
-                            <button
-                              onClick={onCancelEditing}
-                              className="inline-flex items-center px-1 py-1 border border-transparent text-xs rounded text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-500"
-                            >
-                              {FaTimes({ style: { fontSize: '10px' } })}
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => onRemoveItem(idx)}
-                            className="inline-flex items-center px-1 py-1 border border-transparent text-xs rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-1 focus:ring-red-500"
+                return (
+                  <TableRow key={idx}>
+                    <TableCell>
+                      {editIndex === idx ? (
+                        <div className="flex space-x-1">
+                          <Button
+                            onClick={onSaveEdit}
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50"
                           >
-                            {FaTrash({ style: { fontSize: '10px' } })}
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{renderEditableCell('ticker', item, idx)}</td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('stakedQuantity', item, idx, true, true)}</td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('unclaimedQuantity', item, idx, true, true)}</td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(totalQuantity, 4)}</td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
-                        {renderEditableCell('price', item, idx, true)}
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
-                        {item.return30d ? (
-                          <span className={parseFloat(item.return30d) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                            {parseFloat(item.return30d) >= 0 ? '+' : ''}{formatNumber(parseFloat(item.return30d), 2)}%
-                          </span>
+                            <Save className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={onCancelEditing}
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          onClick={() => onRemoveItem(idx)}
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{renderEditableCell('ticker', item, idx)}</TableCell>
+                    <TableCell>{renderEditableCell('stakedQuantity', item, idx, true, true)}</TableCell>
+                    <TableCell>{renderEditableCell('unclaimedQuantity', item, idx, true, true)}</TableCell>
+                    <TableCell>{hideValues ? '***' : formatNumber(totalQuantity, 4)}</TableCell>
+                    <TableCell>{renderEditableCell('price', item, idx, true)}</TableCell>
+                    <TableCell>
+                      {item.return30d ? (
+                        <Badge variant={parseFloat(item.return30d) >= 0 ? "default" : "destructive"} className={cn(
+                          parseFloat(item.return30d) >= 0
+                            ? "bg-green-600 text-white hover:bg-green-700"
+                            : ""
+                        )}>
+                          {parseFloat(item.return30d) >= 0 ? '+' : ''}{formatNumber(parseFloat(item.return30d), 2)}%
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">N/A</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{hideValues ? '***' : `$${formatNumber(itemValue)}`}</TableCell>
+                    <TableCell>{formatNumber(percentOfTotal, 1)}%</TableCell>
+                    <TableCell>
+                      {editIndex === idx && editItem ? (
+                        <Input
+                          type="text"
+                          name="stakingUrl"
+                          value={editItem.stakingUrl}
+                          onChange={onEditChange}
+                          placeholder="https://..."
+                          className="h-8 text-xs"
+                        />
+                      ) : (
+                        item.stakingUrl ? (
+                          <a
+                            href={item.stakingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-primary hover:underline text-xs"
+                          >
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            Visit
+                          </a>
                         ) : (
-                          <span className="text-gray-400">N/A</span>
-                        )}
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{hideValues ? '***' : `$${formatNumber(itemValue)}`}</td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{formatNumber(percentOfTotal, 1)}%</td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
-                        {editIndex === idx && editItem ? (
-                          <input
-                            type="text"
-                            name="stakingUrl"
-                            value={editItem.stakingUrl}
-                            onChange={onEditChange}
-                            placeholder="https://..."
-                            className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                        ) : (
-                          item.stakingUrl ? (
-                            <a href={item.stakingUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-xs">
-                              {FaExternalLinkAlt({ style: { fontSize: '10px' } })} Visit
-                            </a>
-                          ) : (
-                            <div
-                              onClick={() => onStartEditing(idx)}
-                              className="cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 editable-cell text-xs"
-                            >
-                              Add
-                            </div>
-                          )
-                        )}
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
-                        {editIndex === idx && editItem ? (
-                          <input
-                            type="text"
-                            name="account"
-                            value={editItem.account}
-                            onChange={onEditChange}
-                            className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                        ) : (
-                          <div
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => onStartEditing(idx)}
-                            className="cursor-pointer editable-cell hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1 py-1"
-                            title={item.account ? `Full account: ${item.account}` : 'No account specified'}
+                            className="h-6 text-xs text-muted-foreground hover:text-foreground"
                           >
-                            {item.account && item.account.length > 12
-                              ? item.account.substring(0, 12) + '...'
-                              : item.account || 'N/A'
-                            }
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <td colSpan={6} className="px-2 py-2 text-xs font-medium text-gray-900 dark:text-white">
-                    <strong>Total {title} Value:</strong>
-                  </td>
-                  <td colSpan={5} className="px-2 py-2 text-xs font-medium text-gray-900 dark:text-white">
-                    <strong>{hideValues ? '***' : `$${formatNumber(totalValue)}`}</strong>
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      </div>
+                            Add
+                          </Button>
+                        )
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {editIndex === idx && editItem ? (
+                        <Input
+                          type="text"
+                          name="account"
+                          value={editItem.account}
+                          onChange={onEditChange}
+                          className="h-8 text-xs"
+                        />
+                      ) : (
+                        <div
+                          onClick={() => onStartEditing(idx)}
+                          className="cursor-pointer hover:bg-accent rounded px-1 py-1 text-xs"
+                          title={item.account ? `Full account: ${item.account}` : 'No account specified'}
+                        >
+                          {item.account && item.account.length > 12
+                            ? item.account.substring(0, 12) + '...'
+                            : item.account || 'N/A'
+                          }
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell colSpan={6} className="font-medium">
+                  <strong>Total {title} Value:</strong>
+                </TableCell>
+                <TableCell colSpan={5} className="font-medium">
+                  <strong>{hideValues ? '***' : `$${formatNumber(totalValue)}`}</strong>
+                </TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        </CardContent>
+      </Card>
     );
   };
 
@@ -910,344 +965,412 @@ const Staking: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Staking Value</h1>
-        <div className="flex gap-2 flex-wrap">
-          {/* Sync button */}
-          <button
-            onClick={refreshFromAPI}
-            disabled={!user || isLoading}
-            title="Get latest data from server"
-            className="inline-flex items-center px-3 py-2 border border-blue-300 dark:border-blue-600 text-sm font-medium rounded-md text-blue-700 dark:text-blue-400 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
-          >
-            🔄 Sync Data
-          </button>
-
-          {/* Refresh Prices button */}
-          <button
-            onClick={() => fetchPriceData()}
-            disabled={stakingItems.length === 0}
-            title="Update prices for all staking items"
-            className="inline-flex items-center px-3 py-2 border border-green-300 dark:border-green-600 text-sm font-medium rounded-md text-green-700 dark:text-green-400 bg-white dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
-          >
-            💰 Refresh Prices
-          </button>
-
-          {/* Update username button (conditional) */}
-          {user && stakingItems.some(item => !item.username) && (
-            <button
-              onClick={updateAllItemsWithUsername}
-              title="Add username to existing items"
-              className="inline-flex items-center px-3 py-2 border border-yellow-300 dark:border-yellow-600 text-sm font-medium rounded-md text-yellow-700 dark:text-yellow-400 bg-white dark:bg-gray-800 hover:bg-yellow-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition duration-150 ease-in-out"
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <h1 className="text-3xl font-bold">Crypto Staking</h1>
+          <div className="flex gap-2 flex-wrap">
+            {/* Sync button */}
+            <Button
+              onClick={refreshFromAPI}
+              disabled={!user || isLoading}
+              variant="outline"
+              size="sm"
+              title="Get latest data from server"
             >
-              🔄 Update Items with Username
-            </button>
-          )}
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Sync Data
+            </Button>
 
-          {/* Hide values toggle */}
-          <button
-            onClick={() => setHideValues(!hideValues)}
-            title={hideValues ? "Show values" : "Hide values"}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-400 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition duration-150 ease-in-out"
-          >
-            {hideValues ? "👁️ Show Values" : "🙈 Hide Values"}
-          </button>
+            {/* Refresh Prices button */}
+            <Button
+              onClick={() => fetchPriceData()}
+              disabled={stakingItems.length === 0}
+              variant="outline"
+              size="sm"
+              title="Update prices for all staking items"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh Prices
+            </Button>
 
-          {/* Add form toggle */}
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 focus:outline-none transition duration-150 ease-in-out"
-          >
-            {FaPlusSquare({
-              style: {
-                marginRight: showForm ? '8px' : 0,
-                fontSize: '0.875rem'
-              }
-            })}
-            {showForm ? 'Hide Form' : ''}
-          </button>
+            {/* Update username button (conditional) */}
+            {user && stakingItems.some(item => !item.username) && (
+              <Button
+                onClick={updateAllItemsWithUsername}
+                variant="outline"
+                size="sm"
+                title="Add username to existing items"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Update Items
+              </Button>
+            )}
+
+            {/* Hide values toggle */}
+            <Button
+              onClick={() => setHideValues(!hideValues)}
+              variant="ghost"
+              size="sm"
+              title={hideValues ? "Show values" : "Hide values"}
+            >
+              {hideValues ? (
+                <>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Show Values
+                </>
+              ) : (
+                <>
+                  <EyeOff className="h-4 w-4 mr-2" />
+                  Hide Values
+                </>
+              )}
+            </Button>
+
+            {/* Add form toggle */}
+            <Button
+              onClick={() => setShowForm(!showForm)}
+              variant="ghost"
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {showForm ? 'Hide Form' : 'Add Item'}
+            </Button>
+          </div>
         </div>
-      </div>
 
       {priceUpdateError && (
-        <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded">
-          {priceUpdateError}
-        </div>
+        <Card className="mb-6 border-destructive bg-destructive/10">
+          <CardContent className="pt-6">
+            <p className="text-sm text-destructive">{priceUpdateError}</p>
+          </CardContent>
+        </Card>
       )}
 
       {priceUpdateDate && (
-        <div className="text-gray-500 dark:text-gray-400 text-sm mb-6">
+        <p className="text-sm text-muted-foreground mb-6">
           Price data last updated: {priceUpdateDate}
-        </div>
+        </p>
       )}
 
       {showForm && (
-        <div className="mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Add New Asset</h3>
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Add New Asset</CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Username
-                </label>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input
                   id="username"
                   type="text"
                   name="username"
                   value={user?.name || 'Not logged in'}
                   disabled
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                 />
               </div>
 
-              <div>
-                <label htmlFor="ticker" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Ticker
-                </label>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="ticker">Ticker</Label>
+                <Input
                   id="ticker"
                   type="text"
                   name="ticker"
                   value={newItem.ticker}
                   onChange={handleInputChange}
                   placeholder="BTC"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 {newItem.ticker && priceData[newItem.ticker.toLowerCase()] && (
-                  <p className="mt-1 text-sm text-green-600 dark:text-green-400">
+                  <p className="text-sm text-green-600 dark:text-green-400">
                     Price: ${formatNumber(priceData[newItem.ticker.toLowerCase()])}
                   </p>
                 )}
               </div>
 
-              <div>
-                <label htmlFor="account" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Account
-                </label>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="account">Account</Label>
+                <Input
                   id="account"
                   type="text"
                   name="account"
                   value={newItem.account}
                   onChange={handleInputChange}
                   placeholder="Kraken"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
-              <div>
-                <label htmlFor="stakedQuantity" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Staked Quantity
-                </label>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="stakedQuantity">Staked Quantity</Label>
+                <Input
                   id="stakedQuantity"
                   type="number"
                   name="stakedQuantity"
                   value={newItem.stakedQuantity}
                   onChange={handleInputChange}
                   step="any"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
-              <div>
-                <label htmlFor="unclaimedQuantity" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Unclaimed Quantity
-                </label>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="unclaimedQuantity">Unclaimed Quantity</Label>
+                <Input
                   id="unclaimedQuantity"
                   type="number"
                   name="unclaimedQuantity"
                   value={newItem.unclaimedQuantity}
                   onChange={handleInputChange}
                   step="any"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
-              <div className="md:col-span-3">
-                <label htmlFor="stakingUrl" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Staking URL
-                </label>
+              <div className="md:col-span-3 space-y-2">
+                <Label htmlFor="stakingUrl">Staking URL</Label>
                 <div className="flex gap-2">
-                  <input
+                  <Input
                     id="stakingUrl"
                     type="text"
                     name="stakingUrl"
                     value={newItem.stakingUrl}
                     onChange={handleInputChange}
                     placeholder="https://..."
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="flex-1"
                   />
-                  <button
-                    type="button"
-                    onClick={addStakingItem}
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"
-                  >
+                  <Button type="button" onClick={addStakingItem}>
                     Add
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {isLoading ? (
         <div className="text-center my-8">
           <div className="inline-flex items-center space-x-2">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            <span className="text-gray-600 dark:text-gray-400">
+            <RefreshCw className="h-6 w-6 animate-spin" />
+            <span className="text-muted-foreground">
               {user ? `Loading staking data for ${user.name}...` : 'Loading staking data...'}
             </span>
           </div>
         </div>
       ) : stakingItems.length === 0 ? (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400 px-4 py-3 rounded">
-          {user
-            ? `No staking assets found for ${user.name}. ${Object.keys(priceData).length} prices loaded.`
-            : 'Please log in to view staking data.'
-          }
-        </div>
+        <Card className="border-yellow-500/20 bg-yellow-500/10">
+          <CardContent className="pt-6">
+            <p className="text-sm">
+              {user
+                ? `No staking assets found for ${user.name}. ${Object.keys(priceData).length} prices loaded.`
+                : 'Please log in to view staking data.'
+              }
+            </p>
+          </CardContent>
+        </Card>
       ) : (
-        <div>
-          <StakingTable
-            title="Personal Accounts"
-            items={sortedOtherItems}
-            calculatedValues={otherCalculatedValues}
-            totalValue={otherTotalValue}
-            hideValues={hideValues}
-            editIndex={editIndex}
-            editItem={editItem}
-            onStartEditing={startEditing}
-            onSaveEdit={saveEdit}
-            onCancelEditing={cancelEditing}
-            onRemoveItem={(idx) => {
-              // Find the original index in the full stakingItems array
-              const originalIndex = stakingItems.findIndex(item =>
-                item.account === otherItems[idx].account &&
-                item.ticker === otherItems[idx].ticker
-              );
-              if (originalIndex !== -1) {
-                removeStakingItem(originalIndex);
-              }
-            }}
-            onEditChange={handleEditChange}
-          />
+        <Tabs defaultValue="combined" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="combined">Combined</TabsTrigger>
+            <TabsTrigger value="personal">Personal Accounts</TabsTrigger>
+            <TabsTrigger value="solo">Solo Accounts</TabsTrigger>
+          </TabsList>
 
-          <StakingTable
-            title="Solo Accounts"
-            items={sortedSoloItems}
-            calculatedValues={soloCalculatedValues}
-            totalValue={soloTotalValue}
-            hideValues={hideValues}
-            editIndex={editIndex}
-            editItem={editItem}
-            onStartEditing={startEditing}
-            onSaveEdit={saveEdit}
-            onCancelEditing={cancelEditing}
-            onRemoveItem={(idx) => {
-              // Find the original index in the full stakingItems array
-              const originalIndex = stakingItems.findIndex(item =>
-                item.account === soloItems[idx].account &&
-                item.ticker === soloItems[idx].ticker
-              );
-              if (originalIndex !== -1) {
-                removeStakingItem(originalIndex);
-              }
-            }}
-            onEditChange={handleEditChange}
-          />
+          <TabsContent value="combined">
+            <StakingTable
+              title="All Holdings"
+              items={sortedCombinedItems}
+              calculatedValues={combinedCalculatedValues}
+              totalValue={combinedTotalValue}
+              hideValues={hideValues}
+              editIndex={editIndex}
+              editItem={editItem}
+              onStartEditing={startEditing}
+              onSaveEdit={saveEdit}
+              onCancelEditing={cancelEditing}
+              onRemoveItem={(idx) => {
+                // Find the original index in the full stakingItems array
+                const originalIndex = stakingItems.findIndex(item =>
+                  item.account === combinedItems[idx].account &&
+                  item.ticker === combinedItems[idx].ticker
+                );
+                if (originalIndex !== -1) {
+                  removeStakingItem(originalIndex);
+                }
+              }}
+              onEditChange={handleEditChange}
+            />
 
-          {otherItems.length === 0 && soloItems.length === 0 && (
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400 px-4 py-3 rounded">
-              No staking assets found.
-            </div>
-          )}
-
-          {/* Staking Performance Treemaps */}
-          {pricesLoaded && otherItems.length > 0 && (
-            <div className="mb-8">
-              <StakingTreemap
-                title="Personal Accounts"
-                items={otherItems}
-                calculatedValues={otherCalculatedValues}
-                isDark={isDark}
-                hideValues={hideValues}
-              />
-            </div>
-          )}
-
-          {pricesLoaded && soloItems.length > 0 && (
-            <div className="mb-8">
-              <StakingTreemap
-                title="Solo Accounts"
-                items={soloItems}
-                calculatedValues={soloCalculatedValues}
-                isDark={isDark}
-                hideValues={hideValues}
-              />
-            </div>
-          )}
-
-          {!pricesLoaded && stakingItems.length > 0 && (
-            <div className="mb-8 text-center">
-              <div className="inline-flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                <span className="text-gray-600 dark:text-gray-400 text-sm">
-                  Loading price data for charts...
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Price Update Status */}
-      {(priceUpdateDate || priceUpdateError) && (
-        <div className="mt-6 px-4 py-3 rounded border bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400">
-          <div className="flex items-center justify-between">
-            <div>
-              {priceUpdateDate && (
-                <div className="text-sm">
-                  <strong>Prices last updated:</strong> {new Date(priceUpdateDate).toLocaleString()}
-                </div>
-              )}
-              {priceUpdateError && (
-                <div className="text-sm text-red-600 dark:text-red-400 mt-1">
-                  <strong>Price update error:</strong> {priceUpdateError}
-                </div>
-              )}
-            </div>
-            {priceUpdateError && (
-              <button
-                onClick={() => setPriceUpdateError(null)}
-                className="text-blue-700 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-200"
-              >
-                ×
-              </button>
+            {combinedItems.length === 0 && (
+              <Card className="border-yellow-500/20 bg-yellow-500/10">
+                <CardContent className="pt-6">
+                  <p className="text-sm">No staking assets found.</p>
+                </CardContent>
+              </Card>
             )}
-          </div>
-        </div>
+
+            {/* Combined Treemap */}
+            {pricesLoaded && combinedItems.length > 0 && (
+              <div className="mb-8">
+                <StakingTreemap
+                  title="30D Return"
+                  items={combinedItems}
+                  calculatedValues={combinedCalculatedValues}
+                  isDark={isDark}
+                  hideValues={hideValues}
+                />
+              </div>
+            )}
+
+            {!pricesLoaded && combinedItems.length > 0 && (
+              <div className="mb-8 text-center">
+                <div className="inline-flex items-center space-x-2">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span className="text-muted-foreground text-sm">
+                    Loading price data for charts...
+                  </span>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="personal">
+            <StakingTable
+              title="Personal Accounts"
+              items={sortedOtherItems}
+              calculatedValues={otherCalculatedValues}
+              totalValue={otherTotalValue}
+              hideValues={hideValues}
+              editIndex={editIndex}
+              editItem={editItem}
+              onStartEditing={startEditing}
+              onSaveEdit={saveEdit}
+              onCancelEditing={cancelEditing}
+              onRemoveItem={(idx) => {
+                // Find the original index in the full stakingItems array
+                const originalIndex = stakingItems.findIndex(item =>
+                  item.account === otherItems[idx].account &&
+                  item.ticker === otherItems[idx].ticker
+                );
+                if (originalIndex !== -1) {
+                  removeStakingItem(originalIndex);
+                }
+              }}
+              onEditChange={handleEditChange}
+            />
+
+            {otherItems.length === 0 && (
+              <Card className="border-yellow-500/20 bg-yellow-500/10">
+                <CardContent className="pt-6">
+                  <p className="text-sm">No personal staking assets found.</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Personal Accounts Treemap */}
+            {pricesLoaded && otherItems.length > 0 && (
+              <div className="mb-8">
+                <StakingTreemap
+                  title="30D Return"
+                  items={otherItems}
+                  calculatedValues={otherCalculatedValues}
+                  isDark={isDark}
+                  hideValues={hideValues}
+                />
+              </div>
+            )}
+
+            {!pricesLoaded && otherItems.length > 0 && (
+              <div className="mb-8 text-center">
+                <div className="inline-flex items-center space-x-2">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span className="text-muted-foreground text-sm">
+                    Loading price data for charts...
+                  </span>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="solo">
+            <StakingTable
+              title="Solo Accounts"
+              items={sortedSoloItems}
+              calculatedValues={soloCalculatedValues}
+              totalValue={soloTotalValue}
+              hideValues={hideValues}
+              editIndex={editIndex}
+              editItem={editItem}
+              onStartEditing={startEditing}
+              onSaveEdit={saveEdit}
+              onCancelEditing={cancelEditing}
+              onRemoveItem={(idx) => {
+                // Find the original index in the full stakingItems array
+                const originalIndex = stakingItems.findIndex(item =>
+                  item.account === soloItems[idx].account &&
+                  item.ticker === soloItems[idx].ticker
+                );
+                if (originalIndex !== -1) {
+                  removeStakingItem(originalIndex);
+                }
+              }}
+              onEditChange={handleEditChange}
+            />
+
+            {soloItems.length === 0 && (
+              <Card className="border-yellow-500/20 bg-yellow-500/10">
+                <CardContent className="pt-6">
+                  <p className="text-sm">No solo staking assets found.</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Solo Accounts Treemap */}
+            {pricesLoaded && soloItems.length > 0 && (
+              <div className="mb-8">
+                <StakingTreemap
+                  title="30D Return"
+                  items={soloItems}
+                  calculatedValues={soloCalculatedValues}
+                  isDark={isDark}
+                  hideValues={hideValues}
+                />
+              </div>
+            )}
+
+            {!pricesLoaded && soloItems.length > 0 && (
+              <div className="mb-8 text-center">
+                <div className="inline-flex items-center space-x-2">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span className="text-muted-foreground text-sm">
+                    Loading price data for charts...
+                  </span>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       )}
 
       {statusMessage && (
-        <div className={`mt-6 px-4 py-3 rounded relative ${
+        <Card className={cn(
+          "mt-6",
           statusMessage.type === 'success'
-            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
-            : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
-        }`}>
-          <span className="block sm:inline">{statusMessage.text}</span>
-          <button
-            onClick={() => setStatusMessage(null)}
-            className="absolute top-0 bottom-0 right-0 px-4 py-3"
-          >
-            <span className="sr-only">Dismiss</span>
-            ×
-          </button>
-        </div>
+            ? 'border-green-500/20 bg-green-500/10'
+            : 'border-destructive/20 bg-destructive/10'
+        )}>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <span className="text-sm">{statusMessage.text}</span>
+              <Button
+                onClick={() => setStatusMessage(null)}
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       </div>
