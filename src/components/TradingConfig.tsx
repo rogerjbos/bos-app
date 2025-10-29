@@ -731,25 +731,16 @@ const TradingConfig: React.FC = () => {
                   <label htmlFor="exit_threshold" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Exit Threshold
                   </label>
-                  <div className="flex gap-2">
-                    <input
-                      id="exit_threshold"
-                      type="number"
-                      name="exit_threshold"
-                      value={newItem.exit_threshold}
-                      onChange={handleInputChange}
-                      step="0.1"
-                      min="-100"
-                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={addTradingSymbol}
-                      className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"
-                    >
-                      Add
-                    </button>
-                  </div>
+                  <input
+                    id="exit_threshold"
+                    type="number"
+                    name="exit_threshold"
+                    value={newItem.exit_threshold}
+                    onChange={handleInputChange}
+                    step="0.1"
+                    min="-100"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
                 </div>
 
                 <div>
@@ -765,6 +756,16 @@ const TradingConfig: React.FC = () => {
                     step="0.1"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={addTradingSymbol}
+                    className="w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"
+                  >
+                    Add
+                  </button>
                 </div>
               </div>
             </div>
