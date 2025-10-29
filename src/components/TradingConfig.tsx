@@ -51,11 +51,11 @@ const TradingConfig: React.FC = () => {
 
   const [newItem, setNewItem] = useState<KrakenBotSymbol>({
     symbol: '',
-    entry_amount: 0,
-    entry_threshold: 0,
-    exit_amount: 0,
-    exit_threshold: 0,
-    max_amount: 0
+    entry_amount: 58,
+    entry_threshold: -2.1,
+    exit_amount: 26,
+    exit_threshold: 2.6,
+    max_amount: 2000
   });
 
   const [newSchwabItem, setNewSchwabItem] = useState({
@@ -90,12 +90,26 @@ const TradingConfig: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [cryptoThresholds, setCryptoThresholds] = useState<{[key: string]: {min_entry_threshold: number, min_exit_threshold: number}}>({});
   const [stockThresholds, setStockThresholds] = useState<{[key: string]: {entry_threshold: number, exit_threshold: number}}>({});
+  const [cryptoPrices, setCryptoPrices] = useState<{[key: string]: {close: number, return30d: number}}>({});
+  const [stockPrices, setStockPrices] = useState<{[key: string]: {close: number, return30d: number}}>({});
+  const [isDark, setIsDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   // Helper function
   const showStatus = (text: string, type: 'success' | 'error' = 'success') => {
     setStatusMessage({ text, type });
     setTimeout(() => setStatusMessage(null), 3000);
   };
+
+  // Listen for theme changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsDark(e.matches);
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -111,6 +125,8 @@ const TradingConfig: React.FC = () => {
           const schwabSymbols: SchwabBotSymbolsConfig = await fetchSchwabConfig();
           const stockSymbols: string[] = [...new Set(schwabSymbols.map((s: SchwabBotSymbol) => s.symbol))];
           await fetchStockThresholds(stockSymbols);
+          await fetchLatestCryptoPrices(baseCurrencies);
+          await fetchLatestStockPrices(stockSymbols);
         }
       } catch (e) {
         console.error("Error in loadInitialData:", e);
@@ -626,6 +642,8 @@ const TradingConfig: React.FC = () => {
       const schwabSymbols: SchwabBotSymbolsConfig = await fetchSchwabConfig();
       const stockSymbols: string[] = [...new Set(schwabSymbols.map((s: SchwabBotSymbol) => s.symbol))];
       await fetchStockThresholds(stockSymbols);
+      await fetchLatestCryptoPrices(baseCurrencies);
+      await fetchLatestStockPrices(stockSymbols);
       showStatus('Configuration refreshed successfully!');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -702,6 +720,76 @@ const TradingConfig: React.FC = () => {
     } catch (error) {
       console.error('Error fetching stock thresholds:', error);
       // Don't show error for thresholds, just log it
+    }
+  }, [API_BASE_URL, API_TOKEN]);
+
+  const fetchLatestCryptoPrices = useCallback(async (symbols: string[]) => {
+    if (symbols.length === 0) return;
+
+    try {
+      const queryParams = symbols.map(sym => `symbols=${encodeURIComponent(sym)}`).join('&');
+      const response = await fetch(`${API_BASE_URL}/latest_crypto_price?${queryParams}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Transform into a map keyed by baseCurrency
+      const pricesMap: {[key: string]: {close: number, return30d: number}} = {};
+      data.forEach((item: any) => {
+        pricesMap[item.baseCurrency] = {
+          close: item.close,
+          return30d: item.return30d || 0
+        };
+      });
+
+      setCryptoPrices(pricesMap);
+    } catch (error) {
+      console.error('Error fetching latest crypto prices:', error);
+      // Don't show error for prices, just log it
+    }
+  }, [API_BASE_URL, API_TOKEN]);
+
+  const fetchLatestStockPrices = useCallback(async (symbols: string[]) => {
+    if (symbols.length === 0) return;
+
+    try {
+      const queryParams = symbols.map(sym => `symbols=${encodeURIComponent(sym)}`).join('&');
+      const response = await fetch(`${API_BASE_URL}/latest_stock_price?${queryParams}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Transform into a map keyed by symbol
+      const pricesMap: {[key: string]: {close: number, return30d: number}} = {};
+      data.forEach((item: any) => {
+        pricesMap[item.symbol] = {
+          close: item.close,
+          return30d: item.return30d || 0
+        };
+      });
+
+      setStockPrices(pricesMap);
+    } catch (error) {
+      console.error('Error fetching latest stock prices:', error);
+      // Don't show error for prices, just log it
     }
   }, [API_BASE_URL, API_TOKEN]);
 
