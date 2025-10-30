@@ -1,4 +1,4 @@
-import { ExternalLink, Wallet, RefreshCw } from "lucide-react";
+import { ExternalLink, RefreshCw, Wallet } from "lucide-react";
 import { useMetaMaskContext } from "../providers/MetaMaskProvider";
 import { Button } from "./ui/Button";
 
@@ -10,14 +10,14 @@ export default function ConnectMetaMask() {
   const address = accounts[0];
 
   return (
-    <div className="flex items-center justify-between p-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center">
-          <Wallet className="w-6 h-6 text-white" />
+    <div className="flex items-center justify-between p-2 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5">
+      <div className="flex items-center gap-2">
+        <div className="w-6 h-6 rounded-md bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center">
+          <Wallet className="w-4 h-4 text-white" />
         </div>
         <div>
-          <div className="font-semibold text-gray-900 dark:text-white">MetaMask</div>
-          <div className="text-xs text-gray-600 dark:text-gray-400">Ethereum wallet (EVM)</div>
+          <div className="text-sm font-medium text-gray-900 dark:text-white">MetaMask</div>
+          <div className="text-xs text-gray-600 dark:text-gray-400">EVM wallet</div>
         </div>
       </div>
 
@@ -25,9 +25,9 @@ export default function ConnectMetaMask() {
         {isInstalled ? (
           // Show either the connected address with actions or a prominent Connect button
           connected ? (
-            <div className="flex items-center gap-2">
-              <div className="text-sm text-green-400 max-w-[220px] truncate">
-                {address}
+            <div className="flex items-center gap-1">
+              <div className="text-xs text-green-400 font-mono">
+                {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Connected'}
               </div>
               <Button
                 size="sm"
@@ -40,8 +40,9 @@ export default function ConnectMetaMask() {
                   }
                 }}
                 title="Switch to a different account"
+                className="h-6 w-6 p-0"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="w-3 h-3" />
               </Button>
               <Button
                 size="sm"
@@ -54,8 +55,9 @@ export default function ConnectMetaMask() {
                     console.warn("MetaMask disconnect failed", e);
                   }
                 }}
+                className="h-6 px-2 text-xs"
               >
-                Disconnect
+                ✕
               </Button>
             </div>
           ) : (
@@ -70,7 +72,7 @@ export default function ConnectMetaMask() {
                   console.warn("MetaMask connect failed", e);
                 }
               }}
-              className="min-w-[96px]"
+              className="h-7 px-3 text-xs"
             >
               Connect
             </Button>
@@ -80,9 +82,9 @@ export default function ConnectMetaMask() {
             size="sm"
             variant="outline"
             onClick={() => window.open("https://metamask.io/", "_blank")}
-            className="min-w-[96px]"
+            className="h-7 px-3 text-xs"
           >
-            Install <ExternalLink className="w-4 h-4 ml-2" />
+            Install <ExternalLink className="w-3 h-3 ml-1" />
           </Button>
         )}
       </div>

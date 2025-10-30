@@ -66,7 +66,6 @@ export function useMetaMask() {
         // Store cleanup functions
         return () => {
           try {
-            console.log("Cleaning up MetaMask listeners");
             if (window.ethereum?.removeListener) {
               window.ethereum.removeListener("accountsChanged", accountsChangedCallback);
               window.ethereum.removeListener("chainChanged", chainChangedCallback);
@@ -126,8 +125,6 @@ export function useMetaMask() {
   const refreshAccounts = useCallback(async () => {
     if (!window?.ethereum) return;
     try {
-      console.log("Refreshing accounts...");
-
       // Try to request permissions first
       try {
         await window.ethereum.request({

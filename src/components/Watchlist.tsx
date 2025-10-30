@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { TableRowSkeleton } from './LoadingSkeleton';
 import { Badge } from './ui/badge';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
@@ -12,7 +13,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 // API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
-const TIINGO_API_KEY = import.meta.env.VITE_TIINGO_API_KEY || '';
 
 // Interfaces
 interface Watchlist {
@@ -64,6 +64,7 @@ const Watchlist: React.FC = () => {
   const [stockData, setStockData] = useState<StockXDaysData[]>([]);
   const [latestPrices, setLatestPrices] = useState<LatestPriceData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // New watchlist form
@@ -206,6 +207,7 @@ const Watchlist: React.FC = () => {
     if (!user?.name) return;
 
     try {
+      setIsInitialLoading(true);
       const baseUrl = API_BASE_URL.startsWith('http')
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
@@ -238,6 +240,8 @@ const Watchlist: React.FC = () => {
       showStatus('Failed to load watchlists', 'error');
       // Create default watchlist as fallback
       await createDefaultWatchlist();
+    } finally {
+      setIsInitialLoading(false);
     }
   };
 
@@ -277,6 +281,8 @@ const Watchlist: React.FC = () => {
     } catch (error) {
       console.error('Error creating default watchlist:', error);
       showStatus('Failed to create default watchlist', 'error');
+    } finally {
+      setIsInitialLoading(false);
     }
   };
 
@@ -945,6 +951,27 @@ const Watchlist: React.FC = () => {
                           Add Your First Symbol
                         </Button>
                       </div>
+                    ) : isInitialLoading ? (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[50px]"></TableHead>
+                            <SortableHeader column="symbol">Symbol</SortableHeader>
+                            <SortableHeader column="latest" className="text-right">Latest</SortableHeader>
+                            <SortableHeader column="1d" className="text-right">1 Day Ago</SortableHeader>
+                            <SortableHeader column="7d" className="text-right">7 Days Ago</SortableHeader>
+                            <SortableHeader column="30d" className="text-right">30 Days Ago</SortableHeader>
+                            <SortableHeader column="60d" className="text-right">60 Days Ago</SortableHeader>
+                            <SortableHeader column="90d" className="text-right">90 Days Ago</SortableHeader>
+                            <SortableHeader column="120d" className="text-right">120 Days Ago</SortableHeader>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {Array.from({ length: Math.min(watchlist.symbols.length, 5) }).map((_, i) => (
+                            <TableRowSkeleton key={i} />
+                          ))}
+                        </TableBody>
+                      </Table>
                     ) : (
                       <Table>
                         <TableHeader>

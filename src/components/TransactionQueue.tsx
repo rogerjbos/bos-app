@@ -308,7 +308,6 @@ function TransactionItem({ transaction, onRemove }: TransactionItemProps) {
                   <button
                     onClick={() => {
                       // Retry logic would go here
-                      console.log("Retry transaction:", transaction.id);
                     }}
                     className="text-xs text-white/60 hover:text-white flex items-center gap-1"
                   >

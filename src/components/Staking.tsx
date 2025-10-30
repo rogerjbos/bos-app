@@ -3,6 +3,7 @@ import * as echarts from 'echarts';
 import { ExternalLink, Eye, EyeOff, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { LoadingSkeleton } from './LoadingSkeleton';
 import { Badge } from './ui/badge';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
@@ -150,6 +151,77 @@ const StakingTreemap: React.FC<{
 
   return <div ref={chartRef} style={{ width: '100%', height: '400px' }} />;
 };
+
+// Skeleton components for loading states
+const StakingTableSkeleton: React.FC<{ title: string }> = ({ title }) => (
+  <Card className="mb-8">
+    <CardHeader>
+      <CardTitle className="text-xl">{title}</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[50px]"></TableHead>
+            <TableHead>Ticker</TableHead>
+            <TableHead>Staked</TableHead>
+            <TableHead>Unclaimed</TableHead>
+            <TableHead>Total</TableHead>
+            <TableHead>Price</TableHead>
+            <TableHead>30d Return</TableHead>
+            <TableHead>Value</TableHead>
+            <TableHead>%</TableHead>
+            <TableHead>Site</TableHead>
+            <TableHead>Account</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <TableRow key={i}>
+              <TableCell><LoadingSkeleton variant="circular" className="h-6 w-6" /></TableCell>
+              <TableCell><LoadingSkeleton variant="text" className="h-4 w-12" /></TableCell>
+              <TableCell><LoadingSkeleton variant="text" className="h-4 w-16" /></TableCell>
+              <TableCell><LoadingSkeleton variant="text" className="h-4 w-16" /></TableCell>
+              <TableCell><LoadingSkeleton variant="text" className="h-4 w-16" /></TableCell>
+              <TableCell><LoadingSkeleton variant="text" className="h-4 w-20" /></TableCell>
+              <TableCell><LoadingSkeleton variant="rectangular" className="h-6 w-16 rounded" /></TableCell>
+              <TableCell><LoadingSkeleton variant="text" className="h-4 w-24" /></TableCell>
+              <TableCell><LoadingSkeleton variant="text" className="h-4 w-12" /></TableCell>
+              <TableCell><LoadingSkeleton variant="text" className="h-4 w-16" /></TableCell>
+              <TableCell><LoadingSkeleton variant="text" className="h-4 w-20" /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+        <TableFooter>
+          <TableRow>
+            <TableCell colSpan={6} className="font-medium">
+              <LoadingSkeleton variant="text" className="h-4 w-32" />
+            </TableCell>
+            <TableCell colSpan={5} className="font-medium">
+              <LoadingSkeleton variant="text" className="h-4 w-24" />
+            </TableCell>
+          </TableRow>
+        </TableFooter>
+      </Table>
+    </CardContent>
+  </Card>
+);
+
+const StakingTreemapSkeleton: React.FC = () => (
+  <div className="mb-8">
+    <div className="h-8 mb-4">
+      <LoadingSkeleton variant="text" className="h-6 w-32" />
+    </div>
+    <div className="border rounded-lg p-4 bg-card">
+      <div className="h-[400px] flex items-center justify-center">
+        <div className="text-center">
+          <LoadingSkeleton variant="circular" className="h-12 w-12 mx-auto mb-4" />
+          <LoadingSkeleton variant="text" className="h-4 w-48" />
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 const Staking: React.FC = () => {
   // Get the authenticated user
@@ -359,8 +431,6 @@ const Staking: React.FC = () => {
         return;
       }
 
-      // console.log('Fetching prices for tickers:', uniqueTickers);
-
       // Build URL with multiple symbols using the endpoint
       // Handle both relative and absolute URLs
       const baseUrl = API_BASE_URL.startsWith('http')
@@ -428,10 +498,8 @@ const Staking: React.FC = () => {
           if (date && (!latestDate || new Date(date) > new Date(latestDate))) {
             latestDate = date;
           }
-
-          console.log(`Updated price for ${symbol.toUpperCase()}: $${price}, 30d return: ${return30d}%`);
         } else {
-          console.log(`No valid price found for ${symbol}:`, priceInfo);
+          // No valid price found for this symbol
         }
       });
 
@@ -445,7 +513,6 @@ const Staking: React.FC = () => {
       const updatedCount = Object.keys(prices).length;
       showStatus(`Successfully updated prices for ${updatedCount} ticker${updatedCount !== 1 ? 's' : ''}`, 'success');
 
-      console.log('Price update complete. Updated prices for:', Object.keys(prices));
       setPricesLoaded(true);
 
     } catch (error) {
@@ -588,7 +655,6 @@ const Staking: React.FC = () => {
       // Also sync the updated list to API immediately
       if (user?.name) {
         await saveStakingToAPI(updatedItems);
-        console.log('Successfully deleted item and synced with API');
       }
 
     } catch (error) {
@@ -641,7 +707,6 @@ const Staking: React.FC = () => {
   // Replace the fetchStakingData function with this corrected version
   const fetchStakingData = useCallback(async () => {
     if (!user?.name) {
-      console.log('No user logged in, skipping API fetch');
       return [];
     }
 
@@ -660,7 +725,6 @@ const Staking: React.FC = () => {
       }
 
       const data = await response.json();
-      console.log('API response:', data);
 
       // Handle the response based on your API structure
       let apiData = [];
@@ -718,7 +782,6 @@ const Staking: React.FC = () => {
   // Replace the existing saveStakingToAPI function
   const saveStakingToAPI = useCallback(async (data: StakingItem[], showSuccessMessage: boolean = false) => {
     if (!user?.name) {
-      console.log('No user logged in, skipping API save');
       return false;
     }
 
@@ -738,8 +801,6 @@ const Staking: React.FC = () => {
       if (!response.ok) {
         throw new Error(`Failed to save to API: ${response.status} ${response.statusText}`);
       }
-
-      console.log('Successfully saved to API');
 
       if (showSuccessMessage) {
         alert('Data successfully synced with server!');
@@ -1147,14 +1208,28 @@ const Staking: React.FC = () => {
       )}
 
       {isLoading ? (
-        <div className="text-center my-8">
-          <div className="inline-flex items-center space-x-2">
-            <RefreshCw className="h-6 w-6 animate-spin" />
-            <span className="text-muted-foreground">
-              {user ? `Loading staking data for ${user.name}...` : 'Loading staking data...'}
-            </span>
-          </div>
-        </div>
+        <Tabs defaultValue="combined" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="combined">Combined</TabsTrigger>
+            <TabsTrigger value="personal">Personal Accounts</TabsTrigger>
+            <TabsTrigger value="solo">Solo Accounts</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="combined">
+            <StakingTableSkeleton title="All Holdings" />
+            <StakingTreemapSkeleton />
+          </TabsContent>
+
+          <TabsContent value="personal">
+            <StakingTableSkeleton title="Personal Accounts" />
+            <StakingTreemapSkeleton />
+          </TabsContent>
+
+          <TabsContent value="solo">
+            <StakingTableSkeleton title="Solo Accounts" />
+            <StakingTreemapSkeleton />
+          </TabsContent>
+        </Tabs>
       ) : stakingItems.length === 0 ? (
         <Card className="border-yellow-500/20 bg-yellow-500/10">
           <CardContent className="pt-6">
