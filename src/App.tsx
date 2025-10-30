@@ -10,6 +10,7 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import ReportsPage from './pages/ReportsPage';
 import StakingPage from './pages/StakingPage';
+import WatchlistPage from './pages/WatchlistPage';
 
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -35,6 +36,7 @@ const App: React.FC = () => {
                 <Route path="/charts" element={<ChartsPage />} />
                 <Route path="/reports" element={<ProtectedRoute element={<ReportsPage />} />} />
                 <Route path="/staking" element={<ProtectedRoute element={<StakingPage />} />} />
+                <Route path="/watchlist" element={<ProtectedRoute element={<WatchlistPage />} />} />
                 <Route path="/bots" element={<ProtectedRoute element={<BotsPage />} />} />
                 <Route path="/ranks" element={<Ranks />} />
                 <Route path="/counter" element={<Counter />} />
