@@ -35,6 +35,29 @@ interface RankData {
   volume?: number;
 }
 
+interface CryptoRankData {
+  date: string;
+  baseCurrency: string;
+  // Crypto ranks data
+  crypto_ranks?: number | null;
+  // LPPL score data
+  lppl_side?: string | null;
+  lppl_pos_conf?: number | null;
+  lppl_neg_conf?: number | null;
+  // Strategy data
+  strategy_side?: string | null;
+  strategy_profit_per_trade?: number | null;
+  strategy_expectancy?: number | null;
+  strategy_profit_factor?: number | null;
+  // Price data (OHLCV)
+  quoteCurrency?: string | null;
+  open?: number | null;
+  high?: number | null;
+  low?: number | null;
+  close?: number | null;
+  volume?: number | null;
+}
+
 interface OHLCVData {
   date: string;
   open: number;
@@ -107,15 +130,39 @@ function alignRankDataWithOHLC(ohlcDates: string[], rankData: RankData[]) {
   return { fundamentalData, technicalData };
 }
 
+function alignCryptoRankDataWithOHLC(ohlcDates: string[], cryptoRankData: CryptoRankData[]) {
+  // Create a map of date -> crypto rank data for quick lookup
+  const rankMap = new Map<string, number | null>();
+  cryptoRankData.forEach(item => {
+    if (item.date) {
+      rankMap.set(item.date, typeof item.crypto_ranks === 'number' ? item.crypto_ranks : null);
+    }
+  });
+
+  // Align crypto rank data with OHLC dates
+  const cryptoRanks: (number | null)[] = [];
+
+  ohlcDates.forEach(date => {
+    const rankValue = rankMap.get(date);
+    cryptoRanks.push(rankValue ?? null);
+  });
+
+  return { cryptoRanks };
+}
+
 interface CandlestickChartProps {
   data: OHLCVData[];
   symbol: string;
   rankData?: RankData[];
+  cryptoRankData?: CryptoRankData[];
 }
 
-const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankData = [] }) => {
+const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankData = [], cryptoRankData = [] }) => {
   const chartRef = React.useRef<HTMLDivElement>(null);
   const chartInstance = React.useRef<echarts.ECharts | null>(null);
+
+  // Determine if this is crypto data
+  const isCrypto = cryptoRankData.length > 0;
 
   useEffect(() => {
     if (!chartRef.current || data.length === 0) return;
@@ -125,14 +172,21 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankD
     }
 
     const chartData = splitData(data);
-    const rankAlignedData = alignRankDataWithOHLC(chartData.categoryData, rankData);
+    const rankAlignedData = isCrypto
+      ? alignCryptoRankDataWithOHLC(chartData.categoryData, cryptoRankData)
+      : alignRankDataWithOHLC(chartData.categoryData, rankData);
+
+    // Prepare legend data based on whether this is crypto or stock
+    const legendData = isCrypto
+      ? [`${symbol.toUpperCase()}`, 'MA5', 'MA10', 'MA20', 'MA30', 'Crypto Rank']
+      : [`${symbol.toUpperCase()}`, 'MA5', 'MA10', 'MA20', 'MA30', 'Rank Fundamental', 'Rank Technical'];
 
     const option = {
       animation: false,
       legend: {
         bottom: 10,
         left: 'center',
-        data: [`${symbol.toUpperCase()}`, 'MA5', 'MA10', 'MA20', 'MA30', 'Rank Fundamental', 'Rank Technical']
+        data: legendData
       },
       tooltip: {
         trigger: 'axis',
@@ -337,40 +391,64 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankD
           yAxisIndex: 1,
           data: chartData.volumes
         },
-        {
-          name: 'Rank Fundamental',
-          type: 'line',
-          yAxisIndex: 2,
-          data: rankAlignedData.fundamentalData,
-          smooth: false,
-          lineStyle: {
-            color: '#ffcccc',
-            width: 2,
-            opacity: 0.4
-          },
-          itemStyle: {
-            color: '#ffcccc',
-            opacity: 0.4
-          },
-          connectNulls: false
-        },
-        {
-          name: 'Rank Technical',
-          type: 'line',
-          yAxisIndex: 2,
-          data: rankAlignedData.technicalData,
-          smooth: false,
-          lineStyle: {
-            color: '#b0e0e6',
-            width: 2,
-            opacity: 0.4
-          },
-          itemStyle: {
-            color: '#b0e0e6',
-            opacity: 0.4
-          },
-          connectNulls: false
-        }
+        // Conditionally add rank series based on data type
+        ...(isCrypto
+          ? [
+              {
+                name: 'Crypto Rank',
+                type: 'line',
+                yAxisIndex: 2,
+                data: (rankAlignedData as { cryptoRanks: (number | null)[] }).cryptoRanks,
+                smooth: false,
+                lineStyle: {
+                  color: '#9370DB',
+                  width: 2,
+                  opacity: 0.6
+                },
+                itemStyle: {
+                  color: '#9370DB',
+                  opacity: 0.6
+                },
+                connectNulls: false
+              }
+            ]
+          : [
+              {
+                name: 'Rank Fundamental',
+                type: 'line',
+                yAxisIndex: 2,
+                data: (rankAlignedData as { fundamentalData: (number | null)[], technicalData: (number | null)[] }).fundamentalData,
+                smooth: false,
+                lineStyle: {
+                  color: '#ffcccc',
+                  width: 2,
+                  opacity: 0.4
+                },
+                itemStyle: {
+                  color: '#ffcccc',
+                  opacity: 0.4
+                },
+                connectNulls: false
+              },
+              {
+                name: 'Rank Technical',
+                type: 'line',
+                yAxisIndex: 2,
+                data: (rankAlignedData as { fundamentalData: (number | null)[], technicalData: (number | null)[] }).technicalData,
+                smooth: false,
+                lineStyle: {
+                  color: '#b0e0e6',
+                  width: 2,
+                  opacity: 0.4
+                },
+                itemStyle: {
+                  color: '#b0e0e6',
+                  opacity: 0.4
+                },
+                connectNulls: false
+              }
+            ]
+        )
       ]
     };
 
@@ -383,7 +461,7 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankD
         chartInstance.current = null;
       }
     };
-  }, [data, symbol, rankData]);
+  }, [data, symbol, rankData, cryptoRankData, isCrypto]);
 
   return (
     <div className="w-full">
@@ -391,6 +469,20 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankD
     </div>
   );
 };
+
+interface RanksTabProps {
+  title: string;
+  ticker: string;
+  setTicker: (ticker: string) => void;
+  isLoading: boolean;
+  error: string | null;
+  rankData: RankData[];
+  ohlcvData: OHLCVData[];
+  onTickerChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onFetchData: (ticker: string) => void;
+  formatNumber: (value: number, decimals?: number) => string;
+}
 
 interface RanksTabProps {
   title: string;
@@ -530,7 +622,12 @@ const RanksTab: React.FC<RanksTabProps> = ({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedRankData.map((item, index) => (
+                    {rankData
+                      .sort((a, b) => {
+                        if (!a.date || !b.date) return 0;
+                        return new Date(b.date).getTime() - new Date(a.date).getTime();
+                      })
+                      .map((item, index) => (
                       <TableRow key={index}>
                         <TableCell>{item.date || 'N/A'}</TableCell>
                         <TableCell>{item.tag}</TableCell>
@@ -553,10 +650,169 @@ const RanksTab: React.FC<RanksTabProps> = ({
   );
 };
 
+const CryptoRanksTab: React.FC<{
+  title: string;
+  baseCurrency: string;
+  setBaseCurrency: (currency: string) => void;
+  isLoading: boolean;
+  error: string | null;
+  cryptoRankData: CryptoRankData[];
+  ohlcvData: OHLCVData[];
+  onBaseCurrencyChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  formatNumber: (value: number, decimals?: number) => string;
+}> = ({
+  title,
+  baseCurrency,
+  setBaseCurrency,
+  isLoading,
+  error,
+  cryptoRankData,
+  ohlcvData,
+  onBaseCurrencyChange,
+  onSubmit,
+  formatNumber,
+}) => {
+
+  // Generate chart title
+  const generateChartTitle = () => {
+    if (cryptoRankData.length === 0) return `${baseCurrency.toUpperCase()} Price Chart`;
+
+    const firstItem = cryptoRankData[0];
+    const currency = firstItem.baseCurrency?.toUpperCase() || baseCurrency.toUpperCase();
+    const quoteCurrency = firstItem.quoteCurrency || 'USD';
+
+    return `${currency}/${quoteCurrency} Price Chart`;
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+              <div className="md:col-span-2">
+                <Label htmlFor="baseCurrency">Base Currency</Label>
+                <Input
+                  id="baseCurrency"
+                  type="text"
+                  value={baseCurrency}
+                  onChange={onBaseCurrencyChange}
+                  placeholder="Enter base currency (e.g., BTC)"
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <Button
+                  type="submit"
+                  disabled={isLoading || !baseCurrency.trim()}
+                  className="w-full"
+                >
+                  {isLoading ? 'Loading...' : 'Search'}
+                </Button>
+              </div>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Error Display */}
+      {error && (
+        <Card className="border-destructive">
+          <CardContent className="pt-6">
+            <p className="text-destructive">Error: {error}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Loading State */}
+      {isLoading && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center space-x-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              <span className="text-muted-foreground">Fetching crypto rank data...</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Candlestick Chart */}
+      {!isLoading && !error && ohlcvData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{generateChartTitle()}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CandlestickChart data={ohlcvData} symbol={baseCurrency} cryptoRankData={cryptoRankData} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Data Table */}
+      {!isLoading && !error && (
+        <>
+          {cryptoRankData.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-muted-foreground">
+                  No crypto rank data found for base currency: {baseCurrency.toUpperCase()}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Currency</TableHead>
+                      <TableHead>Crypto Rank</TableHead>
+                      <TableHead>LPPL Side</TableHead>
+                      <TableHead>LPPL Pos Conf</TableHead>
+                      <TableHead>LPPL Neg Conf</TableHead>
+                      <TableHead>Strategy Side</TableHead>
+                      <TableHead>Profit/Trade</TableHead>
+                      <TableHead>Expectancy</TableHead>
+                      <TableHead>Profit Factor</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cryptoRankData
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{item.date}</TableCell>
+                        <TableCell>{item.baseCurrency}/{item.quoteCurrency || 'USD'}</TableCell>
+                        <TableCell>{item.crypto_ranks !== null && item.crypto_ranks !== undefined ? formatNumber(item.crypto_ranks) : 'N/A'}</TableCell>
+                        <TableCell>{item.lppl_side || 'N/A'}</TableCell>
+                        <TableCell>{item.lppl_pos_conf !== null && item.lppl_pos_conf !== undefined ? formatNumber(item.lppl_pos_conf) : 'N/A'}</TableCell>
+                        <TableCell>{item.lppl_neg_conf !== null && item.lppl_neg_conf !== undefined ? formatNumber(item.lppl_neg_conf) : 'N/A'}</TableCell>
+                        <TableCell>{item.strategy_side || 'N/A'}</TableCell>
+                        <TableCell>{item.strategy_profit_per_trade !== null && item.strategy_profit_per_trade !== undefined ? formatNumber(item.strategy_profit_per_trade) : 'N/A'}</TableCell>
+                        <TableCell>{item.strategy_expectancy !== null && item.strategy_expectancy !== undefined ? formatNumber(item.strategy_expectancy) : 'N/A'}</TableCell>
+                        <TableCell>{item.strategy_profit_factor !== null && item.strategy_profit_factor !== undefined ? formatNumber(item.strategy_profit_factor) : 'N/A'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
 const Ranks: React.FC = () => {
   // Separate state for stocks and crypto
   const [stockData, setStockData] = useState<RankData[]>([]);
-  const [cryptoData, setCryptoData] = useState<RankData[]>([]);
+  const [cryptoData, setCryptoData] = useState<CryptoRankData[]>([]);
   const [stockOHLCVData, setStockOHLCVData] = useState<OHLCVData[]>([]);
   const [cryptoOHLCVData, setCryptoOHLCVData] = useState<OHLCVData[]>([]);
   const [stockTicker, setStockTicker] = useState('amzn');
@@ -572,14 +828,9 @@ const Ranks: React.FC = () => {
     : (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:4000/api');
   const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
 
-  const fetchRankData = async (selectedTicker: string, isCrypto: boolean = false) => {
-    const setIsLoading = isCrypto ? setIsLoadingCrypto : setIsLoadingStocks;
-    const setError = isCrypto ? setCryptoError : setStockError;
-    const setData = isCrypto ? setCryptoData : setStockData;
-    const setOHLCVData = isCrypto ? setCryptoOHLCVData : setStockOHLCVData;
-
-    setIsLoading(true);
-    setError(null);
+  const fetchRankData = async (selectedTicker: string) => {
+    setIsLoadingStocks(true);
+    setStockError(null);
 
     const fullUrl = `${API_BASE_URL}/ranks?ticker=${selectedTicker}`;
 
@@ -609,7 +860,7 @@ const Ranks: React.FC = () => {
         rankData = [data];
       }
 
-      setData(rankData);
+      setStockData(rankData);
 
       // Extract OHLC data from rank data for candlestick chart
       const ohlcvData: OHLCVData[] = rankData
@@ -624,22 +875,85 @@ const Ranks: React.FC = () => {
         }))
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      setOHLCVData(ohlcvData);
+      setStockOHLCVData(ohlcvData);
 
     } catch (err) {
       console.error('Error fetching rank data:', err);
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      setData([]);
-      setOHLCVData([]);
+      setStockError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setStockData([]);
+      setStockOHLCVData([]);
     } finally {
-      setIsLoading(false);
+      setIsLoadingStocks(false);
+    }
+  };
+
+  const fetchCryptoRankData = async (selectedBaseCurrency: string) => {
+    setIsLoadingCrypto(true);
+    setCryptoError(null);
+
+    // Calculate date range (last 360 days)
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDate = new Date(Date.now() - 360 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const fullUrl = `${API_BASE_URL}/crypto_ranks?baseCurrency=${selectedBaseCurrency}&start_date=${startDate}&end_date=${endDate}`;
+
+    try {
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Handle the response based on your API structure
+      let cryptoRankData: CryptoRankData[] = [];
+      if (Array.isArray(data)) {
+        cryptoRankData = data;
+      } else if (data.data && Array.isArray(data.data)) {
+        cryptoRankData = data.data;
+      } else {
+        // If single object, wrap in array
+        cryptoRankData = [data];
+      }
+
+      setCryptoData(cryptoRankData);
+
+      // Extract OHLC data from crypto rank data for candlestick chart
+      const ohlcvData: OHLCVData[] = cryptoRankData
+        .filter(item => item.open !== null && item.high !== null && item.low !== null && item.close !== null && item.volume !== null)
+        .map(item => ({
+          date: item.date,
+          open: item.open!,
+          high: item.high!,
+          low: item.low!,
+          close: item.close!,
+          volume: item.volume!
+        }))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      setCryptoOHLCVData(ohlcvData);
+
+    } catch (err) {
+      console.error('Error fetching crypto rank data:', err);
+      setCryptoError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setCryptoData([]);
+      setCryptoOHLCVData([]);
+    } finally {
+      setIsLoadingCrypto(false);
     }
   };
 
   // Load initial data on component mount only
   useEffect(() => {
-    fetchRankData(stockTicker, false);
-    fetchRankData(cryptoTicker, true);
+    fetchRankData(stockTicker);
+    fetchCryptoRankData(cryptoTicker);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Intentionally empty - we only want this to run on mount
 
@@ -654,14 +968,14 @@ const Ranks: React.FC = () => {
   const handleStockSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (stockTicker.trim()) {
-      fetchRankData(stockTicker.trim(), false);
+      fetchRankData(stockTicker.trim());
     }
   };
 
   const handleCryptoSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (cryptoTicker.trim()) {
-      fetchRankData(cryptoTicker.trim(), true);
+      fetchCryptoRankData(cryptoTicker.trim());
     }
   };
 
@@ -696,23 +1010,22 @@ const Ranks: React.FC = () => {
               ohlcvData={stockOHLCVData}
               onTickerChange={handleStockTickerChange}
               onSubmit={handleStockSubmit}
-              onFetchData={(ticker) => fetchRankData(ticker, false)}
+              onFetchData={(ticker: string) => fetchRankData(ticker)}
               formatNumber={formatNumber}
             />
           </TabsContent>
 
           <TabsContent value="crypto">
-            <RanksTab
+            <CryptoRanksTab
               title="Crypto Ranks"
-              ticker={cryptoTicker}
-              setTicker={setCryptoTicker}
+              baseCurrency={cryptoTicker}
+              setBaseCurrency={setCryptoTicker}
               isLoading={isLoadingCrypto}
               error={cryptoError}
-              rankData={cryptoData}
+              cryptoRankData={cryptoData}
               ohlcvData={cryptoOHLCVData}
-              onTickerChange={handleCryptoTickerChange}
+              onBaseCurrencyChange={handleCryptoTickerChange}
               onSubmit={handleCryptoSubmit}
-              onFetchData={(ticker) => fetchRankData(ticker, true)}
               formatNumber={formatNumber}
             />
           </TabsContent>
