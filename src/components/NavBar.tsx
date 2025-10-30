@@ -39,12 +39,6 @@ const NavBar: React.FC = () => {
               Home
             </Link>
             <Link
-              to="/charts"
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-            >
-              Charts
-            </Link>
-            <Link
               to="/reports"
               className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
             >
@@ -123,13 +117,6 @@ const NavBar: React.FC = () => {
               className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
             >
               Home
-            </Link>
-            <Link
-              to="/charts"
-              onClick={toggleMenu}
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
-            >
-              Charts
             </Link>
             <Link
               to="/reports"

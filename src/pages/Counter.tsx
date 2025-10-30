@@ -2,10 +2,10 @@ import { ethers } from "ethers";
 import { useEffect, useState } from "react";
 import { Button } from "../components/ui/Button";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
 } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { useMetaMask } from "../hooks/useMetaMask";
@@ -130,10 +130,8 @@ export default function Counter() {
 
   const fetchNumber = async () => {
     try {
-      console.log("Fetching current number...");
       const contract = await getContract();
       const currentNumber = await contract.number();
-      console.log("Contract number():", currentNumber.toString());
       setNumber(currentNumber.toString());
     } catch (err: any) {
       console.error("Error fetching number:", err);
@@ -145,19 +143,11 @@ export default function Counter() {
     setLoading(true);
     setError("");
     try {
-      console.log("Starting increment transaction...");
       const contract = await getContract(true);
 
-      console.log(
-        `Sending 'increment' transaction from address: ${await (
-          await getSigner()
-        ).getAddress()}`
-      );
       const tx = await contract.increment();
 
-      console.log("Transaction sent:", tx.hash);
       await tx.wait();
-      console.log("Transaction confirmed");
       await fetchNumber();
     } catch (err: any) {
       console.error("Error incrementing:", err);
@@ -173,20 +163,12 @@ export default function Counter() {
     setLoading(true);
     setError("");
     try {
-      console.log("Starting setNumber transaction...");
       const contract = await getContract(true);
       const value = BigInt(newNumber);
 
-      console.log(
-        `Sending 'setNumber(${value})' transaction from address: ${await (
-          await getSigner()
-        ).getAddress()}`
-      );
       const tx = await contract.setNumber(value);
 
-      console.log("Transaction sent:", tx.hash);
       await tx.wait();
-      console.log("Transaction confirmed");
       setNewNumber("");
       await fetchNumber();
     } catch (err: any) {

@@ -1,11 +1,11 @@
 import { CHAINS, DEFAULT_CHAIN } from "@/config/chains";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
+    createContext,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
 } from "react";
 
 type ProviderState = {
@@ -79,7 +79,6 @@ export function PolkadotProvider({
         if (!mounted) return;
 
         try {
-          console.log(`Attempting to connect to: ${endpointUrl}`);
           const provider = new WsProvider(endpointUrl);
           const apiInstance = await ApiPromise.create({ provider });
           await apiInstance.isReady;
@@ -89,7 +88,6 @@ export function PolkadotProvider({
             return;
           }
 
-          console.log(`Successfully connected to: ${endpointUrl}`);
           setApi(apiInstance);
           setStatus("connected");
           return; // Success! Exit the loop

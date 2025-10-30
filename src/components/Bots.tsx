@@ -2,6 +2,7 @@ import { Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { KrakenBotSymbol, KrakenBotSymbolsConfig, SchwabBotSymbol, SchwabBotSymbolsConfig } from '../types/trading';
+import { LoadingSkeleton } from './LoadingSkeleton';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Input } from './ui/Input';
@@ -931,13 +932,37 @@ const Bots: React.FC = () => {
 
             {isLoading ? (
               <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
-                    <p className="text-muted-foreground">
-                      {user ? 'Loading trading configuration...' : 'Loading configuration...'}
-                    </p>
-                  </div>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-16"></TableHead>
+                        <TableHead>Symbol</TableHead>
+                        <TableHead>Entry Amount</TableHead>
+                        <TableHead>Entry Threshold</TableHead>
+                        <TableHead>Exit Amount</TableHead>
+                        <TableHead>Exit Threshold</TableHead>
+                        <TableHead>Max Amount</TableHead>
+                        <TableHead>90d Entry Thr</TableHead>
+                        <TableHead>90d Exit Thr</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <TableRow key={i}>
+                          <TableCell><LoadingSkeleton variant="circular" className="h-6 w-6" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-16" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-20" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-16" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-20" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-16" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-20" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-16" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-16" /></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
             ) : tradingSymbols.length === 0 ? (
@@ -1184,6 +1209,47 @@ const Bots: React.FC = () => {
               <Card className="border-yellow-500/20 bg-yellow-500/10">
                 <CardContent className="pt-6">
                   <p className="text-sm">No Schwab symbols configured.</p>
+                </CardContent>
+              </Card>
+            ) : isLoading ? (
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-16"></TableHead>
+                        <TableHead>Symbol</TableHead>
+                        <TableHead>Account</TableHead>
+                        <TableHead>Entry Amt</TableHead>
+                        <TableHead>Entry Thr</TableHead>
+                        <TableHead>Exit Amt</TableHead>
+                        <TableHead>Exit Thr</TableHead>
+                        <TableHead>Max Wt</TableHead>
+                        <TableHead>Strategy</TableHead>
+                        <TableHead>API</TableHead>
+                        <TableHead>90d Entry Thr</TableHead>
+                        <TableHead>90d Exit Thr</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <TableRow key={i}>
+                          <TableCell><LoadingSkeleton variant="circular" className="h-6 w-6" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-12" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-20" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-16" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-16" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-16" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-16" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-12" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-20" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-12" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-16" /></TableCell>
+                          <TableCell><LoadingSkeleton variant="text" className="h-4 w-16" /></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
             ) : (

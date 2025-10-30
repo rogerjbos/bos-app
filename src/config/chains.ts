@@ -201,7 +201,6 @@ export const CHAINS: Record<string, ChainConfig> = {
  * @example
  * ```ts
  * const config = getChainConfig('polkadot')
- * console.log(config.endpoint) // 'wss://rpc.polkadot.io'
  * ```
  */
 export function getChainConfig(chainId: string): ChainConfig | undefined {

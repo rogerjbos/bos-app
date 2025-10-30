@@ -4,7 +4,6 @@ import NavBar from './components/NavBar';
 import ProtectedRoute from './components/ProtectedRoute';
 import Ranks from './components/Ranks';
 import BotsPage from './pages/BotsPage';
-import ChartsPage from './pages/ChartsPage';
 import Counter from './pages/Counter';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
@@ -33,7 +32,6 @@ const App: React.FC = () => {
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/login" element={<LoginPage />} />
-                <Route path="/charts" element={<ChartsPage />} />
                 <Route path="/reports" element={<ProtectedRoute element={<ReportsPage />} />} />
                 <Route path="/staking" element={<ProtectedRoute element={<StakingPage />} />} />
                 <Route path="/watchlist" element={<ProtectedRoute element={<WatchlistPage />} />} />
