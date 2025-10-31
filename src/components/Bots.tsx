@@ -1058,7 +1058,7 @@ const Bots: React.FC = () => {
 
           <TabsContent value="schwab">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold text-foreground">Schwab Bot Configuration</h2>
+              <h2 className="text-2xl font-semibold text-foreground">Stock Bot Configuration</h2>
               <Button
                 onClick={() => setShowSchwabForm(!showSchwabForm)}
                 variant="ghost"
@@ -1208,7 +1208,7 @@ const Bots: React.FC = () => {
             {schwabSymbols.length === 0 ? (
               <Card className="border-yellow-500/20 bg-yellow-500/10">
                 <CardContent className="pt-6">
-                  <p className="text-sm">No Schwab symbols configured.</p>
+                  <p className="text-sm">No stock symbols configured.</p>
                 </CardContent>
               </Card>
             ) : isLoading ? (
@@ -1253,90 +1253,195 @@ const Bots: React.FC = () => {
                 </CardContent>
               </Card>
             ) : (
-              <Card>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-16"></TableHead>
-                        <TableHead>Symbol</TableHead>
-                        <TableHead>Account</TableHead>
-                        <TableHead>Entry Amt</TableHead>
-                        <TableHead>Entry Thr</TableHead>
-                        <TableHead>Exit Amt</TableHead>
-                        <TableHead>Exit Thr</TableHead>
-                        <TableHead>Max Wt</TableHead>
-                        <TableHead>Strategy</TableHead>
-                        <TableHead>API</TableHead>
-                        <TableHead>90d Entry Thr</TableHead>
-                        <TableHead>90d Exit Thr</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {schwabSymbols.map((item, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell>
-                            {schwabEditIndex === idx ? (
-                              <div className="flex space-x-1">
-                                <Button
-                                  onClick={saveSchwabEdit}
-                                  size="sm"
-                                  variant="default"
-                                  className="h-6 w-6 p-0"
-                                >
-                                  <Save className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  onClick={cancelSchwabEditing}
-                                  size="sm"
-                                  variant="secondary"
-                                  className="h-6 w-6 p-0"
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button
-                                onClick={() => removeSchwabSymbol(idx)}
-                                size="sm"
-                                variant="destructive"
-                                className="h-6 w-6 p-0"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            )}
-                          </TableCell>
-                          <TableCell className="font-medium">{renderSchwabEditableCell('symbol', item, idx, false)}</TableCell>
-                          <TableCell>
-                            <div className="truncate max-w-[100px]" title={item.account_hash}>
-                              {renderSchwabEditableCell('account_hash', item, idx, false)}
-                            </div>
-                          </TableCell>
-                          <TableCell>{renderSchwabEditableCell('entry_amount', item, idx)}</TableCell>
-                          <TableCell>{renderSchwabEditableCell('entry_threshold', item, idx)}</TableCell>
-                          <TableCell>{renderSchwabEditableCell('exit_amount', item, idx)}</TableCell>
-                          <TableCell>{renderSchwabEditableCell('exit_threshold', item, idx)}</TableCell>
-                          <TableCell>{renderSchwabEditableCell('max_weight', item, idx)}</TableCell>
-                          <TableCell>{renderSchwabEditableCell('strategy', item, idx, false, true, ['volatility_capture', 'momentum', 'mean_reversion'])}</TableCell>
-                          <TableCell>{renderSchwabEditableCell('api', item, idx, false, true, ['schwab', 'ibkr'])}</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {(() => {
-                              const threshold = stockThresholds[item.symbol];
-                              return threshold ? threshold.entry_threshold.toFixed(1) : '-';
-                            })()}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {(() => {
-                              const threshold = stockThresholds[item.symbol];
-                              return threshold ? threshold.exit_threshold.toFixed(1) : '-';
-                            })()}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+              <>
+                {/* Schwab Bot Table */}
+                {schwabSymbols.filter(s => s.api === 'schwab').length > 0 && (
+                  <Card className="mb-6">
+                    <CardHeader>
+                      <CardTitle>Schwab</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-16"></TableHead>
+                            <TableHead>Symbol</TableHead>
+                            <TableHead>Account</TableHead>
+                            <TableHead>Entry Amt</TableHead>
+                            <TableHead>Entry Thr</TableHead>
+                            <TableHead>Exit Amt</TableHead>
+                            <TableHead>Exit Thr</TableHead>
+                            <TableHead>Max Wt</TableHead>
+                            <TableHead>Strategy</TableHead>
+                            <TableHead>API</TableHead>
+                            <TableHead>90d Entry Thr</TableHead>
+                            <TableHead>90d Exit Thr</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {schwabSymbols
+                            .map((item, originalIdx) => ({ item, originalIdx }))
+                            .filter(({ item }) => item.api === 'schwab')
+                            .map(({ item, originalIdx: idx }) => (
+                            <TableRow key={idx}>
+                              <TableCell>
+                                {schwabEditIndex === idx ? (
+                                  <div className="flex space-x-1">
+                                    <Button
+                                      onClick={saveSchwabEdit}
+                                      size="sm"
+                                      variant="default"
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <Save className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      onClick={cancelSchwabEditing}
+                                      size="sm"
+                                      variant="secondary"
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    onClick={() => removeSchwabSymbol(idx)}
+                                    size="sm"
+                                    variant="destructive"
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </TableCell>
+                              <TableCell className="font-medium">{renderSchwabEditableCell('symbol', item, idx, false)}</TableCell>
+                              <TableCell>
+                                <div className="truncate max-w-[100px]" title={item.account_hash}>
+                                  {renderSchwabEditableCell('account_hash', item, idx, false)}
+                                </div>
+                              </TableCell>
+                              <TableCell>{renderSchwabEditableCell('entry_amount', item, idx)}</TableCell>
+                              <TableCell>{renderSchwabEditableCell('entry_threshold', item, idx)}</TableCell>
+                              <TableCell>{renderSchwabEditableCell('exit_amount', item, idx)}</TableCell>
+                              <TableCell>{renderSchwabEditableCell('exit_threshold', item, idx)}</TableCell>
+                              <TableCell>{renderSchwabEditableCell('max_weight', item, idx)}</TableCell>
+                              <TableCell>{renderSchwabEditableCell('strategy', item, idx, false, true, ['volatility_capture', 'momentum', 'mean_reversion'])}</TableCell>
+                              <TableCell>{renderSchwabEditableCell('api', item, idx, false, true, ['schwab', 'ibkr'])}</TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {(() => {
+                                  const threshold = stockThresholds[item.symbol];
+                                  return threshold ? threshold.entry_threshold.toFixed(1) : '-';
+                                })()}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {(() => {
+                                  const threshold = stockThresholds[item.symbol];
+                                  return threshold ? threshold.exit_threshold.toFixed(1) : '-';
+                                })()}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* IBKR Bot Table */}
+                {schwabSymbols.filter(s => s.api === 'ibkr').length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>IBKR</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-16"></TableHead>
+                            <TableHead>Symbol</TableHead>
+                            <TableHead>Account</TableHead>
+                            <TableHead>Entry Amt</TableHead>
+                            <TableHead>Entry Thr</TableHead>
+                            <TableHead>Exit Amt</TableHead>
+                            <TableHead>Exit Thr</TableHead>
+                            <TableHead>Max Wt</TableHead>
+                            <TableHead>Strategy</TableHead>
+                            <TableHead>API</TableHead>
+                            <TableHead>90d Entry Thr</TableHead>
+                            <TableHead>90d Exit Thr</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {schwabSymbols
+                            .map((item, originalIdx) => ({ item, originalIdx }))
+                            .filter(({ item }) => item.api === 'ibkr')
+                            .map(({ item, originalIdx: idx }) => (
+                            <TableRow key={idx}>
+                              <TableCell>
+                                {schwabEditIndex === idx ? (
+                                  <div className="flex space-x-1">
+                                    <Button
+                                      onClick={saveSchwabEdit}
+                                      size="sm"
+                                      variant="default"
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <Save className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      onClick={cancelSchwabEditing}
+                                      size="sm"
+                                      variant="secondary"
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    onClick={() => removeSchwabSymbol(idx)}
+                                    size="sm"
+                                    variant="destructive"
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </TableCell>
+                              <TableCell className="font-medium">{renderSchwabEditableCell('symbol', item, idx, false)}</TableCell>
+                              <TableCell>
+                                <div className="truncate max-w-[100px]" title={item.account_hash}>
+                                  {renderSchwabEditableCell('account_hash', item, idx, false)}
+                                </div>
+                              </TableCell>
+                              <TableCell>{renderSchwabEditableCell('entry_amount', item, idx)}</TableCell>
+                              <TableCell>{renderSchwabEditableCell('entry_threshold', item, idx)}</TableCell>
+                              <TableCell>{renderSchwabEditableCell('exit_amount', item, idx)}</TableCell>
+                              <TableCell>{renderSchwabEditableCell('exit_threshold', item, idx)}</TableCell>
+                              <TableCell>{renderSchwabEditableCell('max_weight', item, idx)}</TableCell>
+                              <TableCell>{renderSchwabEditableCell('strategy', item, idx, false, true, ['volatility_capture', 'momentum', 'mean_reversion'])}</TableCell>
+                              <TableCell>{renderSchwabEditableCell('api', item, idx, false, true, ['schwab', 'ibkr'])}</TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {(() => {
+                                  const threshold = stockThresholds[item.symbol];
+                                  return threshold ? threshold.entry_threshold.toFixed(1) : '-';
+                                })()}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {(() => {
+                                  const threshold = stockThresholds[item.symbol];
+                                  return threshold ? threshold.exit_threshold.toFixed(1) : '-';
+                                })()}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
             )}
           </TabsContent>
         </Tabs>
