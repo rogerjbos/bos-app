@@ -57,6 +57,12 @@ const NavBar: React.FC = () => {
               Watchlist
             </Link>
             <Link
+              to="/portfolio"
+              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+            >
+              Portfolio
+            </Link>
+            <Link
               to="/bots"
               className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
             >
@@ -138,6 +144,13 @@ const NavBar: React.FC = () => {
               className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
             >
               Watchlist
+            </Link>
+            <Link
+              to="/portfolio"
+              onClick={toggleMenu}
+              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+            >
+              Portfolio
             </Link>
             <Link
               to="/bots"
