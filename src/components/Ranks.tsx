@@ -33,6 +33,9 @@ interface RankData {
   low?: number;
   close?: number;
   volume?: number;
+  ibol?: number;
+  predicted_beta?: number;
+  risk_contribution?: number;
 }
 
 interface CryptoRankData {
@@ -56,6 +59,9 @@ interface CryptoRankData {
   low?: number | null;
   close?: number | null;
   volume?: number | null;
+  ibol?: number;
+  predicted_beta?: number;
+  risk_contribution?: number;
 }
 
 interface OHLCVData {
@@ -186,7 +192,10 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankD
       legend: {
         bottom: 10,
         left: 'center',
-        data: legendData
+        data: legendData,
+        textStyle: {
+          color: '#fff'
+        }
       },
       tooltip: {
         trigger: 'axis',
@@ -197,7 +206,7 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankD
         borderColor: '#ccc',
         padding: 10,
         textStyle: {
-          color: '#000'
+          color: '#fff'
         },
         position: function (pos: number[], params: any, el: any, elRect: any, size: any) {
           const obj: Record<string, number> = {
@@ -273,6 +282,9 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankD
           max: 'dataMax',
           axisPointer: {
             z: 100
+          },
+          axisLabel: {
+            color: '#fff'
           }
         },
         {
@@ -296,6 +308,9 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankD
             areaStyle: {
               color: ['rgba(255, 255, 255, 0.02)', 'rgba(0, 0, 0, 0.02)']
             }
+          },
+          axisLabel: {
+            color: '#fff'
           }
         },
         {
@@ -316,7 +331,11 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankD
           min: 1,
           max: 10,
           axisLabel: {
-            formatter: '{value}'
+            formatter: '{value}',
+            color: '#fff'
+          },
+          nameTextStyle: {
+            color: '#fff'
           }
         }
       ],
