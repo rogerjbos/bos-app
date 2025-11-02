@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, RefreshCw, Save, Settings, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { TableRowSkeleton } from './LoadingSkeleton';
@@ -45,6 +45,31 @@ interface LatestPriceData {
   };
 }
 
+interface RanksData {
+  date?: string;
+  industry?: string;
+  isADR: boolean;
+  isActive: boolean;
+  mcap: number;
+  name: string;
+  permaTicker: string;
+  rankFundamental: number;
+  rankTechnical: number;
+  reportingCurrency: string;
+  sector: number;
+  statementLastUpdated: string;
+  tag: string;
+  td__Resistance: number;
+  td__Support: number;
+  tec_riskRangeHigh: number;
+  tec_riskRangeInd: number;
+  tec_riskRangeLow: number;
+  ticker: string;
+  ibol?: number;
+  predicted_beta?: number;
+  risk_contribution?: number;
+}
+
 interface StockXDaysData {
   symbol: string;
   close_1d: number | null;
@@ -63,6 +88,7 @@ const Watchlist: React.FC = () => {
   const [cryptoData, setCryptoData] = useState<CryptoXDaysData[]>([]);
   const [stockData, setStockData] = useState<StockXDaysData[]>([]);
   const [latestPrices, setLatestPrices] = useState<LatestPriceData[]>([]);
+  const [ranksData, setRanksData] = useState<RanksData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,11 +109,92 @@ const Watchlist: React.FC = () => {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
+  // Column configuration
+  const [showColumnConfig, setShowColumnConfig] = useState(false);
+  const [columnConfig, setColumnConfig] = useState<Array<{key: string, visible: boolean, order: number}>>([
+    { key: 'fundamental', visible: true, order: 0 },
+    { key: 'technical', visible: true, order: 1 },
+    { key: 'ivol', visible: true, order: 2 },
+    { key: 'beta', visible: true, order: 3 },
+    { key: 'risk_contribution', visible: true, order: 4 },
+    { key: 'industry', visible: false, order: 5 },
+    { key: 'sector', visible: false, order: 6 },
+    { key: 'mcap', visible: false, order: 7 },
+    { key: 'isADR', visible: false, order: 8 },
+    { key: 'isActive', visible: false, order: 9 },
+    { key: 'reportingCurrency', visible: false, order: 10 },
+    { key: 'td_resistance', visible: false, order: 11 },
+    { key: 'td_support', visible: false, order: 12 },
+    { key: 'tec_riskRangeHigh', visible: false, order: 13 },
+    { key: 'tec_riskRangeLow', visible: false, order: 14 },
+    { key: 'tag', visible: false, order: 15 },
+  ]);
+
   // Helper function
   const showStatus = (text: string, type: 'success' | 'error' = 'success') => {
     setStatusMessage({ text, type });
     setTimeout(() => setStatusMessage(null), 3000);
   };
+
+  // Load column configuration from localStorage
+  const loadColumnConfig = () => {
+    const saved = localStorage.getItem('watchlist-column-config');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Handle both old format (Record<string, boolean>) and new format (Array)
+        if (Array.isArray(parsed)) {
+          setColumnConfig(parsed);
+        } else {
+          // Convert old format to new format
+          const newConfig = columnConfig.map(col => ({
+            ...col,
+            visible: parsed[col.key] !== undefined ? parsed[col.key] : col.visible
+          }));
+          setColumnConfig(newConfig);
+        }
+      } catch (error) {
+        console.error('Error loading column config:', error);
+      }
+    }
+  };
+
+  // Save column configuration to localStorage
+  const saveColumnConfig = (config: Array<{key: string, visible: boolean, order: number}>) => {
+    localStorage.setItem('watchlist-column-config', JSON.stringify(config));
+    setColumnConfig(config);
+  };
+
+  // Get visible columns as a record for easier access
+  const getVisibleColumns = () => {
+    const visible: Record<string, boolean> = {};
+    columnConfig.forEach(col => {
+      visible[col.key] = col.visible;
+    });
+    return visible;
+  };
+
+  // Move column up or down in order
+  const moveColumn = (index: number, direction: 'up' | 'down') => {
+    const newConfig = [...columnConfig];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+
+    if (targetIndex < 0 || targetIndex >= newConfig.length) return;
+
+    // Swap orders
+    const tempOrder = newConfig[index].order;
+    newConfig[index].order = newConfig[targetIndex].order;
+    newConfig[targetIndex].order = tempOrder;
+
+    // Sort by order and save
+    newConfig.sort((a, b) => a.order - b.order);
+    saveColumnConfig(newConfig);
+  };
+
+  // Load column config on mount
+  useEffect(() => {
+    loadColumnConfig();
+  }, []);
 
   // Sorting function
   const handleSort = (column: string) => {
@@ -121,6 +228,10 @@ const Watchlist: React.FC = () => {
       const aLatest = latestPrices.find(lp => lp.symbol === a);
       const bLatest = latestPrices.find(lp => lp.symbol === b);
 
+      // For stocks, also get ranks data
+      const aRanks = activeWatchlist.type === 'stocks' ? ranksData.find(r => r.ticker?.toUpperCase() === a) : null;
+      const bRanks = activeWatchlist.type === 'stocks' ? ranksData.find(r => r.ticker?.toUpperCase() === b) : null;
+
       switch (sortColumn) {
         case 'symbol':
           aValue = a;
@@ -153,6 +264,70 @@ const Watchlist: React.FC = () => {
         case '120d':
           aValue = aLatest?.returns['120d'] || 0;
           bValue = bLatest?.returns['120d'] || 0;
+          break;
+        case 'fundamental':
+          aValue = aRanks?.rankFundamental || 0;
+          bValue = bRanks?.rankFundamental || 0;
+          break;
+        case 'technical':
+          aValue = aRanks?.rankTechnical || 0;
+          bValue = bRanks?.rankTechnical || 0;
+          break;
+        case 'ivol':
+          aValue = aRanks?.ibol || 0;
+          bValue = bRanks?.ibol || 0;
+          break;
+        case 'beta':
+          aValue = aRanks?.predicted_beta || 0;
+          bValue = bRanks?.predicted_beta || 0;
+          break;
+        case 'risk_contribution':
+          aValue = aRanks?.risk_contribution || 0;
+          bValue = bRanks?.risk_contribution || 0;
+          break;
+        case 'industry':
+          aValue = aRanks?.industry || '';
+          bValue = bRanks?.industry || '';
+          break;
+        case 'sector':
+          aValue = aRanks?.sector || 0;
+          bValue = bRanks?.sector || 0;
+          break;
+        case 'mcap':
+          aValue = aRanks?.mcap || 0;
+          bValue = bRanks?.mcap || 0;
+          break;
+        case 'isADR':
+          aValue = aRanks?.isADR ? 1 : 0;
+          bValue = bRanks?.isADR ? 1 : 0;
+          break;
+        case 'isActive':
+          aValue = aRanks?.isActive ? 1 : 0;
+          bValue = bRanks?.isActive ? 1 : 0;
+          break;
+        case 'reportingCurrency':
+          aValue = aRanks?.reportingCurrency || '';
+          bValue = bRanks?.reportingCurrency || '';
+          break;
+        case 'td_resistance':
+          aValue = aRanks?.td__Resistance || 0;
+          bValue = bRanks?.td__Resistance || 0;
+          break;
+        case 'td_support':
+          aValue = aRanks?.td__Support || 0;
+          bValue = bRanks?.td__Support || 0;
+          break;
+        case 'tec_riskRangeHigh':
+          aValue = aRanks?.tec_riskRangeHigh || 0;
+          bValue = bRanks?.tec_riskRangeHigh || 0;
+          break;
+        case 'tec_riskRangeLow':
+          aValue = aRanks?.tec_riskRangeLow || 0;
+          bValue = bRanks?.tec_riskRangeLow || 0;
+          break;
+        case 'tag':
+          aValue = aRanks?.tag || '';
+          bValue = bRanks?.tag || '';
           break;
         default:
           return 0;
@@ -495,6 +670,52 @@ const Watchlist: React.FC = () => {
     }
   }, []);
 
+  // Fetch ranks data
+  const fetchRanksData = useCallback(async (symbols: string[]) => {
+    if (symbols.length === 0) return;
+
+    try {
+      const baseUrl = API_BASE_URL.startsWith('http')
+        ? API_BASE_URL
+        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
+
+      // Fetch ranks data for each symbol
+      const ranksPromises = symbols.map(async (symbol) => {
+        const url = `${baseUrl}/ranks?ticker=${symbol.toLowerCase()}`;
+
+        try {
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${API_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!response.ok) {
+            console.warn(`Failed to fetch ranks for ${symbol}: ${response.status}`);
+            return null;
+          }
+
+          const data = await response.json();
+          // Return the first item if it's an array, or the data itself
+          return Array.isArray(data) ? data[0] : data;
+        } catch (error) {
+          console.warn(`Error fetching ranks for ${symbol}:`, error);
+          return null;
+        }
+      });
+
+      const ranksResults = await Promise.all(ranksPromises);
+      const validRanksData = ranksResults.filter(item => item !== null) as RanksData[];
+
+      setRanksData(validRanksData);
+    } catch (error) {
+      console.error('Error fetching ranks data:', error);
+      setRanksData([]);
+    }
+  }, []);
+
   // Refresh data for active watchlist
   const refreshData = useCallback(async () => {
     const activeWatchlist = watchlists.find(w => w.id === activeWatchlistId);
@@ -503,17 +724,20 @@ const Watchlist: React.FC = () => {
     setIsLoading(true);
     setError(null);
     setLatestPrices([]); // Clear latest prices while refreshing
+    setRanksData([]); // Clear ranks data while refreshing
 
     try {
       if (activeWatchlist.type === 'crypto') {
         await fetchCryptoData(activeWatchlist.symbols);
       } else {
         await fetchStockData(activeWatchlist.symbols);
+        // Only fetch ranks data for stocks, not crypto
+        await fetchRanksData(activeWatchlist.symbols);
       }
     } finally {
       setIsLoading(false);
     }
-  }, [activeWatchlistId, watchlists, fetchCryptoData, fetchStockData]);
+  }, [activeWatchlistId, watchlists, fetchCryptoData, fetchStockData, fetchRanksData]);
 
   // Create new watchlist
   const createWatchlist = async () => {
@@ -795,12 +1019,12 @@ const Watchlist: React.FC = () => {
             </Button>
 
             <Button
-              onClick={() => setShowNewWatchlistForm(!showNewWatchlistForm)}
+              onClick={() => setShowColumnConfig(!showColumnConfig)}
               variant="outline"
               size="sm"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              New Watchlist
+              <Settings className="h-4 w-4 mr-2" />
+              Columns
             </Button>
 
             {activeWatchlist && (
@@ -902,6 +1126,86 @@ const Watchlist: React.FC = () => {
           </Card>
         )}
 
+        {showColumnConfig && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Column Configuration</CardTitle>
+              <p className="text-sm text-muted-foreground">Choose which rank columns to display and reorder them for stock watchlists</p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {columnConfig
+                  .sort((a, b) => a.order - b.order)
+                  .map((col, index) => (
+                  <div key={col.key} className="flex items-center justify-between p-2 border rounded">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`col-${col.key}`}
+                        checked={col.visible}
+                        onChange={(e) => {
+                          const newConfig = columnConfig.map(c =>
+                            c.key === col.key ? { ...c, visible: e.target.checked } : c
+                          );
+                          saveColumnConfig(newConfig);
+                        }}
+                        className="rounded border-gray-300"
+                      />
+                      <label htmlFor={`col-${col.key}`} className="text-sm font-medium">
+                        {col.key === 'fundamental' && 'Fundamental Rank'}
+                        {col.key === 'technical' && 'Technical Rank'}
+                        {col.key === 'ivol' && 'IVol'}
+                        {col.key === 'beta' && 'Predicted Beta'}
+                        {col.key === 'risk_contribution' && 'Risk Contribution'}
+                        {col.key === 'industry' && 'Industry'}
+                        {col.key === 'sector' && 'Sector'}
+                        {col.key === 'mcap' && 'Market Cap'}
+                        {col.key === 'isADR' && 'ADR'}
+                        {col.key === 'isActive' && 'Active'}
+                        {col.key === 'reportingCurrency' && 'Currency'}
+                        {col.key === 'td_resistance' && 'Resistance'}
+                        {col.key === 'td_support' && 'Support'}
+                        {col.key === 'tec_riskRangeHigh' && 'Risk Range High'}
+                        {col.key === 'tec_riskRangeLow' && 'Risk Range Low'}
+                        {col.key === 'tag' && 'Tag'}
+                      </label>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        onClick={() => moveColumn(index, 'up')}
+                        disabled={index === 0}
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                      >
+                        <ChevronUp className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        onClick={() => moveColumn(index, 'down')}
+                        disabled={index === columnConfig.length - 1}
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end mt-4">
+                <Button
+                  onClick={() => setShowColumnConfig(false)}
+                  variant="outline"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Close
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {watchlists.length > 0 && (
           <Tabs value={activeWatchlistId} onValueChange={setActiveWatchlistId} className="w-full">
             <TabsList className="mb-6 flex-wrap">
@@ -958,12 +1262,12 @@ const Watchlist: React.FC = () => {
                             <TableHead className="w-[50px]"></TableHead>
                             <SortableHeader column="symbol">Symbol</SortableHeader>
                             <SortableHeader column="latest" className="text-right">Latest</SortableHeader>
-                            <SortableHeader column="1d" className="text-right">1 Day Ago</SortableHeader>
-                            <SortableHeader column="7d" className="text-right">7 Days Ago</SortableHeader>
-                            <SortableHeader column="30d" className="text-right">30 Days Ago</SortableHeader>
-                            <SortableHeader column="60d" className="text-right">60 Days Ago</SortableHeader>
-                            <SortableHeader column="90d" className="text-right">90 Days Ago</SortableHeader>
-                            <SortableHeader column="120d" className="text-right">120 Days Ago</SortableHeader>
+                            <SortableHeader column="1d" className="text-right">1d</SortableHeader>
+                            <SortableHeader column="7d" className="text-right">7d</SortableHeader>
+                            <SortableHeader column="30d" className="text-right">30d</SortableHeader>
+                            <SortableHeader column="60d" className="text-right">60d</SortableHeader>
+                            <SortableHeader column="90d" className="text-right">90d</SortableHeader>
+                            <SortableHeader column="120d" className="text-right">120d</SortableHeader>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -979,12 +1283,45 @@ const Watchlist: React.FC = () => {
                             <TableHead className="w-[50px]"></TableHead>
                             <SortableHeader column="symbol">Symbol</SortableHeader>
                             <SortableHeader column="latest" className="text-right">Latest</SortableHeader>
-                            <SortableHeader column="1d" className="text-right">1 Day Ago</SortableHeader>
-                            <SortableHeader column="7d" className="text-right">7 Days Ago</SortableHeader>
-                            <SortableHeader column="30d" className="text-right">30 Days Ago</SortableHeader>
-                            <SortableHeader column="60d" className="text-right">60 Days Ago</SortableHeader>
-                            <SortableHeader column="90d" className="text-right">90 Days Ago</SortableHeader>
-                            <SortableHeader column="120d" className="text-right">120 Days Ago</SortableHeader>
+                            <SortableHeader column="1d" className="text-right">1d</SortableHeader>
+                            <SortableHeader column="7d" className="text-right">7d</SortableHeader>
+                            <SortableHeader column="30d" className="text-right">30d</SortableHeader>
+                            <SortableHeader column="60d" className="text-right">60d</SortableHeader>
+                            <SortableHeader column="90d" className="text-right">90d</SortableHeader>
+                            <SortableHeader column="120d" className="text-right">120d</SortableHeader>
+                            {watchlist.type === 'stocks' && (
+                              <>
+                                {columnConfig
+                                  .filter(col => col.visible)
+                                  .sort((a, b) => a.order - b.order)
+                                  .map(col => {
+                                    const headerText = {
+                                      fundamental: 'Fund. Rank',
+                                      technical: 'Tech. Rank',
+                                      ivol: 'IVol',
+                                      beta: 'Beta',
+                                      risk_contribution: 'Risk Contrib.',
+                                      industry: 'Industry',
+                                      sector: 'Sector',
+                                      mcap: 'Market Cap',
+                                      isADR: 'ADR',
+                                      isActive: 'Active',
+                                      reportingCurrency: 'Currency',
+                                      td_resistance: 'Resistance',
+                                      td_support: 'Support',
+                                      tec_riskRangeHigh: 'Risk Range High',
+                                      tec_riskRangeLow: 'Risk Range Low',
+                                      tag: 'Tag'
+                                    }[col.key] || col.key;
+
+                                    return (
+                                      <SortableHeader key={col.key} column={col.key} className="text-right">
+                                        {headerText}
+                                      </SortableHeader>
+                                    );
+                                  })}
+                              </>
+                            )}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -996,12 +1333,16 @@ const Watchlist: React.FC = () => {
 
                             const latestData = latestPrices.find(lp => lp.symbol === symbol);
 
+                            // Get ranks data for stocks
+                            const ranksDataItem = watchlist.type === 'stocks' ? ranksData.find(r => r.ticker?.toUpperCase() === symbol) : null;
+
                             const formatPrice = (price: number | null) => price ? `$${price.toFixed(2)}` : 'N/A';
                             const formatReturn = (returnPct: number | null) => {
                               if (returnPct === null) return '';
                               const sign = returnPct >= 0 ? '+' : '';
                               return `${sign}${returnPct.toFixed(2)}%`;
                             };
+                            const formatRank = (rank: number | null) => rank !== null && rank !== undefined ? rank.toFixed(1) : 'N/A';
 
                             return (
                               <TableRow key={symbol}>
@@ -1067,6 +1408,73 @@ const Watchlist: React.FC = () => {
                                     <span className="text-xs text-muted-foreground">{formatPrice(data?.close_120d || null)}</span>
                                   </div>
                                 </TableCell>
+                                {watchlist.type === 'stocks' && (
+                                  <>
+                                    {columnConfig
+                                      .filter(col => col.visible)
+                                      .sort((a, b) => a.order - b.order)
+                                      .map(col => {
+                                        let cellContent: React.ReactNode = 'N/A';
+
+                                        switch (col.key) {
+                                          case 'fundamental':
+                                            cellContent = formatRank(ranksDataItem?.rankFundamental || null);
+                                            break;
+                                          case 'technical':
+                                            cellContent = formatRank(ranksDataItem?.rankTechnical || null);
+                                            break;
+                                          case 'ivol':
+                                            cellContent = ranksDataItem?.ibol !== null && ranksDataItem?.ibol !== undefined ? ranksDataItem.ibol.toFixed(3) : 'N/A';
+                                            break;
+                                          case 'beta':
+                                            cellContent = ranksDataItem?.predicted_beta !== null && ranksDataItem?.predicted_beta !== undefined ? ranksDataItem.predicted_beta.toFixed(3) : 'N/A';
+                                            break;
+                                          case 'risk_contribution':
+                                            cellContent = ranksDataItem?.risk_contribution !== null && ranksDataItem?.risk_contribution !== undefined ? ranksDataItem.risk_contribution.toFixed(3) : 'N/A';
+                                            break;
+                                          case 'industry':
+                                            cellContent = ranksDataItem?.industry || 'N/A';
+                                            break;
+                                          case 'sector':
+                                            cellContent = ranksDataItem?.sector || 'N/A';
+                                            break;
+                                          case 'mcap':
+                                            cellContent = ranksDataItem?.mcap !== null && ranksDataItem?.mcap !== undefined ? `$${(ranksDataItem.mcap / 1000000).toFixed(1)}M` : 'N/A';
+                                            break;
+                                          case 'isADR':
+                                            cellContent = ranksDataItem?.isADR ? 'Yes' : 'No';
+                                            break;
+                                          case 'isActive':
+                                            cellContent = ranksDataItem?.isActive ? 'Active' : 'Inactive';
+                                            break;
+                                          case 'reportingCurrency':
+                                            cellContent = ranksDataItem?.reportingCurrency || 'N/A';
+                                            break;
+                                          case 'td_resistance':
+                                            cellContent = ranksDataItem?.td__Resistance !== null && ranksDataItem?.td__Resistance !== undefined ? `$${ranksDataItem.td__Resistance.toFixed(2)}` : 'N/A';
+                                            break;
+                                          case 'td_support':
+                                            cellContent = ranksDataItem?.td__Support !== null && ranksDataItem?.td__Support !== undefined ? `$${ranksDataItem.td__Support.toFixed(2)}` : 'N/A';
+                                            break;
+                                          case 'tec_riskRangeHigh':
+                                            cellContent = ranksDataItem?.tec_riskRangeHigh !== null && ranksDataItem?.tec_riskRangeHigh !== undefined ? `$${ranksDataItem.tec_riskRangeHigh.toFixed(2)}` : 'N/A';
+                                            break;
+                                          case 'tec_riskRangeLow':
+                                            cellContent = ranksDataItem?.tec_riskRangeLow !== null && ranksDataItem?.tec_riskRangeLow !== undefined ? `$${ranksDataItem.tec_riskRangeLow.toFixed(2)}` : 'N/A';
+                                            break;
+                                          case 'tag':
+                                            cellContent = ranksDataItem?.tag || 'N/A';
+                                            break;
+                                        }
+
+                                        return (
+                                          <TableCell key={col.key} className="text-right">
+                                            {cellContent}
+                                          </TableCell>
+                                        );
+                                      })}
+                                  </>
+                                )}
                               </TableRow>
                             );
                           })}
