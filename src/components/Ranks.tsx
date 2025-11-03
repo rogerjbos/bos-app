@@ -1,5 +1,6 @@
 import * as echarts from 'echarts';
 import React, { useEffect, useState } from 'react';
+import { abbreviateSectorIndustry } from '../lib/financialUtils';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Input } from './ui/Input';
@@ -537,13 +538,13 @@ const RanksTab: React.FC<RanksTabProps> = ({
 
     const firstItem = rankData[0];
     const tickerUpper = firstItem.ticker?.toUpperCase() || ticker.toUpperCase();
-    const sector = firstItem.sector || 'N/A';
-    const industry = firstItem.industry || 'N/A';
+    const sectorAbbrev = abbreviateSectorIndustry(String(firstItem.sector || 'N/A'), 'sector');
+    const industryAbbrev = abbreviateSectorIndustry(firstItem.industry || 'N/A', 'industry');
     const isActive = firstItem.isActive ? 'Active' : 'Inactive';
     const isADR = firstItem.isADR ? 'ADR' : 'Local';
     const reportingCurrency = firstItem.reportingCurrency || 'N/A';
 
-    return `${tickerUpper} - ${sector} (${industry}) - ${isActive} - ${isADR} - ${reportingCurrency}`;
+    return `${tickerUpper} - ${sectorAbbrev} (${industryAbbrev}) - ${isActive} - ${isADR} - ${reportingCurrency}`;
   };
 
   return (
