@@ -1,6 +1,7 @@
-import { ChevronDown, ChevronUp, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, RefreshCw, Save, Settings, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { abbreviateSectorIndustry } from '../lib/financialUtils';
 import { TableRowSkeleton } from './LoadingSkeleton';
 import { Badge } from './ui/badge';
 import { Button } from './ui/Button';
@@ -58,6 +59,32 @@ interface StockXDaysData {
   close_120d: number | null;
 }
 
+// Ranks data interface
+interface RanksData {
+  date?: string;
+  industry?: string;
+  isADR: boolean;
+  isActive: boolean;
+  mcap: number;
+  name: string;
+  permaTicker: string;
+  rankFundamental: number;
+  rankTechnical: number;
+  reportingCurrency: string;
+  sector: number;
+  statementLastUpdated: string;
+  tag: string;
+  td__Resistance: number;
+  td__Support: number;
+  tec_riskRangeHigh: number;
+  tec_riskRangeInd: number;
+  tec_riskRangeLow: number;
+  ticker: string;
+  ibol?: number;
+  predicted_beta?: number;
+  risk_contribution?: number;
+}
+
 // Portfolio transactions per symbol
 interface PortfolioTransactionInput {
   date: string; // YYYY-MM-DD
@@ -80,6 +107,7 @@ const Portfolio: React.FC = () => {
   const [cryptoData, setCryptoData] = useState<CryptoXDaysData[]>([]);
   const [stockData, setStockData] = useState<StockXDaysData[]>([]);
   const [latestPrices, setLatestPrices] = useState<LatestPriceData[]>([]);
+  const [ranksData, setRanksData] = useState<RanksData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -108,11 +136,114 @@ const Portfolio: React.FC = () => {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
+  // Column configuration
+  const [showColumnConfig, setShowColumnConfig] = useState(false);
+  const [columnConfig, setColumnConfig] = useState<Array<{key: string, visible: boolean, order: number}>>([
+    { key: 'fundamental', visible: true, order: 0 },
+    { key: 'technical', visible: true, order: 1 },
+    { key: 'ivol', visible: true, order: 2 },
+    { key: 'beta', visible: true, order: 3 },
+    { key: 'risk_contribution', visible: true, order: 4 },
+    { key: 'industry', visible: false, order: 5 },
+    { key: 'sector', visible: false, order: 6 },
+    { key: 'mcap', visible: false, order: 7 },
+    { key: 'isADR', visible: false, order: 8 },
+    { key: 'isActive', visible: false, order: 9 },
+    { key: 'reportingCurrency', visible: false, order: 10 },
+    { key: 'td_resistance', visible: false, order: 11 },
+    { key: 'td_support', visible: false, order: 12 },
+    { key: 'tec_riskRangeHigh', visible: false, order: 13 },
+    { key: 'tec_riskRangeLow', visible: false, order: 14 },
+    { key: 'tag', visible: false, order: 15 },
+  ]);
+
+  // Drag and drop state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
   // Helper function
   const showStatus = (text: string, type: 'success' | 'error' = 'success') => {
     setStatusMessage({ text, type });
     setTimeout(() => setStatusMessage(null), 3000);
   };
+
+  // Load column configuration from localStorage
+  const loadColumnConfig = () => {
+    const saved = localStorage.getItem('portfolio-column-config');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Handle both old format (Record<string, boolean>) and new format (Array)
+        if (Array.isArray(parsed)) {
+          setColumnConfig(parsed);
+        } else {
+          // Convert old format to new format
+          const newConfig = columnConfig.map(col => ({
+            ...col,
+            visible: parsed[col.key] !== undefined ? parsed[col.key] : col.visible
+          }));
+          setColumnConfig(newConfig);
+        }
+      } catch (error) {
+        console.error('Error loading column config:', error);
+      }
+    }
+  };
+
+  // Save column configuration to localStorage
+  const saveColumnConfig = (config: Array<{key: string, visible: boolean, order: number}>) => {
+    localStorage.setItem('portfolio-column-config', JSON.stringify(config));
+    setColumnConfig(config);
+  };
+
+  // Get visible columns as a record for easier access
+  const getVisibleColumns = () => {
+    const visible: Record<string, boolean> = {};
+    columnConfig.forEach(col => {
+      visible[col.key] = col.visible;
+    });
+    return visible;
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === dropIndex) return;
+
+    const newConfig = [...columnConfig];
+    const draggedItem = newConfig[draggedIndex];
+
+    // Remove dragged item
+    newConfig.splice(draggedIndex, 1);
+    // Insert at new position
+    newConfig.splice(dropIndex, 0, draggedItem);
+
+    // Update orders
+    newConfig.forEach((item, index) => {
+      item.order = index;
+    });
+
+    saveColumnConfig(newConfig);
+    setDraggedIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  // Load column config on mount
+  useEffect(() => {
+    loadColumnConfig();
+  }, []);
 
   // Sorting function
   const handleSort = (column: string) => {
@@ -533,6 +664,52 @@ const Portfolio: React.FC = () => {
     }
   }, []);
 
+  // Fetch ranks data
+  const fetchRanksData = useCallback(async (symbols: string[]) => {
+    if (symbols.length === 0) return;
+
+    try {
+      const baseUrl = API_BASE_URL.startsWith('http')
+        ? API_BASE_URL
+        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
+
+      // Fetch ranks data for each symbol
+      const ranksPromises = symbols.map(async (symbol) => {
+        const url = `${baseUrl}/ranks?ticker=${symbol.toLowerCase()}`;
+
+        try {
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${API_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!response.ok) {
+            console.warn(`Failed to fetch ranks for ${symbol}: ${response.status}`);
+            return null;
+          }
+
+          const data = await response.json();
+          // Return the first item if it's an array, or the data itself
+          return Array.isArray(data) ? data[0] : data;
+        } catch (error) {
+          console.warn(`Error fetching ranks for ${symbol}:`, error);
+          return null;
+        }
+      });
+
+      const ranksResults = await Promise.all(ranksPromises);
+      const validRanksData = ranksResults.filter(item => item !== null) as RanksData[];
+
+      setRanksData(validRanksData);
+    } catch (error) {
+      console.error('Error fetching ranks data:', error);
+      setRanksData([]);
+    }
+  }, []);
+
   // Refresh data for active portfolio
   const refreshData = useCallback(async () => {
     const activePortfolio = portfolios.find(w => w.id === activePortfolioId);
@@ -541,19 +718,22 @@ const Portfolio: React.FC = () => {
     setIsLoading(true);
     setError(null);
     setLatestPrices([]); // Clear latest prices while refreshing
+    setRanksData([]); // Clear ranks data while refreshing
 
     try {
       if (activePortfolio.type === 'crypto') {
         await fetchCryptoData(activePortfolio.symbols);
       } else {
         await fetchStockData(activePortfolio.symbols);
+        // Only fetch ranks data for stocks, not crypto
+        await fetchRanksData(activePortfolio.symbols);
       }
       // Load aggregates after price data (for Value column calculation)
       await loadAggregates(activePortfolio.symbols);
     } finally {
       setIsLoading(false);
     }
-  }, [activePortfolioId, portfolios, fetchCryptoData, fetchStockData]);
+  }, [activePortfolioId, portfolios, fetchCryptoData, fetchStockData, fetchRanksData]);
 
   // Load aggregated positions for current portfolio
   const loadAggregates = useCallback(async (symbols: string[]) => {
@@ -973,12 +1153,12 @@ const Portfolio: React.FC = () => {
             </Button>
 
             <Button
-              onClick={() => setShowNewPortfolioForm(!showNewPortfolioForm)}
+              onClick={() => setShowColumnConfig(!showColumnConfig)}
               variant="outline"
               size="sm"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              New Portfolio
+              <Settings className="h-4 w-4 mr-2" />
+              Columns
             </Button>
 
             {activePortfolio && (
@@ -1080,6 +1260,79 @@ const Portfolio: React.FC = () => {
           </Card>
         )}
 
+        {showColumnConfig && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Column Configuration</CardTitle>
+              <p className="text-sm text-muted-foreground">Choose which rank columns to display and drag to reorder them for stock portfolios</p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {columnConfig
+                  .sort((a, b) => a.order - b.order)
+                  .map((col, index) => (
+                  <div
+                    key={col.key}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, index)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, index)}
+                    onDragEnd={handleDragEnd}
+                    className={`flex items-center justify-between p-3 border rounded cursor-move transition-colors ${
+                      draggedIndex === index ? 'opacity-50 bg-muted' : 'hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="text-muted-foreground cursor-grab active:cursor-grabbing">
+                        ⋮⋮
+                      </div>
+                      <input
+                        type="checkbox"
+                        id={`col-${col.key}`}
+                        checked={col.visible}
+                        onChange={(e) => {
+                          const newConfig = columnConfig.map(c =>
+                            c.key === col.key ? { ...c, visible: e.target.checked } : c
+                          );
+                          saveColumnConfig(newConfig);
+                        }}
+                        className="rounded border-gray-300"
+                      />
+                      <label htmlFor={`col-${col.key}`} className="text-sm font-medium cursor-pointer">
+                        {col.key === 'fundamental' && 'Fundamental Rank'}
+                        {col.key === 'technical' && 'Technical Rank'}
+                        {col.key === 'ivol' && 'IVol'}
+                        {col.key === 'beta' && 'Predicted Beta'}
+                        {col.key === 'risk_contribution' && 'Risk Contribution'}
+                        {col.key === 'industry' && 'Industry'}
+                        {col.key === 'sector' && 'Sector'}
+                        {col.key === 'mcap' && 'Market Cap'}
+                        {col.key === 'isADR' && 'ADR'}
+                        {col.key === 'isActive' && 'Active'}
+                        {col.key === 'reportingCurrency' && 'Currency'}
+                        {col.key === 'td_resistance' && 'Resistance'}
+                        {col.key === 'td_support' && 'Support'}
+                        {col.key === 'tec_riskRangeHigh' && 'Risk Range High'}
+                        {col.key === 'tec_riskRangeLow' && 'Risk Range Low'}
+                        {col.key === 'tag' && 'Tag'}
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end mt-4">
+                <Button
+                  onClick={() => setShowColumnConfig(false)}
+                  variant="outline"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Close
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {portfolios.length > 0 && (
           <Tabs value={activePortfolioId} onValueChange={setActivePortfolioId} className="w-full">
             <TabsList className="mb-6 flex-wrap">
@@ -1160,6 +1413,29 @@ const Portfolio: React.FC = () => {
                           <TableRow>
                             <TableHead className="w-[50px]"></TableHead>
                             <SortableHeader column="symbol">Symbol</SortableHeader>
+                            {portfolio.type === 'stocks' && columnConfig
+                              .filter(col => col.visible)
+                              .sort((a, b) => a.order - b.order)
+                              .map(col => (
+                                <TableHead key={col.key} className={col.key === 'industry' || col.key === 'sector' ? 'text-left' : 'text-right'}>
+                                  {col.key === 'fundamental' && 'Fundamental Rank'}
+                                  {col.key === 'technical' && 'Technical Rank'}
+                                  {col.key === 'ivol' && 'IVol'}
+                                  {col.key === 'beta' && 'Predicted Beta'}
+                                  {col.key === 'risk_contribution' && 'Risk Contribution'}
+                                  {col.key === 'industry' && 'Industry'}
+                                  {col.key === 'sector' && 'Sector'}
+                                  {col.key === 'mcap' && 'Market Cap'}
+                                  {col.key === 'isADR' && 'ADR'}
+                                  {col.key === 'isActive' && 'Active'}
+                                  {col.key === 'reportingCurrency' && 'Currency'}
+                                  {col.key === 'td_resistance' && 'Resistance'}
+                                  {col.key === 'td_support' && 'Support'}
+                                  {col.key === 'tec_riskRangeHigh' && 'Risk Range High'}
+                                  {col.key === 'tec_riskRangeLow' && 'Risk Range Low'}
+                                  {col.key === 'tag' && 'Tag'}
+                                </TableHead>
+                              ))}
                             <TableHead className="text-right">Qty</TableHead>
                             <TableHead className="text-right">Value</TableHead>
                             <SortableHeader column="costBasis" className="text-right">Cost Basis</SortableHeader>
@@ -1211,6 +1487,49 @@ const Portfolio: React.FC = () => {
                                     {symbol}
                                   </button>
                                 </TableCell>
+                                {portfolio.type === 'stocks' && columnConfig
+                                  .filter(col => col.visible)
+                                  .sort((a, b) => a.order - b.order)
+                                  .map(col => {
+                                    const rankData = ranksData.find(r => r.ticker === symbol);
+                                    const value = rankData?.[col.key === 'fundamental' ? 'rankFundamental' :
+                                                     col.key === 'technical' ? 'rankTechnical' :
+                                                     col.key === 'ivol' ? 'ibol' :
+                                                     col.key === 'beta' ? 'predicted_beta' :
+                                                     col.key === 'risk_contribution' ? 'risk_contribution' :
+                                                     col.key === 'industry' ? 'industry' :
+                                                     col.key === 'sector' ? 'sector' :
+                                                     col.key === 'mcap' ? 'mcap' :
+                                                     col.key === 'isADR' ? 'isADR' :
+                                                     col.key === 'isActive' ? 'isActive' :
+                                                     col.key === 'reportingCurrency' ? 'reportingCurrency' :
+                                                     col.key === 'td_resistance' ? 'td__Resistance' :
+                                                     col.key === 'td_support' ? 'td__Support' :
+                                                     col.key === 'tec_riskRangeHigh' ? 'tec_riskRangeHigh' :
+                                                     col.key === 'tec_riskRangeLow' ? 'tec_riskRangeLow' :
+                                                     col.key === 'tag' ? 'tag' : col.key as keyof typeof rankData];
+
+                                    return (
+                                      <TableCell key={col.key} className={col.key === 'industry' || col.key === 'sector' ? 'text-left' : 'text-right'}>
+                                        {col.key === 'fundamental' && (value ? `${value}` : 'N/A')}
+                                        {col.key === 'technical' && (value ? `${value}` : 'N/A')}
+                                        {col.key === 'ivol' && (value ? `${value}%` : 'N/A')}
+                                        {col.key === 'beta' && (value ? `${value}` : 'N/A')}
+                                        {col.key === 'risk_contribution' && (value ? `${value}%` : 'N/A')}
+                                        {col.key === 'industry' && abbreviateSectorIndustry(value as string || '', 'industry')}
+                                        {col.key === 'sector' && abbreviateSectorIndustry(value as string || '', 'sector')}
+                                        {col.key === 'mcap' && (value ? `$${(value as number / 1e9).toFixed(1)}B` : 'N/A')}
+                                        {col.key === 'isADR' && (value ? 'Yes' : 'No')}
+                                        {col.key === 'isActive' && (value ? 'Yes' : 'No')}
+                                        {col.key === 'reportingCurrency' && (value || 'N/A')}
+                                        {col.key === 'td_resistance' && (value ? `$${value}` : 'N/A')}
+                                        {col.key === 'td_support' && (value ? `$${value}` : 'N/A')}
+                                        {col.key === 'tec_riskRangeHigh' && (value ? `$${value}` : 'N/A')}
+                                        {col.key === 'tec_riskRangeLow' && (value ? `$${value}` : 'N/A')}
+                                        {col.key === 'tag' && (value || 'N/A')}
+                                      </TableCell>
+                                    );
+                                  })}
                                 <TableCell className="text-right">{formatNumber(agg.total_quantity, 'qty', portfolio.type)}</TableCell>
                                 <TableCell className="text-right">{currentValue ? formatCurrency(currentValue, 'value', portfolio.type) : '$0'}</TableCell>
                                 <TableCell className="text-right">{costBasis ? formatCurrency(costBasis, 'costBasis', portfolio.type) : '$0'}</TableCell>

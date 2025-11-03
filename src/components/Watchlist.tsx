@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Plus, RefreshCw, Save, Settings, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { abbreviateSectorIndustry } from '../lib/financialUtils';
 import { TableRowSkeleton } from './LoadingSkeleton';
 import { Badge } from './ui/badge';
 import { Button } from './ui/Button';
@@ -130,6 +131,9 @@ const Watchlist: React.FC = () => {
     { key: 'tag', visible: false, order: 15 },
   ]);
 
+  // Drag and drop state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
   // Helper function
   const showStatus = (text: string, type: 'success' | 'error' = 'success') => {
     setStatusMessage({ text, type });
@@ -174,21 +178,40 @@ const Watchlist: React.FC = () => {
     return visible;
   };
 
-  // Move column up or down in order
-  const moveColumn = (index: number, direction: 'up' | 'down') => {
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === dropIndex) return;
+
     const newConfig = [...columnConfig];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    const draggedItem = newConfig[draggedIndex];
 
-    if (targetIndex < 0 || targetIndex >= newConfig.length) return;
+    // Remove dragged item
+    newConfig.splice(draggedIndex, 1);
+    // Insert at new position
+    newConfig.splice(dropIndex, 0, draggedItem);
 
-    // Swap orders
-    const tempOrder = newConfig[index].order;
-    newConfig[index].order = newConfig[targetIndex].order;
-    newConfig[targetIndex].order = tempOrder;
+    // Update orders
+    newConfig.forEach((item, index) => {
+      item.order = index;
+    });
 
-    // Sort by order and save
-    newConfig.sort((a, b) => a.order - b.order);
     saveColumnConfig(newConfig);
+    setDraggedIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
   };
 
   // Load column config on mount
@@ -1130,15 +1153,28 @@ const Watchlist: React.FC = () => {
           <Card className="mb-8">
             <CardHeader>
               <CardTitle>Column Configuration</CardTitle>
-              <p className="text-sm text-muted-foreground">Choose which rank columns to display and reorder them for stock watchlists</p>
+              <p className="text-sm text-muted-foreground">Choose which rank columns to display and drag to reorder them for stock watchlists</p>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {columnConfig
                   .sort((a, b) => a.order - b.order)
                   .map((col, index) => (
-                  <div key={col.key} className="flex items-center justify-between p-2 border rounded">
-                    <div className="flex items-center space-x-2">
+                  <div
+                    key={col.key}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, index)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, index)}
+                    onDragEnd={handleDragEnd}
+                    className={`flex items-center justify-between p-3 border rounded cursor-move transition-colors ${
+                      draggedIndex === index ? 'opacity-50 bg-muted' : 'hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="text-muted-foreground cursor-grab active:cursor-grabbing">
+                        ⋮⋮
+                      </div>
                       <input
                         type="checkbox"
                         id={`col-${col.key}`}
@@ -1151,7 +1187,7 @@ const Watchlist: React.FC = () => {
                         }}
                         className="rounded border-gray-300"
                       />
-                      <label htmlFor={`col-${col.key}`} className="text-sm font-medium">
+                      <label htmlFor={`col-${col.key}`} className="text-sm font-medium cursor-pointer">
                         {col.key === 'fundamental' && 'Fundamental Rank'}
                         {col.key === 'technical' && 'Technical Rank'}
                         {col.key === 'ivol' && 'IVol'}
@@ -1169,26 +1205,6 @@ const Watchlist: React.FC = () => {
                         {col.key === 'tec_riskRangeLow' && 'Risk Range Low'}
                         {col.key === 'tag' && 'Tag'}
                       </label>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button
-                        onClick={() => moveColumn(index, 'up')}
-                        disabled={index === 0}
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                      >
-                        <ChevronUp className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        onClick={() => moveColumn(index, 'down')}
-                        disabled={index === columnConfig.length - 1}
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                      >
-                        <ChevronDown className="h-3 w-3" />
-                      </Button>
                     </div>
                   </div>
                 ))}
@@ -1433,10 +1449,10 @@ const Watchlist: React.FC = () => {
                                             cellContent = ranksDataItem?.risk_contribution !== null && ranksDataItem?.risk_contribution !== undefined ? ranksDataItem.risk_contribution.toFixed(3) : 'N/A';
                                             break;
                                           case 'industry':
-                                            cellContent = ranksDataItem?.industry || 'N/A';
+                                            cellContent = abbreviateSectorIndustry(ranksDataItem?.industry || null, 'industry');
                                             break;
                                           case 'sector':
-                                            cellContent = ranksDataItem?.sector || 'N/A';
+                                            cellContent = abbreviateSectorIndustry(String(ranksDataItem?.sector || ''), 'sector');
                                             break;
                                           case 'mcap':
                                             cellContent = ranksDataItem?.mcap !== null && ranksDataItem?.mcap !== undefined ? `$${(ranksDataItem.mcap / 1000000).toFixed(1)}M` : 'N/A';
@@ -1468,7 +1484,7 @@ const Watchlist: React.FC = () => {
                                         }
 
                                         return (
-                                          <TableCell key={col.key} className="text-right">
+                                          <TableCell key={col.key} className={col.key === 'sector' || col.key === 'industry' ? 'text-left' : 'text-right'}>
                                             {cellContent}
                                           </TableCell>
                                         );
