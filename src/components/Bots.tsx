@@ -1,6 +1,7 @@
 import { Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useWalletAuth } from '../hooks/useWalletAuth';
 import { KrakenBotSymbol, KrakenBotSymbolsConfig, SchwabBotSymbol, SchwabBotSymbolsConfig } from '../types/trading';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { Button } from './ui/Button';
@@ -12,7 +13,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 
 // API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
 
 // Helper function to sanitize numeric fields
 const sanitizeNumericField = (value: any, defaultValue: number = 0): number => {
@@ -52,6 +52,7 @@ const sanitizeSchwabBotSymbol = (item: any): SchwabBotSymbol => {
 const Bots: React.FC = () => {
   // Get the authenticated user
   const { user } = useAuth();
+  const { getAccessToken } = useWalletAuth();
 
   const [tradingSymbols, setTradingSymbols] = useState<KrakenBotSymbolsConfig>([]);
   const [schwabSymbols, setSchwabSymbols] = useState<SchwabBotSymbolsConfig>([]);
@@ -157,7 +158,7 @@ const Bots: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/kraken-bot-symbols`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
+          'Authorization': `Bearer ${getAccessToken()}`,
           'Content-Type': 'application/json',
         },
       });
@@ -187,7 +188,7 @@ const Bots: React.FC = () => {
       console.error('Error fetching trading config from API:', error);
       throw error;
     }
-  }, [user?.name, API_BASE_URL, API_TOKEN]);
+  }, [user?.name, API_BASE_URL, getAccessToken]);
 
   const saveTradingConfigToAPI = useCallback(async (data: KrakenBotSymbolsConfig) => {
     if (!user?.name) {
@@ -198,7 +199,7 @@ const Bots: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/kraken-bot-symbols`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
+          'Authorization': `Bearer ${getAccessToken()}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -216,7 +217,7 @@ const Bots: React.FC = () => {
       console.error('Error saving to API:', error);
       throw error;
     }
-  }, [user?.name, API_BASE_URL, API_TOKEN]);
+  }, [user?.name, API_BASE_URL, getAccessToken]);
 
   const fetchSchwabConfig = useCallback(async () => {
     if (!user?.name) {
@@ -227,7 +228,7 @@ const Bots: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/schwab-bot-symbols`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
+          'Authorization': `Bearer ${getAccessToken()}`,
           'Content-Type': 'application/json',
         },
       });
@@ -257,7 +258,7 @@ const Bots: React.FC = () => {
       console.error('Error fetching schwab config from API:', error);
       throw error;
     }
-  }, [user?.name, API_BASE_URL, API_TOKEN]);
+  }, [user?.name, API_BASE_URL, getAccessToken]);
 
   const saveSchwabConfigToAPI = useCallback(async (data: SchwabBotSymbolsConfig) => {
     if (!user?.name) {
@@ -268,7 +269,7 @@ const Bots: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/schwab-bot-symbols`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
+          'Authorization': `Bearer ${getAccessToken()}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -307,7 +308,7 @@ const Bots: React.FC = () => {
       console.error('Error saving schwab config to API:', error);
       throw error;
     }
-  }, [user?.name, API_BASE_URL, API_TOKEN]);
+  }, [user?.name, API_BASE_URL, getAccessToken]);
 
   // Auto-save when tradingSymbols changes
   useEffect(() => {
@@ -668,7 +669,7 @@ const Bots: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/crypto_thresholds?${queryParams}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
+          'Authorization': `Bearer ${getAccessToken()}`,
           'Content-Type': 'application/json',
         },
       });
@@ -693,7 +694,7 @@ const Bots: React.FC = () => {
       console.error('Error fetching crypto thresholds:', error);
       // Don't show error for thresholds, just log it
     }
-  }, [API_BASE_URL, API_TOKEN]);
+  }, [API_BASE_URL, getAccessToken]);
 
   const fetchStockThresholds = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
@@ -703,7 +704,7 @@ const Bots: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/stock_thresholds?${queryParams}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
+          'Authorization': `Bearer ${getAccessToken()}`,
           'Content-Type': 'application/json',
         },
       });
@@ -728,7 +729,7 @@ const Bots: React.FC = () => {
       console.error('Error fetching stock thresholds:', error);
       // Don't show error for thresholds, just log it
     }
-  }, [API_BASE_URL, API_TOKEN]);
+  }, [API_BASE_URL, getAccessToken]);
 
   const fetchLatestCryptoPrices = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
@@ -738,7 +739,7 @@ const Bots: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/latest_crypto_price?${queryParams}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
+          'Authorization': `Bearer ${getAccessToken()}`,
           'Content-Type': 'application/json',
         },
       });
@@ -763,7 +764,7 @@ const Bots: React.FC = () => {
       console.error('Error fetching latest crypto prices:', error);
       // Don't show error for prices, just log it
     }
-  }, [API_BASE_URL, API_TOKEN]);
+  }, [API_BASE_URL, getAccessToken]);
 
   const fetchLatestStockPrices = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
@@ -773,7 +774,7 @@ const Bots: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/latest_stock_price?${queryParams}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
+          'Authorization': `Bearer ${getAccessToken()}`,
           'Content-Type': 'application/json',
         },
       });
@@ -798,7 +799,7 @@ const Bots: React.FC = () => {
       console.error('Error fetching latest stock prices:', error);
       // Don't show error for prices, just log it
     }
-  }, [API_BASE_URL, API_TOKEN]);
+  }, [API_BASE_URL, getAccessToken]);
 
   return (
     <div className="min-h-screen bg-background">

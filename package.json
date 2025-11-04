@@ -2,6 +2,7 @@
   "name": "bos-app",
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@9.0.0",
   "description": "Bos App - Ported from portfolio-app using polkadot-ui-template",
   "repository": {
     "type": "git",
@@ -53,7 +54,6 @@
     "echarts": "^6",
     "echarts-for-react": "^3.0.2",
     "ethers": "^6.15.0",
-    "express": "^5.1.0",
     "framer-motion": "^11.18.2",
     "http-proxy-middleware": "^3.0.5",
     "jwt-decode": "^4.0.0",

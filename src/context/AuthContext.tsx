@@ -1,7 +1,7 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { useMetaMaskContext } from '../providers/MetaMaskProvider';
+import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { useWalletAuthContext } from '../providers/WalletAuthProvider';
 
-// List of authorized wallet addresses (case insensitive)
+// List of authorized wallet addresses (case insensitive) - fallback for non-JWT auth
 const AUTHORIZED_WALLETS = import.meta.env.VITE_AUTHORIZED_WALLETS?.toLowerCase().split(',') || [];
 
 interface WalletUser {
@@ -37,36 +37,38 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
-  const { accounts, connected, connect, disconnect } = useMetaMaskContext();
 
-  const walletAddress = accounts[0] || null;
+  // Use the JWT wallet authentication context
+  const { user: jwtUser, isAuthenticated: jwtAuthenticated, isLoading: jwtLoading } = useWalletAuthContext();
+
+  // For backward compatibility, also check MetaMask connection (but prioritize JWT auth)
+  const walletAddress = jwtUser?.address || null;
   const isAuthorizedWallet = walletAddress ? AUTHORIZED_WALLETS.includes(walletAddress.toLowerCase()) : false;
-  const isAuthenticated = connected && isAuthorizedWallet;
 
-  const user: WalletUser | null = walletAddress ? {
-    address: walletAddress,
-    name: `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+  // Use JWT authentication as primary, fall back to authorized wallet list
+  const isAuthenticated = jwtAuthenticated || isAuthorizedWallet;
+
+  const user: WalletUser | null = jwtUser ? {
+    address: jwtUser.address,
+    name: jwtUser.address ? `${jwtUser.address.slice(0, 6)}...${jwtUser.address.slice(-4)}` : 'Unknown'
   } : null;
 
   useEffect(() => {
-    // Set loading to false once MetaMask context is ready
-    setLoading(false);
-  }, [connected, accounts]);
-
-  const connectWallet = async () => {
-    try {
-      await connect();
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
+    // Set loading to false once JWT auth context is ready
+    if (!jwtLoading) {
+      setLoading(false);
     }
+  }, [jwtLoading]);
+
+  // These methods are kept for backward compatibility but JWT auth handles the actual authentication
+  const connectWallet = async () => {
+    // JWT authentication is handled by the ConnectMetaMask component
+    // This is just a placeholder for backward compatibility
   };
 
   const disconnectWallet = () => {
-    try {
-      disconnect();
-    } catch (error) {
-      console.error('Failed to disconnect wallet:', error);
-    }
+    // JWT logout is handled by the ConnectMetaMask component
+    // This is just a placeholder for backward compatibility
   };
 
   return (

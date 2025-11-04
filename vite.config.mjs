@@ -23,10 +23,17 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    https: {
-      cert: path.resolve(__dirname, './certificates/fullchain.pem'),
-      key: path.resolve(__dirname, './certificates/privkey.pem'),
-    },
+    host: '0.0.0.0',
+    allowedHosts: [
+      'rogerjbos.com',
+      'localhost',
+      '127.0.0.1',
+      '.rogerjbos.com', // Allow all subdomains
+    ],
+    // https: {
+    //   cert: path.resolve(__dirname, './certificates/fullchain.pem'),
+    //   key: path.resolve(__dirname, './certificates/privkey.pem'),
+    // },
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:4000',
@@ -40,6 +47,11 @@ export default defineConfig({
           proxy.on('proxyRes', (proxyRes, req, res) => {
           });
         },
+      },
+      '/auth': {
+        target: 'http://127.0.0.1:4000/api',
+        changeOrigin: true,
+        secure: false,
       },
     },
   },
