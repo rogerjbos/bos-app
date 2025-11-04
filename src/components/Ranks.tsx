@@ -1,5 +1,6 @@
 import * as echarts from 'echarts';
 import React, { useEffect, useState } from 'react';
+import { useWalletAuth } from '../hooks/useWalletAuth';
 import { abbreviateSectorIndustry } from '../lib/financialUtils';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
@@ -842,11 +843,13 @@ const Ranks: React.FC = () => {
   const [stockError, setStockError] = useState<string | null>(null);
   const [cryptoError, setCryptoError] = useState<string | null>(null);
 
+  // Get wallet auth token
+  const { getAccessToken } = useWalletAuth();
+
   // API configuration (similar to Staking.tsx)
   const API_BASE_URL = import.meta.env.DEV
     ? '/api'
     : (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:4000/api');
-  const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
 
   const fetchRankData = async (selectedTicker: string) => {
     setIsLoadingStocks(true);
@@ -858,7 +861,7 @@ const Ranks: React.FC = () => {
       const response = await fetch(fullUrl, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
+          'Authorization': `Bearer ${getAccessToken()}`,
           'Content-Type': 'application/json',
         },
       });
@@ -921,7 +924,7 @@ const Ranks: React.FC = () => {
       const response = await fetch(fullUrl, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
+          'Authorization': `Bearer ${getAccessToken()}`,
           'Content-Type': 'application/json',
         },
       });

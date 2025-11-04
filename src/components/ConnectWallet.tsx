@@ -2,14 +2,15 @@ import Identicon from "@polkadot/react-identicon";
 import { Check, ChevronRight, Download, User, Wallet } from "lucide-react";
 import { useState } from "react";
 import { useTypink } from "typink";
+import AuthStatus from "./AuthStatus";
 import ConnectMetaMask from "./ConnectMetaMask";
 import { Button } from "./ui/Button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from "./ui/Dialog";
 
 type View = "wallets" | "accounts";
@@ -64,7 +65,7 @@ export default function ConnectWallet() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <Button
-        variant={connectedAccount ? "gradient" : "default"}
+        variant={connectedAccount ? "default" : "default"}
         size="lg"
         onClick={() => setOpen(true)}
         className="gap-2"
@@ -108,6 +109,9 @@ export default function ConnectWallet() {
             </DialogHeader>
 
             <div className="space-y-3 mt-4">
+              {/* Authentication Status */}
+              <AuthStatus />
+
               {/* MetaMask (EVM) option */}
               <ConnectMetaMask />
 
@@ -187,7 +191,7 @@ export default function ConnectWallet() {
                             </>
                           ) : (
                             <Button
-                              variant="gradient"
+                              variant="default"
                               size="sm"
                               onClick={() => handleConnectWallet(wallet.id)}
                               className="gap-1"
