@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { FaTrash, FaExternalLinkAlt, FaSave, FaTimes, FaPlusSquare } from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext';
 import { useWalletAuthContext } from '../providers/WalletAuthProvider';
 
 
@@ -24,17 +23,12 @@ interface PriceData {
 // Define constants at the top of your component
 const APP_VERSION = '1.0.0';
 
-// API configuration (similar to Ranks.tsx)
-// In dev use relative path so Vite proxy can forward requests and avoid CORS/preflight issues.
-const API_BASE_URL = import.meta.env.DEV 
-  ? '/api'
-  : (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:4000/api');
-const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
+// API configuration - use proxy in both dev and production
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const Staking: React.FC = () => {
-  // Get the authenticated user
-  const { user } = useAuth();
-  const walletAuth = useWalletAuthContext();
+  // Get the authenticated user and wallet auth
+  const { user, getAccessToken } = useWalletAuthContext();
   
   // Define the storage helper BEFORE any useState that uses it
   const storage = {
@@ -186,53 +180,47 @@ const Staking: React.FC = () => {
     setPriceUpdateError(null);
 
     try {
-      const accessToken = walletAuth?.getAccessToken ? walletAuth.getAccessToken() : null;
-      const tokenForRequest = accessToken || API_TOKEN || '';
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
+      const accessToken = getAccessToken();
+      console.log('🔑 Access Token for /prices:', accessToken ? `${accessToken.substring(0, 20)}...` : 'NULL');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
       };
-      if (tokenForRequest) {
-        headers['Authorization'] = `Bearer ${tokenForRequest}`;
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+      console.log('📡 Fetching /prices with headers:', headers);
+
+      const response = await fetch(`${API_BASE_URL}/prices`, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch price data: ${response.status} ${response.statusText}`);
       }
 
-      // The backend exposes separate endpoints for latest crypto/stock prices.
-      // Call both and merge results into a single price map.
-      const cryptoRes = await fetch(`${API_BASE_URL}/latest_crypto_price`, { method: 'GET', headers });
-      const stockRes = await fetch(`${API_BASE_URL}/latest_stock_price`, { method: 'GET', headers });
+      const data = await response.json();
+      console.log('Price API response:', data);
 
-      if (!cryptoRes.ok && !stockRes.ok) {
-        // If both fail, prefer crypto error message
-        const err = cryptoRes.ok ? await stockRes.text() : await cryptoRes.text();
-        throw new Error(`Failed to fetch price data: ${err}`);
+      // Handle the response based on your API structure
+      let prices: PriceData = {};
+      let date = '';
+
+      if (data.prices && typeof data.prices === 'object') {
+        prices = data.prices;
       }
 
-      const cryptoData = cryptoRes.ok ? await cryptoRes.json() : [];
-      const stockData = stockRes.ok ? await stockRes.json() : [];
-
-      const prices: PriceData = {};
-      let latestDate = '';
-
-      // cryptoData is expected to be an array of objects with symbol/baseCurrency and close
-      for (const item of cryptoData || []) {
-        const sym = (item.baseCurrency || item.symbol || item.ticker || '').toString().toLowerCase();
-        const close = Number(item.close ?? item.latestPrice ?? 0);
-        if (sym) prices[sym] = close;
-        if (!latestDate && item.date) latestDate = item.date;
-      }
-
-      // stockData is expected to be an array of objects with symbol and close
-      for (const item of stockData || []) {
-        const sym = (item.symbol || '').toString().toLowerCase();
-        const close = Number(item.close ?? item.latestPrice ?? 0);
-        if (sym) prices[sym] = close;
-        if (!latestDate && item.date) latestDate = item.date;
+      if (data.last_updated) {
+        date = data.last_updated;
+      } else if (data.date) {
+        date = data.date;
       }
 
       setPriceData(prices);
-      setPriceUpdateDate(latestDate);
+      setPriceUpdateDate(date);
 
       // Update staking item prices
-      updateStakingPrices(prices, latestDate);
+      updateStakingPrices(prices, date);
 
     } catch (error) {
       console.error('Error fetching price data:', error);
@@ -240,7 +228,7 @@ const Staking: React.FC = () => {
     } finally {
       // setIsUpdatingPrices(false);
     }
-  }, [API_BASE_URL, API_TOKEN]);
+  }, [API_BASE_URL, getAccessToken]);
   
   // Update staking items with latest prices
   const updateStakingPrices = (prices: PriceData, date: string) => {
@@ -324,7 +312,7 @@ const Staking: React.FC = () => {
       
       const newStakingItem = {
         ...newItem,
-        username: user?.name || user?.address || 'Unknown User',
+        username: user?.address || 'Unknown User',
         price,
         priceLastUpdated: priceData[ticker] !== undefined ? priceUpdateDate : undefined
       };
@@ -369,7 +357,7 @@ const Staking: React.FC = () => {
       setStakingItems(updatedItems);
       
       // Also sync the updated list to API immediately
-      if (user?.name) {
+      if (user?.address) {
         await saveStakingToAPI(updatedItems);
         console.log('Successfully deleted item and synced with API');
       }
@@ -423,21 +411,22 @@ const Staking: React.FC = () => {
 
   // Replace the fetchStakingData function with this corrected version
   const fetchStakingData = useCallback(async () => {
-    if (!user?.name) {
+    if (!user?.address) {
       console.log('No user logged in, skipping API fetch');
       return [];
     }
 
     try {
-      const username = encodeURIComponent(user.name);
-      const accessToken = walletAuth?.getAccessToken ? walletAuth.getAccessToken() : null;
-      const tokenForRequest = accessToken || API_TOKEN || '';
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
+      const username = encodeURIComponent(user.address);
+      const accessToken = getAccessToken();
+      console.log('🔑 Access Token for /staking:', accessToken ? `${accessToken.substring(0, 20)}...` : 'NULL');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
       };
-      if (tokenForRequest) {
-        headers['Authorization'] = `Bearer ${tokenForRequest}`;
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
+      console.log('📡 Fetching /staking with headers:', headers);
 
       const response = await fetch(`${API_BASE_URL}/staking?username=${username}`, {
         method: 'GET',
@@ -475,7 +464,7 @@ const Staking: React.FC = () => {
       // No fallback - just throw the error
       throw error;
     }
-  }, [user?.name, API_BASE_URL, API_TOKEN]);
+  }, [user?.address, API_BASE_URL, getAccessToken]);
 
   // Add this function to handle data migration
   const migrateDataStructure = (items: any[]): StakingItem[] => {
@@ -483,7 +472,7 @@ const Staking: React.FC = () => {
       // If the item doesn't have username, add it
       if (!item.username) {
         return {
-          username: user?.name || user?.address || 'Legacy User',
+          username: user?.address || 'Legacy User',
           ...item
         };
       }
@@ -499,7 +488,7 @@ const Staking: React.FC = () => {
         storage.save('stakingData', stakingItems);
         
         // Also try to save to API (don't block on this)
-        if (user?.name) {
+        if (user?.address) {
           saveStakingToAPI(stakingItems).catch(error => {
             console.warn('Failed to sync with API:', error);
           });
@@ -509,31 +498,30 @@ const Staking: React.FC = () => {
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stakingItems, user?.name]); // Exclude storage and saveStakingToAPI to prevent infinite loops
+  }, [stakingItems, user?.address]); // Exclude storage and saveStakingToAPI to prevent infinite loops
 
 
   // Replace the existing saveStakingToAPI function
   const saveStakingToAPI = useCallback(async (data: StakingItem[], showSuccessMessage: boolean = false) => {
-    if (!user?.name) {
+    if (!user?.address) {
       console.log('No user logged in, skipping API save');
       return false;
     }
 
     try {
-      const accessToken = walletAuth?.getAccessToken ? walletAuth.getAccessToken() : null;
-      const tokenForRequest = accessToken || API_TOKEN || '';
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
       };
-      if (tokenForRequest) {
-        headers['Authorization'] = `Bearer ${tokenForRequest}`;
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${API_BASE_URL}/staking`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          username: user.name,
+          username: user.address,
           data: data
         }),
       });
@@ -553,7 +541,7 @@ const Staking: React.FC = () => {
       console.error('Error saving to API:', error);
       throw error; // Re-throw so calling functions can handle it
     }
-  }, [user?.name, API_BASE_URL, API_TOKEN]);
+  }, [user?.address, API_BASE_URL, getAccessToken]);
 
   // Add a refresh button function
   const refreshFromAPI = async () => {
@@ -573,13 +561,13 @@ const Staking: React.FC = () => {
   const updateAllItemsWithUsername = () => {
     const updatedItems = stakingItems.map(item => ({
       ...item,
-      username: item.username || user?.name || user?.address || 'Unknown User'
+      username: item.username || user?.address || 'Unknown User'
     }));
     
     setStakingItems(updatedItems);
     storage.save('stakingData', updatedItems);
     
-    alert(`Updated ${updatedItems.length} items with username: ${user?.name}`);
+    alert(`Updated ${updatedItems.length} items with username: ${user?.address}`);
   };
 
   // Add this button to your UI near the other action buttons
@@ -660,7 +648,7 @@ const Staking: React.FC = () => {
                   id="username"
                   type="text"
                   name="username"
-                  value={user?.name || user?.address || 'Not logged in'}
+                  value={user?.address || 'Not logged in'}
                   disabled
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                 />
@@ -760,18 +748,18 @@ const Staking: React.FC = () => {
       )}
 
       {isLoading ? (
-        <div className="text-center my-8">
+          <div className="text-center my-8">
           <div className="inline-flex items-center space-x-2">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
             <span className="text-gray-600 dark:text-gray-400">
-              {user ? `Loading staking data for ${user.name}...` : 'Loading staking data...'}
+              {user ? `Loading staking data for ${user.address}...` : 'Loading staking data...'}
             </span>
           </div>
         </div>
       ) : stakingItems.length === 0 ? (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400 px-4 py-3 rounded">
           {user 
-            ? `No staking assets found for ${user.name}. ${Object.keys(priceData).length} prices loaded.`
+            ? `No staking assets found for ${user.address}. ${Object.keys(priceData).length} prices loaded.`
             : 'Please log in to view staking data.'
           }
         </div>

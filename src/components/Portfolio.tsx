@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Plus, RefreshCw, Save, Settings, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useWalletAuthContext } from '../providers/WalletAuthProvider';
 import { abbreviateSectorIndustry } from '../lib/financialUtils';
 import { TableRowSkeleton } from './LoadingSkeleton';
 import { Badge } from './ui/badge';
@@ -13,7 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 
 // API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
 
 // Interfaces
 interface Portfolio {
@@ -101,6 +101,7 @@ interface PortfolioAggregatePosition {
 
 const Portfolio: React.FC = () => {
   const { user } = useAuth();
+  const { getAccessToken } = useWalletAuthContext();
 
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [activePortfolioId, setActivePortfolioId] = useState<string>('');
@@ -381,12 +382,17 @@ const Portfolio: React.FC = () => {
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
-      const response = await fetch(`${baseUrl}/portfolios?username=${encodeURIComponent(user.name)}`, {
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
+      const response = await fetch(`${baseUrl}/portfolios?username=${encodeURIComponent(user.address)}`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -423,17 +429,22 @@ const Portfolio: React.FC = () => {
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const response = await fetch(`${baseUrl}/portfolios`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           name: 'My Watchlist',
           type: 'crypto',
           symbols: ['BTC', 'ETH', 'DOT'],
-          username: user.name
+          username: user.address
         }),
       });
 
@@ -476,12 +487,17 @@ const Portfolio: React.FC = () => {
         url.searchParams.append('baseCurrencies', symbol.toLowerCase());
       });
 
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const response = await fetch(url.toString(), {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -533,12 +549,17 @@ const Portfolio: React.FC = () => {
         url.searchParams.append('historical_data', JSON.stringify(historicalData));
       }
 
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const response = await fetch(url.toString(), {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -594,12 +615,17 @@ const Portfolio: React.FC = () => {
         url.searchParams.append('symbols', symbol.toUpperCase());
       });
 
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const response = await fetch(url.toString(), {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -673,6 +699,14 @@ const Portfolio: React.FC = () => {
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       // Fetch ranks data for each symbol
       const ranksPromises = symbols.map(async (symbol) => {
         const url = `${baseUrl}/ranks?ticker=${symbol.toLowerCase()}`;
@@ -680,10 +714,7 @@ const Portfolio: React.FC = () => {
         try {
           const response = await fetch(url, {
             method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${API_TOKEN}`,
-              'Content-Type': 'application/json',
-            },
+            headers,
           });
 
           if (!response.ok) {
@@ -746,15 +777,20 @@ const Portfolio: React.FC = () => {
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
       const url = new URL(`${baseUrl}/portfolios/${activePortfolioId}/transactions/aggregate`);
-      url.searchParams.append('username', user.name);
+      url.searchParams.append('username', user.address);
       symbols.forEach(s => url.searchParams.append('symbols', s));
+
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
 
       const response = await fetch(url.toString(), {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -785,14 +821,20 @@ const Portfolio: React.FC = () => {
       : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
     try {
       const url = new URL(`${baseUrl}/portfolios/${activePortfolioId}/transactions`);
-      url.searchParams.append('username', user.name);
+      url.searchParams.append('username', user.address);
       url.searchParams.append('symbol', symbol);
+
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const res = await fetch(url.toString(), {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
       if (!res.ok) throw new Error('Failed to fetch transactions');
       const data = await res.json();
@@ -831,14 +873,20 @@ const Portfolio: React.FC = () => {
       const baseUrl = API_BASE_URL.startsWith('http')
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
+
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const res = await fetch(`${baseUrl}/portfolios/${activePortfolioId}/transactions`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
-          username: user.name,
+          username: user.address,
           symbol: txSymbol,
           transactions: txRows,
         })
@@ -872,17 +920,22 @@ const Portfolio: React.FC = () => {
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const response = await fetch(`${baseUrl}/portfolios`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           name: newPortfolioName.trim(),
           type: newPortfolioType,
           symbols: [],
-          username: user.name
+          username: user.address
         }),
       });
 
@@ -926,12 +979,17 @@ const Portfolio: React.FC = () => {
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
-      const response = await fetch(`${baseUrl}/portfolios/${portfolioId}?username=${encodeURIComponent(user.name)}`, {
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
+      const response = await fetch(`${baseUrl}/portfolios/${portfolioId}?username=${encodeURIComponent(user.address)}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -1009,15 +1067,20 @@ const Portfolio: React.FC = () => {
       const addedSymbols: string[] = [];
       const failedSymbols: string[] = [];
 
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       // Add each symbol sequentially
       for (const symbol of newSymbolsToAdd) {
         try {
-          const response = await fetch(`${baseUrl}/portfolios/${activePortfolioId}/symbols?username=${encodeURIComponent(user.name)}&symbol=${symbol}`, {
+          const response = await fetch(`${baseUrl}/portfolios/${activePortfolioId}/symbols?username=${encodeURIComponent(user.address)}&symbol=${symbol}`, {
             method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${API_TOKEN}`,
-              'Content-Type': 'application/json',
-            },
+            headers,
           });
 
           if (!response.ok) {
@@ -1081,12 +1144,17 @@ const Portfolio: React.FC = () => {
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
-      const response = await fetch(`${baseUrl}/portfolios/${activePortfolioId}/symbols/${symbol}?username=${encodeURIComponent(user.name)}`, {
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
+      const response = await fetch(`${baseUrl}/portfolios/${activePortfolioId}/symbols/${symbol}?username=${encodeURIComponent(user.address)}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {

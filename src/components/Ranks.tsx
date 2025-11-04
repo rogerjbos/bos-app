@@ -1,6 +1,7 @@
 import * as echarts from 'echarts';
-import React, { useEffect, useState } from 'react';
-import { useWalletAuth } from '../hooks/useWalletAuth';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { FaSort, FaSortUp, FaSortDown, FaInfoCircle } from 'react-icons/fa';
+import { useWalletAuthContext } from '../providers/WalletAuthProvider';
 import { abbreviateSectorIndustry } from '../lib/financialUtils';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
@@ -844,7 +845,7 @@ const Ranks: React.FC = () => {
   const [cryptoError, setCryptoError] = useState<string | null>(null);
 
   // Get wallet auth token
-  const { getAccessToken } = useWalletAuth();
+  const { getAccessToken } = useWalletAuthContext();
 
   // API configuration (similar to Staking.tsx)
   const API_BASE_URL = import.meta.env.DEV

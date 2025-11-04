@@ -1,7 +1,7 @@
 import { Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useWalletAuth } from '../hooks/useWalletAuth';
+import { useWalletAuthContext } from '../providers/WalletAuthProvider';
 import { KrakenBotSymbol, KrakenBotSymbolsConfig, SchwabBotSymbol, SchwabBotSymbolsConfig } from '../types/trading';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { Button } from './ui/Button';
@@ -52,7 +52,7 @@ const sanitizeSchwabBotSymbol = (item: any): SchwabBotSymbol => {
 const Bots: React.FC = () => {
   // Get the authenticated user
   const { user } = useAuth();
-  const { getAccessToken } = useWalletAuth();
+  const { getAccessToken } = useWalletAuthContext();
 
   const [tradingSymbols, setTradingSymbols] = useState<KrakenBotSymbolsConfig>([]);
   const [schwabSymbols, setSchwabSymbols] = useState<SchwabBotSymbolsConfig>([]);

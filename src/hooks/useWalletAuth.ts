@@ -56,7 +56,13 @@ export function useWalletAuth() {
       const userInfo = decodeTokenLocally(accessToken);
       if (userInfo && userInfo.exp > Date.now() / 1000) {
         setUser(userInfo);
-        setTokens({ accessToken, refreshToken, idToken: '' });
+        setTokens({ 
+          access_token: accessToken, 
+          refresh_token: refreshToken, 
+          token_type: 'bearer',
+          expires_in: 3600,
+          wallet_address: userInfo.address
+        });
       } else {
         // Token expired, clear it
         localStorage.removeItem('accessToken');
