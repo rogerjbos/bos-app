@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Plus, RefreshCw, Save, Settings, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useWalletAuthContext } from '../providers/WalletAuthProvider';
 import { abbreviateSectorIndustry } from '../lib/financialUtils';
 import { TableRowSkeleton } from './LoadingSkeleton';
 import { Badge } from './ui/badge';
@@ -13,7 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 
 // API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
 
 // Interfaces
 interface Watchlist {
@@ -83,6 +83,7 @@ interface StockXDaysData {
 
 const Watchlist: React.FC = () => {
   const { user } = useAuth();
+  const { getAccessToken } = useWalletAuthContext();
 
   const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
   const [activeWatchlistId, setActiveWatchlistId] = useState<string>('');
@@ -410,12 +411,17 @@ const Watchlist: React.FC = () => {
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
-      const response = await fetch(`${baseUrl}/watchlists?username=${encodeURIComponent(user.name)}`, {
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
+      const response = await fetch(`${baseUrl}/watchlists?username=${encodeURIComponent(user.address)}`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -452,17 +458,22 @@ const Watchlist: React.FC = () => {
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const response = await fetch(`${baseUrl}/watchlists`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           name: 'My Watchlist',
           type: 'crypto',
           symbols: ['BTC', 'ETH', 'DOT'],
-          username: user.name
+          username: user.address
         }),
       });
 
@@ -505,12 +516,17 @@ const Watchlist: React.FC = () => {
         url.searchParams.append('baseCurrencies', symbol.toLowerCase());
       });
 
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const response = await fetch(url.toString(), {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -562,12 +578,17 @@ const Watchlist: React.FC = () => {
         url.searchParams.append('historical_data', JSON.stringify(historicalData));
       }
 
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const response = await fetch(url.toString(), {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -623,12 +644,17 @@ const Watchlist: React.FC = () => {
         url.searchParams.append('symbols', symbol.toUpperCase());
       });
 
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const response = await fetch(url.toString(), {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -703,16 +729,21 @@ const Watchlist: React.FC = () => {
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
       // Fetch ranks data for each symbol
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const ranksPromises = symbols.map(async (symbol) => {
         const url = `${baseUrl}/ranks?ticker=${symbol.toLowerCase()}`;
 
         try {
           const response = await fetch(url, {
             method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${API_TOKEN}`,
-              'Content-Type': 'application/json',
-            },
+            headers,
           });
 
           if (!response.ok) {
@@ -779,17 +810,22 @@ const Watchlist: React.FC = () => {
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const response = await fetch(`${baseUrl}/watchlists`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           name: newWatchlistName.trim(),
           type: newWatchlistType,
           symbols: [],
-          username: user.name
+          username: user.address
         }),
       });
 
@@ -833,12 +869,17 @@ const Watchlist: React.FC = () => {
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
-      const response = await fetch(`${baseUrl}/watchlists/${watchlistId}?username=${encodeURIComponent(user.name)}`, {
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
+      const response = await fetch(`${baseUrl}/watchlists/${watchlistId}?username=${encodeURIComponent(user.address)}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -916,15 +957,20 @@ const Watchlist: React.FC = () => {
       const addedSymbols: string[] = [];
       const failedSymbols: string[] = [];
 
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       // Add each symbol sequentially
       for (const symbol of newSymbolsToAdd) {
         try {
-          const response = await fetch(`${baseUrl}/watchlists/${activeWatchlistId}/symbols?username=${encodeURIComponent(user.name)}&symbol=${symbol}`, {
+          const response = await fetch(`${baseUrl}/watchlists/${activeWatchlistId}/symbols?username=${encodeURIComponent(user.address)}&symbol=${symbol}`, {
             method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${API_TOKEN}`,
-              'Content-Type': 'application/json',
-            },
+            headers,
           });
 
           if (!response.ok) {
@@ -988,12 +1034,17 @@ const Watchlist: React.FC = () => {
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
-      const response = await fetch(`${baseUrl}/watchlists/${activeWatchlistId}/symbols/${symbol}?username=${encodeURIComponent(user.name)}`, {
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
+      const response = await fetch(`${baseUrl}/watchlists/${activeWatchlistId}/symbols/${symbol}?username=${encodeURIComponent(user.address)}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
