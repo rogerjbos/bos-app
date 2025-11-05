@@ -140,7 +140,7 @@ const Watchlist: React.FC = () => {
     { key: 'fundamental', visible: true, order: 0 },
     { key: 'technical', visible: true, order: 1 },
     { key: 'ivol', visible: true, order: 2 },
-    { key: 'beta', visible: true, order: 3 },
+    { key: 'predicted_beta', visible: true, order: 3 },
     { key: 'risk_contribution', visible: true, order: 4 },
     { key: 'industry', visible: false, order: 5 },
     { key: 'sector', visible: false, order: 6 },
@@ -339,7 +339,7 @@ const Watchlist: React.FC = () => {
           aValue = aRanks?.ivol || 0;
           bValue = bRanks?.ivol || 0;
           break;
-        case 'beta':
+        case 'predicted_beta':
           aValue = aRanks?.predicted_beta || 0;
           bValue = bRanks?.predicted_beta || 0;
           break;
@@ -767,21 +767,15 @@ const Watchlist: React.FC = () => {
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
       // Fetch ranks data for each symbol
-      const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-      }
-
       const ranksPromises = symbols.map(async (symbol) => {
         const url = `${baseUrl}/ranks?ticker=${symbol.toLowerCase()}`;
 
         try {
           const response = await fetch(url, {
             method: 'GET',
-            headers,
+            headers: {
+              'Content-Type': 'application/json',
+            },
           });
 
           if (!response.ok) {
@@ -1175,6 +1169,15 @@ const Watchlist: React.FC = () => {
           <h1 className="text-3xl font-bold">Watchlists</h1>
           <div className="flex gap-2 flex-wrap">
             <Button
+              onClick={() => setShowNewWatchlistForm(true)}
+              variant="default"
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Watchlist
+            </Button>
+
+            <Button
               onClick={refreshData}
               disabled={isLoading || !activeWatchlist}
               variant="outline"
@@ -1345,7 +1348,7 @@ const Watchlist: React.FC = () => {
                         {col.key === 'fundamental' && 'Fundamental Rank'}
                         {col.key === 'technical' && 'Technical Rank'}
                         {col.key === 'ivol' && 'IVol'}
-                        {col.key === 'predicted_beta' && 'Predicted Beta'}
+                        {col.key === 'predicted_beta' && 'Beta'}
                         {col.key === 'risk_contribution' && 'Risk Contribution'}
                         {col.key === 'industry' && 'Industry'}
                         {col.key === 'sector' && 'Sector'}
