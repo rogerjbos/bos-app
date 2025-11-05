@@ -187,7 +187,52 @@ const Watchlist: React.FC = () => {
         const parsed = JSON.parse(saved);
         // Handle both old format (Record<string, boolean>) and new format (Array)
         if (Array.isArray(parsed)) {
-          setColumnConfig(parsed);
+          // Merge saved config with default config to ensure all columns are present
+          const defaultConfig = [
+            // Stock columns
+            { key: 'fundamental', visible: true, order: 0 },
+            { key: 'technical', visible: true, order: 1 },
+            { key: 'ivol', visible: true, order: 2 },
+            { key: 'predicted_beta', visible: true, order: 3 },
+            { key: 'risk_contribution', visible: true, order: 4 },
+            { key: 'industry', visible: false, order: 5 },
+            { key: 'sector', visible: false, order: 6 },
+            { key: 'mcap', visible: false, order: 7 },
+            { key: 'isADR', visible: false, order: 8 },
+            { key: 'isActive', visible: false, order: 9 },
+            { key: 'reportingCurrency', visible: false, order: 10 },
+            { key: 'td_resistance', visible: false, order: 11 },
+            { key: 'td_support', visible: false, order: 12 },
+            { key: 'tec_riskRangeHigh', visible: false, order: 13 },
+            { key: 'tec_riskRangeLow', visible: false, order: 14 },
+            { key: 'tag', visible: false, order: 15 },
+            // Crypto columns
+            { key: 'crypto_ranks', visible: true, order: 16 },
+            { key: 'lppl_side', visible: false, order: 17 },
+            { key: 'lppl_pos_conf', visible: false, order: 18 },
+            { key: 'lppl_neg_conf', visible: false, order: 19 },
+            { key: 'strategy_side', visible: false, order: 20 },
+            { key: 'strategy_profit_per_trade', visible: false, order: 21 },
+            { key: 'strategy_expectancy', visible: false, order: 22 },
+            { key: 'strategy_profit_factor', visible: false, order: 23 },
+            { key: 'quoteCurrency', visible: false, order: 24 },
+            { key: 'open', visible: false, order: 25 },
+            { key: 'high', visible: false, order: 26 },
+            { key: 'low', visible: false, order: 27 },
+            { key: 'close', visible: false, order: 28 },
+            { key: 'volume', visible: false, order: 29 },
+          ];
+
+          // Create a map of saved columns for quick lookup
+          const savedMap = new Map(parsed.map((col: any) => [col.key, col]));
+
+          // Merge: use saved settings where available, otherwise use defaults
+          const mergedConfig = defaultConfig.map(defaultCol => {
+            const savedCol = savedMap.get(defaultCol.key);
+            return savedCol ? { ...defaultCol, ...savedCol } : defaultCol;
+          });
+
+          setColumnConfig(mergedConfig);
         } else {
           // Convert old format to new format
           const newConfig = columnConfig.map(col => ({
@@ -766,6 +811,14 @@ const Watchlist: React.FC = () => {
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       // Fetch ranks data for each symbol
       const ranksPromises = symbols.map(async (symbol) => {
         const url = `${baseUrl}/ranks?ticker=${symbol.toLowerCase()}`;
@@ -773,9 +826,7 @@ const Watchlist: React.FC = () => {
         try {
           const response = await fetch(url, {
             method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers,
           });
 
           if (!response.ok) {

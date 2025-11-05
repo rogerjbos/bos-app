@@ -38,7 +38,7 @@ const App: React.FC = () => {
                 <Route path="/watchlist" element={<ProtectedRoute element={<WatchlistPage />} />} />
                 <Route path="/portfolio" element={<ProtectedRoute element={<PortfolioPage />} />} />
                 <Route path="/bots" element={<ProtectedRoute element={<BotsPage />} />} />
-                <Route path="/ranks" element={<Ranks />} />
+                <Route path="/ranks" element={<ProtectedRoute element={<Ranks />} />} />
                 <Route path="/counter" element={<Counter />} />
               </Routes>
             </div>
