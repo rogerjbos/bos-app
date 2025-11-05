@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
-import { FaPlusSquare, FaSave, FaTimes, FaTrash, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaPlusSquare, FaSave, FaTimes, FaTrash, FaExternalLinkAlt, FaUndo } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { useWalletAuthContext } from '../providers/WalletAuthProvider';
 import * as echarts from 'echarts';
@@ -37,12 +37,12 @@ interface ReturnData {
 const APP_VERSION = '1.0.0';
 
 // API configuration (similar to Ranks.tsx)
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';// StakingTableContent component
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const StakingTableContent: React.FC<{
   filteredStakingItems: Array<{ item: StakingItem; idx: number }>;
   filteredCalculatedValues: Array<{ totalQuantity: number; itemValue: number }>;
   filteredTotalValue: number;
-  activeTab: 'combined' | 'ledger' | 'solo';
+  activeTab: 'combined' | 'ledger' | 'solo' | 'deleted';
   selectedReturnPeriod: '7d' | '30d' | '60d' | '90d' | '120d';
   hideValues: boolean;
   editIndex: number | null;
@@ -423,7 +423,7 @@ const Staking: React.FC = () => {
   const [selectedReturnPeriod, setSelectedReturnPeriod] = useState<'7d' | '30d' | '60d' | '90d' | '120d'>('30d');
 
   // Add tab selector state
-  const [activeTab, setActiveTab] = useState<'combined' | 'ledger' | 'solo'>('combined');
+  const [activeTab, setActiveTab] = useState<'combined' | 'ledger' | 'solo' | 'deleted'>('combined');
 
   const [newItem, setNewItem] = useState<StakingItem>({
     account: '',
@@ -457,6 +457,9 @@ const Staking: React.FC = () => {
   // Add prices loaded state
   const [pricesLoaded, setPricesLoaded] = useState(false);
 
+  // Add deleted staking items state
+  const [deletedStakingItems, setDeletedStakingItems] = useState<StakingItem[]>([]);
+
   // Filter staking items based on active tab
   const filteredStakingItems = useMemo(() => {
     if (activeTab === 'combined') {
@@ -465,14 +468,38 @@ const Staking: React.FC = () => {
       return sortedStakingItems.filter(({ item }) => !item.account.toLowerCase().startsWith('solo'));
     } else if (activeTab === 'solo') {
       return sortedStakingItems.filter(({ item }) => item.account.toLowerCase().startsWith('solo'));
+    } else if (activeTab === 'deleted') {
+      // For deleted tab, we need to sort deleted items by their value
+      return deletedStakingItems
+        .map((item, idx) => {
+          const totalQuantity = parseFloat(item.stakedQuantity || '0') + parseFloat(item.unclaimedQuantity || '0');
+          const itemValue = totalQuantity * parseFloat(item.price || '0');
+          const percentOfTotal = deletedStakingItems.reduce((sum, delItem) => {
+            const delTotalQuantity = parseFloat(delItem.stakedQuantity || '0') + parseFloat(delItem.unclaimedQuantity || '0');
+            return sum + (delTotalQuantity * parseFloat(delItem.price || '0'));
+          }, 0) > 0 ? (itemValue / deletedStakingItems.reduce((sum, delItem) => {
+            const delTotalQuantity = parseFloat(delItem.stakedQuantity || '0') + parseFloat(delItem.unclaimedQuantity || '0');
+            return sum + (delTotalQuantity * parseFloat(delItem.price || '0'));
+          }, 0)) * 100 : 0;
+          return { item, idx, percentOfTotal };
+        })
+        .sort((a, b) => b.percentOfTotal - a.percentOfTotal)
+        .map(({ item, idx }) => ({ item, idx }));
     }
     return sortedStakingItems;
-  }, [sortedStakingItems, activeTab]);
+  }, [sortedStakingItems, activeTab, deletedStakingItems]);
 
   // Calculate filtered totals
   const filteredCalculatedValues = useMemo(() => {
+    if (activeTab === 'deleted') {
+      return deletedStakingItems.map(item => {
+        const totalQuantity = parseFloat(item.stakedQuantity || '0') + parseFloat(item.unclaimedQuantity || '0');
+        const itemValue = totalQuantity * parseFloat(item.price || '0');
+        return { totalQuantity, itemValue };
+      });
+    }
     return filteredStakingItems.map(({ idx }) => calculatedValues[idx]);
-  }, [filteredStakingItems, calculatedValues]);
+  }, [filteredStakingItems, calculatedValues, activeTab, deletedStakingItems]);
 
   const filteredTotalValue = useMemo(() => {
     return filteredCalculatedValues.reduce((sum, { itemValue }) => sum + itemValue, 0);
@@ -506,6 +533,9 @@ const Staking: React.FC = () => {
         
         // Always load prices
         await fetchPriceData();
+        
+        // Also load deleted items
+        await fetchDeletedStakingData();
         
       } catch (e) {
         console.error("Error in loadInitialData:", e);
@@ -805,183 +835,129 @@ const Staking: React.FC = () => {
     }
   };
 
-  // MODIFY renderEditableCell TO SUPPORT HIDING SENSITIVE VALUES
-  const renderEditableCell = (field: keyof StakingItem, item: StakingItem, index: number, isNumeric: boolean = false, hideWhenPrivate: boolean = false) => {
-    if (editIndex === index && editItem) {
-      return (
-        <input
-          type={isNumeric ? "number" : "text"} 
-          name={field}
-          value={editItem[field]}
-          onChange={handleEditChange}
-          step={isNumeric ? "any" : undefined}
-          className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
-      );
-    } else {
-      return (
-        <div 
-          onClick={() => startEditing(index)}
-          className="cursor-pointer editable-cell hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1 py-1"
-        >
-          {isNumeric 
-            ? (field === 'price' ? '$' : '') + 
-              (hideWhenPrivate && hideValues 
-                ? '***' 
-                : formatNumber(parseFloat(item[field] || '0'), field === 'price' ? 2 : 4))
-            : item[field]
-          }
+  // DeletedStakingTableContent component
+  const DeletedStakingTableContent: React.FC<{
+    filteredStakingItems: Array<{ item: StakingItem; idx: number }>;
+    filteredCalculatedValues: Array<{ totalQuantity: number; itemValue: number }>;
+    filteredTotalValue: number;
+    selectedReturnPeriod: '7d' | '30d' | '60d' | '90d' | '120d';
+    hideValues: boolean;
+    restoreStakingItems: (items: StakingItem[]) => Promise<void>;
+    formatNumber: (value: number, decimals?: number) => string;
+  }> = ({
+    filteredStakingItems,
+    filteredCalculatedValues,
+    filteredTotalValue,
+    selectedReturnPeriod,
+    hideValues,
+    restoreStakingItems,
+    formatNumber
+  }) => {
+    const handleRestore = async (item: StakingItem) => {
+      const confirmMessage = `Are you sure you want to restore ${item.ticker} from ${item.account}?`;
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+
+      try {
+        await restoreStakingItems([item]);
+      } catch (error) {
+        console.error('Error restoring item:', error);
+      }
+    };
+
+    return (
+      <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300"></th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ticker</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Staked</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unclaimed</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Price</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{selectedReturnPeriod} Return</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Value</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">%</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {filteredStakingItems.map(({ item, idx }) => {
+                const { totalQuantity, itemValue } = filteredCalculatedValues[idx];
+                const percentOfTotal = filteredTotalValue > 0 ? (itemValue / filteredTotalValue) * 100 : 0;
+
+                return (
+                  <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-2 py-2 whitespace-nowrap text-xs">
+                      <button
+                        onClick={() => handleRestore(item)}
+                        className="inline-flex items-center px-1 py-1 border border-transparent text-xs rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-1 focus:ring-green-500"
+                      >
+                        {FaUndo({ style: { fontSize: '10px' } })}
+                      </button>
+                    </td>
+                    <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{item.ticker}</td>
+                    <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(parseFloat(item.stakedQuantity || '0'), 4)}</td>
+                    <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(parseFloat(item.unclaimedQuantity || '0'), 4)}</td>
+                    <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(totalQuantity, 4)}</td>
+                    <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                      ${hideValues ? '***' : formatNumber(parseFloat(item.price || '0'), 2)}
+                    </td>
+                    <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                      {(() => {
+                        const returnValue = (() => {
+                          switch (selectedReturnPeriod) {
+                            case '7d': return item.return7d;
+                            case '30d': return item.return30d;
+                            case '60d': return item.return60d;
+                            case '90d': return item.return90d;
+                            case '120d': return item.return120d;
+                            default: return undefined;
+                          }
+                        })();
+                        return returnValue ? (
+                          <span className={parseFloat(returnValue) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                            {parseFloat(returnValue) >= 0 ? '+' : ''}{formatNumber(parseFloat(returnValue), 2)}%
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">N/A</span>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{hideValues ? '***' : `$${formatNumber(itemValue)}`}</td>
+                    <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{formatNumber(percentOfTotal, 1)}%</td>
+                    <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                      <div
+                        className="cursor-pointer editable-cell hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1 py-1"
+                        title={item.account ? `Full account: ${item.account}` : 'No account specified'}
+                      >
+                        {item.account && item.account.length > 12
+                          ? item.account.substring(0, 12) + '...'
+                          : item.account || 'N/A'
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <td colSpan={7} className="px-2 py-2 text-xs font-medium text-gray-900 dark:text-white">
+                  <strong>Total Deleted Value:</strong>
+                </td>
+                <td colSpan={3} className="px-2 py-2 text-xs font-medium text-gray-900 dark:text-white">
+                  <strong>{hideValues ? '***' : `$${formatNumber(filteredTotalValue)}`}</strong>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
-      );
-    }
-  };
-
-  const formatNumber = (value: number, decimals: number = 2): string => {
-    return new Intl.NumberFormat('en-US', { 
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals 
-    }).format(value);
-  };
-
-  const fetchStakingData = useCallback(async () => {
-    if (!user?.address) {
-      console.log('No user logged in, skipping API fetch');
-      return [];
-    }
-
-    try {
-      const username = encodeURIComponent(user.address);
-      const accessToken = await getValidAccessToken();
-      if (!accessToken) {
-        throw new Error('No valid access token available');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/staking?username=${username}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('API response:', data);
-      
-      // Handle the response based on your API structure
-      let apiData = [];
-      if (Array.isArray(data)) {
-        apiData = data;
-      } else if (data.data && Array.isArray(data.data)) {
-        apiData = data.data;
-      } else if (data) {
-        // If single object, wrap in array
-        apiData = [data];
-      }
-
-      // Migrate data structure if needed
-      const migratedData = migrateDataStructure(apiData);
-      
-      setStakingItems(migratedData);
-      storage.save('stakingData', migratedData);
-      
-      return migratedData;
-    } catch (error) {
-      console.error('Error fetching staking data from API:', error);
-      
-      // No fallback - just throw the error
-      throw error;
-    }
-  }, [user?.address, API_BASE_URL, getValidAccessToken]);
-
-  // Add this function to handle data migration
-  const migrateDataStructure = (items: any[]): StakingItem[] => {
-    return items.map(item => {
-      // If the item doesn't have username, add it
-      if (!item.username) {
-        return {
-          username: user?.name || 'Legacy User',
-          ...item
-        };
-      }
-      return item;
-    });
-  };
-
-  // Replace the existing useEffect that saves data (around line 533)
-  useEffect(() => {
-    if (stakingItems.length > 0) {
-      // Save to localStorage immediately
-      const timer = setTimeout(() => {
-        storage.save('stakingData', stakingItems);
-        
-        // Also try to save to API (don't block on this)
-        if (user?.address) {
-          saveStakingToAPI(stakingItems).catch(error => {
-            console.warn('Failed to sync with API:', error);
-          });
-        }
-      }, 50);
-      
-      return () => clearTimeout(timer);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stakingItems, user?.address]); // Exclude storage and saveStakingToAPI to prevent infinite loops
-
-
-  // Replace the existing saveStakingToAPI function
-  const saveStakingToAPI = useCallback(async (data: StakingItem[], showSuccessMessage: boolean = false) => {
-    if (!user?.address) {
-      return false;
-    }
-
-    try {
-      const accessToken = await getValidAccessToken();
-      if (!accessToken) {
-        throw new Error('No valid access token available');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/staking`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: user.address,
-          data: data
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to save to API: ${response.status} ${response.statusText}`);
-      }
-
-      if (showSuccessMessage) {
-        alert('Data successfully synced with server!');
-      }
-      
-      return true;
-    } catch (error) {
-      throw error; // Re-throw so calling functions can handle it
-    }
-  }, [user?.address, API_BASE_URL, getValidAccessToken]);
-
-  // Add a refresh button function
-  const refreshFromAPI = async () => {
-    setIsLoading(true);
-    try {
-      await fetchStakingData();
-      showStatus('Data refreshed successfully!');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      showStatus(`Failed to refresh: ${errorMessage}`, 'error');
-    } finally {
-      setIsLoading(false);
-    }
+      </div>
+    );
   };
 
   // Move this function INSIDE the Staking component, before the return statement
@@ -996,6 +972,238 @@ const Staking: React.FC = () => {
     
     alert(`Updated ${updatedItems.length} items with username: ${user?.address}`);
   };
+
+  // Helper function to format numbers
+  const formatNumber = (value: number, decimals: number = 2): string => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    }).format(value);
+  };
+
+  // Function to render editable cells
+  const renderEditableCell = (field: keyof StakingItem, item: StakingItem, index: number, isNumeric?: boolean, hideWhenPrivate?: boolean) => {
+    if (editIndex === index && editItem) {
+      if (field === 'price' || field === 'stakedQuantity' || field === 'unclaimedQuantity') {
+        return (
+          <input
+            type="number"
+            name={field}
+            value={editItem[field] || ''}
+            onChange={(e) => editItem && setEditItem({...editItem, [field]: e.target.value})}
+            step="any"
+            className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        );
+      } else {
+        return (
+          <input
+            type="text"
+            name={field}
+            value={editItem[field] || ''}
+            onChange={(e) => editItem && setEditItem({...editItem, [field]: e.target.value})}
+            className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        );
+      }
+    } else {
+      if (hideWhenPrivate && hideValues) {
+        return <span className="text-xs">***</span>;
+      }
+      if (isNumeric && typeof item[field] === 'string') {
+        return <span className="text-xs">{formatNumber(parseFloat(item[field] as string))}</span>;
+      }
+      return <span className="text-xs">{item[field] || 'N/A'}</span>;
+    }
+  };
+
+  // Function to fetch staking data from API
+  const fetchStakingData = useCallback(async () => {
+    try {
+      const baseUrl = API_BASE_URL.startsWith('http')
+        ? API_BASE_URL
+        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
+
+      const accessToken = await getValidAccessToken();
+      if (!accessToken) {
+        throw new Error('No valid access token available');
+      }
+
+      const username = user?.address;
+      if (!username) {
+        throw new Error('No user address available');
+      }
+
+      const url = new URL(`${baseUrl}/staking`);
+      url.searchParams.append('username', username);
+
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch staking data: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (data && Array.isArray(data)) {
+        setStakingItems(data);
+        storage.save('stakingData', data);
+        showStatus(`Successfully loaded ${data.length} staking items from server`, 'success');
+      }
+    } catch (error) {
+      console.error('Error fetching staking data:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setPriceUpdateError(`Failed to load staking data: ${errorMessage}`);
+      throw error;
+    }
+  }, [API_BASE_URL, getValidAccessToken, user?.address, showStatus, storage]);
+
+  // Function to fetch deleted staking data
+  const fetchDeletedStakingData = useCallback(async () => {
+    try {
+      const baseUrl = API_BASE_URL.startsWith('http')
+        ? API_BASE_URL
+        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
+
+      const accessToken = await getValidAccessToken();
+      if (!accessToken) {
+        throw new Error('No valid access token available');
+      }
+
+      const username = user?.address;
+      if (!username) {
+        throw new Error('No user address available');
+      }
+
+      const url = new URL(`${baseUrl}/staking/deleted`);
+      url.searchParams.append('username', username);
+
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch deleted staking data: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (data && Array.isArray(data)) {
+        setDeletedStakingItems(data);
+      }
+    } catch (error) {
+      console.error('Error fetching deleted staking data:', error);
+      // Don't throw here as this is not critical
+    }
+  }, [API_BASE_URL, getValidAccessToken, user?.address]);
+
+  // Function to save staking data to API
+  const saveStakingToAPI = useCallback(async (items: StakingItem[]) => {
+    try {
+      const baseUrl = API_BASE_URL.startsWith('http')
+        ? API_BASE_URL
+        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
+
+      const accessToken = await getValidAccessToken();
+      if (!accessToken) {
+        throw new Error('No valid access token available');
+      }
+
+      const username = user?.address;
+      if (!username) {
+        throw new Error('No user address available');
+      }
+
+      const response = await fetch(`${baseUrl}/staking`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: username,
+          data: items
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to save staking data: ${response.status} ${response.statusText}`);
+      }
+
+      showStatus('Successfully saved staking data to server', 'success');
+    } catch (error) {
+      console.error('Error saving staking data:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      showStatus(`Failed to save to server: ${errorMessage}`, 'error');
+      throw error;
+    }
+  }, [API_BASE_URL, getValidAccessToken, user?.address, showStatus]);
+
+  // Function to refresh data from API
+  const refreshFromAPI = useCallback(async () => {
+    try {
+      await fetchStakingData();
+      await fetchDeletedStakingData();
+      showStatus('Data refreshed from server', 'success');
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      showStatus(`Failed to refresh data: ${errorMessage}`, 'error');
+    }
+  }, [fetchStakingData, fetchDeletedStakingData, showStatus]);
+
+  // Function to restore staking items
+  const restoreStakingItems = useCallback(async (items: StakingItem[]) => {
+    try {
+      const baseUrl = API_BASE_URL.startsWith('http')
+        ? API_BASE_URL
+        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
+
+      const accessToken = await getValidAccessToken();
+      if (!accessToken) {
+        throw new Error('No valid access token available');
+      }
+
+      const username = user?.address;
+      if (!username) {
+        throw new Error('No user address available');
+      }
+
+      const response = await fetch(`${baseUrl}/staking/restore`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: username,
+          data: items
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to restore staking items: ${response.status} ${response.statusText}`);
+      }
+
+      // Refresh both active and deleted data
+      await fetchStakingData();
+      await fetchDeletedStakingData();
+      showStatus(`Successfully restored ${items.length} staking item(s)`, 'success');
+    } catch (error) {
+      console.error('Error restoring staking items:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      showStatus(`Failed to restore items: ${errorMessage}`, 'error');
+      throw error;
+    }
+  }, [API_BASE_URL, getValidAccessToken, user?.address, fetchStakingData, fetchDeletedStakingData, showStatus]);
 
   // Add this button to your UI near the other action buttons
   return (
@@ -1211,7 +1419,7 @@ const Staking: React.FC = () => {
       ) : (
         <div>
           {/* Tab Navigation */}
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'combined' | 'ledger' | 'solo')} className="mb-6">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'combined' | 'ledger' | 'solo' | 'deleted')} className="mb-6">
             <TabsList className="mb-6 flex-wrap">
               <TabsTrigger value="combined">
                 Combined ({stakingItems.length})
@@ -1221,6 +1429,9 @@ const Staking: React.FC = () => {
               </TabsTrigger>
               <TabsTrigger value="solo">
                 Solo ({stakingItems.filter(item => item.account.toLowerCase().startsWith('solo')).length})
+              </TabsTrigger>
+              <TabsTrigger value="deleted">
+                Deleted ({deletedStakingItems.length})
               </TabsTrigger>
             </TabsList>
 
@@ -1283,12 +1494,24 @@ const Staking: React.FC = () => {
                 formatNumber={formatNumber}
               />
             </TabsContent>
+
+            <TabsContent value="deleted" className="mt-6">
+              <DeletedStakingTableContent
+                filteredStakingItems={filteredStakingItems}
+                filteredCalculatedValues={filteredCalculatedValues}
+                filteredTotalValue={filteredTotalValue}
+                selectedReturnPeriod={selectedReturnPeriod}
+                hideValues={hideValues}
+                restoreStakingItems={restoreStakingItems}
+                formatNumber={formatNumber}
+              />
+            </TabsContent>
           </Tabs>
         </div>
       )}
 
       {/* Staking Performance Treemap */}
-      {pricesLoaded && filteredStakingItems.length > 0 && (
+      {pricesLoaded && filteredStakingItems.length > 0 && activeTab !== 'deleted' && (
         <div className="mb-8">
           <StakingTreemap
             title={`${selectedReturnPeriod} Return - ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`}
