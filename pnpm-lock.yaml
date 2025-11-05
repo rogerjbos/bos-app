@@ -92,6 +92,9 @@ importers:
       http-proxy-middleware:
         specifier: ^3.0.5
         version: 3.0.5
+      jotai:
+        specifier: ^2.15.1
+        version: 2.15.1(@babel/core@7.28.5)(@babel/template@7.27.2)(@types/react@18.2.21)(react@18.3.1)
       jwt-decode:
         specifier: ^4.0.0
         version: 4.0.0
@@ -113,6 +116,9 @@ importers:
       tailwind-merge:
         specifier: ^2.6.0
         version: 2.6.0
+      typink:
+        specifier: ^0.5.2
+        version: 0.5.2(@babel/core@7.28.5)(@babel/template@7.27.2)(@dedot/chaintypes@0.177.0(dedot@0.18.3(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)))(@types/react@18.2.21)(dedot@0.18.3(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10))(react@18.3.1)
     devDependencies:
       '@headlessui/react':
         specifier: ^2.2.4
@@ -274,6 +280,11 @@ packages:
   '@dedot/api@0.18.3':
     resolution: {integrity: sha512-JfBv4bVAkQ/k/lexNCdCfszG3i+hmpLIgQ4wizCxS2mK9lvvfqPYMdSsHgDm3G/hvjxXSLRVRF8jbLeIwwk8EQ==}
     engines: {node: '>=18'}
+
+  '@dedot/chaintypes@0.177.0':
+    resolution: {integrity: sha512-PuTe1d0Fas2PZ0uCjat5EY684niaJRkVLtdpXkkeQmxAtec/S+1DVi++r13cOCH3i+rLOQbb41K7W4saJR2Zgg==}
+    peerDependencies:
+      dedot: '>=0.16.0'
 
   '@dedot/cli@0.18.3':
     resolution: {integrity: sha512-xJmc+gDEzX9vBaL3U3m+BjYycIdzKr0d8Cebrl/FaWsIaOSizctwWqO22wKPZz1i+giHb2FqHgE/wARSxotVaQ==}
@@ -2762,6 +2773,24 @@ packages:
     resolution: {integrity: sha512-/imKNG4EbWNrVjoNC/1H5/9GFy+tqjGBHCaSsN+P2RnPqjsLmv6UD3Ej+Kj8nBWaRAwyk7kK5ZUc+OEatnTR3A==}
     hasBin: true
 
+  jotai@2.15.1:
+    resolution: {integrity: sha512-yHT1HAZ3ba2Q8wgaUQ+xfBzEtcS8ie687I8XVCBinfg4bNniyqLIN+utPXWKQE93LMF5fPbQSVRZqgpcN5yd6Q==}
+    engines: {node: '>=12.20.0'}
+    peerDependencies:
+      '@babel/core': '>=7.0.0'
+      '@babel/template': '>=7.0.0'
+      '@types/react': '>=17.0.0'
+      react: '>=17.0.0'
+    peerDependenciesMeta:
+      '@babel/core':
+        optional: true
+      '@babel/template':
+        optional: true
+      '@types/react':
+        optional: true
+      react:
+        optional: true
+
   joycon@3.1.1:
     resolution: {integrity: sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==}
     engines: {node: '>=10'}
@@ -3653,6 +3682,23 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  typink@0.5.2:
+    resolution: {integrity: sha512-FPJxBvAu1ONSnjwC9FCXCn2AgaEHDj6LLNqPfYVbeTPluxYB5RqDAnOOsaJWsjfnFjc5cm/hbcRAhv3GGbWB4w==}
+    peerDependencies:
+      '@dedot/chaintypes': '>=0.132.0'
+      dedot: '>=0.18.0'
+      react: '>=19.0.0'
+      react-hot-toast: '>=2.6.0'
+      react-toastify: '>=10.0.0'
+      sonner: '>=2.0.0'
+    peerDependenciesMeta:
+      react-hot-toast:
+        optional: true
+      react-toastify:
+        optional: true
+      sonner:
+        optional: true
+
   ufo@1.6.1:
     resolution: {integrity: sha512-9a4/uxlTWJ4+a5i0ooc1rU7C7YOw3wT+UGqdeNNHWnOF9qcMBgLRS+4IYUqbczewFx4mLEig6gawh7X6mFlEkA==}
 
@@ -4031,6 +4077,10 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+
+  '@dedot/chaintypes@0.177.0(dedot@0.18.3(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10))':
+    dependencies:
+      dedot: 0.18.3(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)
 
   '@dedot/cli@0.18.3(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)':
     dependencies:
@@ -5831,8 +5881,7 @@ snapshots:
   '@substrate/connect-extension-protocol@2.2.2':
     optional: true
 
-  '@substrate/connect-known-chains@1.10.3':
-    optional: true
+  '@substrate/connect-known-chains@1.10.3': {}
 
   '@substrate/connect@0.7.19(bufferutil@4.0.9)(utf-8-validate@5.0.10)':
     dependencies:
@@ -7082,6 +7131,13 @@ snapshots:
 
   jiti@1.21.7: {}
 
+  jotai@2.15.1(@babel/core@7.28.5)(@babel/template@7.27.2)(@types/react@18.2.21)(react@18.3.1):
+    optionalDependencies:
+      '@babel/core': 7.28.5
+      '@babel/template': 7.27.2
+      '@types/react': 18.2.21
+      react: 18.3.1
+
   joycon@3.1.1: {}
 
   js-tokens@4.0.0: {}
@@ -8091,6 +8147,19 @@ snapshots:
       is-typedarray: 1.0.0
 
   typescript@5.9.3: {}
+
+  typink@0.5.2(@babel/core@7.28.5)(@babel/template@7.27.2)(@dedot/chaintypes@0.177.0(dedot@0.18.3(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)))(@types/react@18.2.21)(dedot@0.18.3(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10))(react@18.3.1):
+    dependencies:
+      '@dedot/chaintypes': 0.177.0(dedot@0.18.3(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10))
+      '@substrate/connect-known-chains': 1.10.3
+      dedot: 0.18.3(bufferutil@4.0.9)(typescript@5.9.3)(utf-8-validate@5.0.10)
+      fast-deep-equal: 3.1.3
+      jotai: 2.15.1(@babel/core@7.28.5)(@babel/template@7.27.2)(@types/react@18.2.21)(react@18.3.1)
+      react: 18.3.1
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@babel/template'
+      - '@types/react'
 
   ufo@1.6.1: {}
 

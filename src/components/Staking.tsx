@@ -1,16 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { FaTrash, FaExternalLinkAlt, FaSave, FaTimes, FaPlusSquare } from 'react-icons/fa';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
+import { FaPlusSquare, FaSave, FaTimes, FaTrash, FaExternalLinkAlt } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
 import { useWalletAuthContext } from '../providers/WalletAuthProvider';
 import * as echarts from 'echarts';
-import { cn } from '../lib/utils';
-import { Badge } from './ui/badge';
-import { Button } from './ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
-import { Input } from './ui/Input';
-import { Label } from './ui/label';
-import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from './ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
-import { ExternalLink, Eye, EyeOff, Plus, RefreshCw, Save as SaveIcon, Trash2, X } from 'lucide-react';
 
 
 // Check your interface definition to ensure all required fields are present
@@ -23,7 +16,11 @@ interface StakingItem {
   price: string;
   stakingUrl: string;
   priceLastUpdated?: string;
+  return7d?: string;
   return30d?: string;
+  return60d?: string;
+  return90d?: string;
+  return120d?: string;
 }
 
 // Interface for price data from CSV
@@ -31,10 +28,194 @@ interface PriceData {
   [symbol: string]: number;
 }
 
-// Interface for return data
+// Interface for return data from API
 interface ReturnData {
   [symbol: string]: number;
 }
+
+// Define constants at the top of your component
+const APP_VERSION = '1.0.0';
+
+// API configuration (similar to Ranks.tsx)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';// StakingTableContent component
+const StakingTableContent: React.FC<{
+  filteredStakingItems: Array<{ item: StakingItem; idx: number }>;
+  filteredCalculatedValues: Array<{ totalQuantity: number; itemValue: number }>;
+  filteredTotalValue: number;
+  activeTab: 'combined' | 'ledger' | 'solo';
+  selectedReturnPeriod: '7d' | '30d' | '60d' | '90d' | '120d';
+  hideValues: boolean;
+  editIndex: number | null;
+  editItem: StakingItem | null;
+  setEditItem: React.Dispatch<React.SetStateAction<StakingItem | null>>;
+  renderEditableCell: (field: keyof StakingItem, item: StakingItem, index: number, isNumeric?: boolean, hideWhenPrivate?: boolean) => React.ReactNode;
+  saveEdit: () => void;
+  cancelEditing: () => void;
+  removeStakingItem: (index: number) => void;
+  startEditing: (index: number) => void;
+  formatNumber: (value: number, decimals?: number) => string;
+}> = ({
+  filteredStakingItems,
+  filteredCalculatedValues,
+  filteredTotalValue,
+  activeTab,
+  selectedReturnPeriod,
+  hideValues,
+  editIndex,
+  editItem,
+  setEditItem,
+  renderEditableCell,
+  saveEdit,
+  cancelEditing,
+  removeStakingItem,
+  startEditing,
+  formatNumber
+}) => (
+  <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs">
+        <thead className="bg-gray-50 dark:bg-gray-700">
+          <tr>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300"></th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ticker</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Staked</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unclaimed</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Price</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{selectedReturnPeriod} Return</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Value</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">%</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Link</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+          {filteredStakingItems.map(({ item, idx }) => {
+            const { totalQuantity, itemValue } = filteredCalculatedValues[filteredStakingItems.findIndex(f => f.idx === idx)];
+            const percentOfTotal = filteredTotalValue > 0 ? (itemValue / filteredTotalValue) * 100 : 0;
+
+            return (
+              <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td className="px-2 py-2 whitespace-nowrap text-xs">
+                  {editIndex === idx ? (
+                    <div className="flex space-x-1">
+                      <button
+                        onClick={saveEdit}
+                        className="inline-flex items-center px-1 py-1 border border-transparent text-xs rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-1 focus:ring-green-500"
+                      >
+                        {FaSave({ style: { fontSize: '10px' } })}
+                      </button>
+                      <button
+                        onClick={cancelEditing}
+                        className="inline-flex items-center px-1 py-1 border border-transparent text-xs rounded text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-500"
+                      >
+                        {FaTimes({ style: { fontSize: '10px' } })}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => removeStakingItem(idx)}
+                      className="inline-flex items-center px-1 py-1 border border-transparent text-xs rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-1 focus:ring-red-500"
+                    >
+                      {FaTrash({ style: { fontSize: '10px' } })}
+                    </button>
+                  )}
+                </td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{renderEditableCell('ticker', item, idx)}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('stakedQuantity', item, idx, true, true)}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('unclaimedQuantity', item, idx, true, true)}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(totalQuantity, 4)}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                  {renderEditableCell('price', item, idx, true)}
+                </td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                  {(() => {
+                    const returnValue = (() => {
+                      switch (selectedReturnPeriod) {
+                        case '7d': return item.return7d;
+                        case '30d': return item.return30d;
+                        case '60d': return item.return60d;
+                        case '90d': return item.return90d;
+                        case '120d': return item.return120d;
+                        default: return undefined;
+                      }
+                    })();
+                    return returnValue ? (
+                      <span className={parseFloat(returnValue) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                        {parseFloat(returnValue) >= 0 ? '+' : ''}{formatNumber(parseFloat(returnValue), 2)}%
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">N/A</span>
+                    );
+                  })()}
+                </td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{hideValues ? '***' : `$${formatNumber(itemValue)}`}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{formatNumber(percentOfTotal, 1)}%</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                  {editIndex === idx && editItem ? (
+                    <input
+                      type="text"
+                      name="stakingUrl"
+                      value={editItem.stakingUrl}
+                      onChange={(e) => editItem && setEditItem({...editItem, stakingUrl: e.target.value})}
+                      placeholder="https://..."
+                      className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  ) : (
+                    item.stakingUrl ? (
+                      <a href={item.stakingUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-xs">
+                        {FaExternalLinkAlt({ style: { fontSize: '10px' } })} Visit
+                      </a>
+                    ) : (
+                      <div
+                        onClick={() => startEditing(idx)}
+                        className="cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 editable-cell text-xs"
+                      >
+                        Add
+                      </div>
+                    )
+                  )}
+                </td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                  {editIndex === idx && editItem ? (
+                    <input
+                      type="text"
+                      name="account"
+                      value={editItem.account}
+                      onChange={(e) => editItem && setEditItem({...editItem, account: e.target.value})}
+                      className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <div
+                      onClick={() => startEditing(idx)}
+                      className="cursor-pointer editable-cell hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1 py-1"
+                      title={item.account ? `Full account: ${item.account}` : 'No account specified'}
+                    >
+                      {item.account && item.account.length > 12
+                        ? item.account.substring(0, 12) + '...'
+                        : item.account || 'N/A'
+                      }
+                    </div>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot className="bg-gray-50 dark:bg-gray-700">
+          <tr>
+            <td colSpan={6} className="px-2 py-2 text-xs font-medium text-gray-900 dark:text-white">
+              <strong>Total {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Value:</strong>
+            </td>
+            <td colSpan={4} className="px-2 py-2 text-xs font-medium text-gray-900 dark:text-white">
+              <strong>{hideValues ? '***' : `$${formatNumber(filteredTotalValue)}`}</strong>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+);
 
 // Treemap component for staking data
 const StakingTreemap: React.FC<{
@@ -43,7 +224,8 @@ const StakingTreemap: React.FC<{
   calculatedValues: Array<{ totalQuantity: number; itemValue: number }>;
   isDark: boolean;
   hideValues: boolean;
-}> = ({ title, items, calculatedValues, isDark, hideValues }) => {
+  selectedReturnPeriod: '7d' | '30d' | '60d' | '90d' | '120d';
+}> = ({ title, items, calculatedValues, isDark, hideValues, selectedReturnPeriod }) => {
   const chartRef = React.useRef<HTMLDivElement>(null);
   const chartInstance = React.useRef<echarts.ECharts | null>(null);
 
@@ -53,21 +235,33 @@ const StakingTreemap: React.FC<{
     // Initialize chart
     chartInstance.current = echarts.init(chartRef.current, isDark ? 'dark' : 'light');
 
-    // Prepare data for treemap with color based on 30D returns
+    // Helper function to get return value for selected period
+    const getReturnValue = (item: StakingItem, period: '7d' | '30d' | '60d' | '90d' | '120d'): number => {
+      switch (period) {
+        case '7d': return item.return7d ? parseFloat(item.return7d) : 0;
+        case '30d': return item.return30d ? parseFloat(item.return30d) : 0;
+        case '60d': return item.return60d ? parseFloat(item.return60d) : 0;
+        case '90d': return item.return90d ? parseFloat(item.return90d) : 0;
+        case '120d': return item.return120d ? parseFloat(item.return120d) : 0;
+        default: return 0;
+      }
+    };
+
+    // Prepare data for treemap with color based on selected return period
     const data = items.map((item, idx) => {
       const { itemValue } = calculatedValues[idx];
-      const return30d = item.return30d ? parseFloat(item.return30d) : 0;
+      const returnValue = getReturnValue(item, selectedReturnPeriod);
 
       // Calculate color based on return
       let color: string;
-      if (return30d > 0) {
+      if (returnValue > 0) {
         // Green shades for positive returns (brighter = better performance)
-        const intensity = Math.min(return30d / 50, 1); // Scale based on return percentage
+        const intensity = Math.min(returnValue / 50, 1); // Scale based on return percentage
         const greenValue = Math.floor(100 + (intensity * 155)); // Range: 100-255
         color = `rgb(0, ${greenValue}, 0)`;
-      } else if (return30d < 0) {
+      } else if (returnValue < 0) {
         // Red shades for negative returns (brighter = worse performance)
-        const intensity = Math.min(Math.abs(return30d) / 50, 1); // Scale based on loss percentage
+        const intensity = Math.min(Math.abs(returnValue) / 50, 1); // Scale based on loss percentage
         const redValue = Math.floor(100 + (intensity * 155)); // Range: 100-255
         color = `rgb(${redValue}, 0, 0)`;
       } else {
@@ -78,7 +272,7 @@ const StakingTreemap: React.FC<{
       return {
         name: item.ticker,
         value: itemValue,
-        return30d: return30d,
+        returnValue: returnValue,
         // Store additional data for tooltips
         quantity: calculatedValues[idx].totalQuantity,
         account: item.account,
@@ -91,7 +285,7 @@ const StakingTreemap: React.FC<{
 
     const option = {
       title: {
-        text: `${title} 30D Return`,
+        text: `${title} Return`,
         left: 'center',
         textStyle: {
           color: isDark ? '#ffffff' : '#000000'
@@ -102,7 +296,7 @@ const StakingTreemap: React.FC<{
           const data = params.data;
           const valueDisplay = hideValues ? '***' : `$${data.value.toLocaleString()}`;
           const quantityDisplay = hideValues ? '***' : data.quantity.toFixed(4);
-          return `${data.name}<br/>Value: ${valueDisplay}<br/>Quantity: ${quantityDisplay}<br/>30D Return: ${data.return30d.toFixed(2)}%<br/>Account: ${data.account}`;
+          return `${data.name}<br/>Value: ${valueDisplay}<br/>Quantity: ${quantityDisplay}<br/>${selectedReturnPeriod} Return: ${data.returnValue.toFixed(2)}%<br/>Account: ${data.account}`;
         }
       },
       series: [{
@@ -140,218 +334,15 @@ const StakingTreemap: React.FC<{
       window.removeEventListener('resize', handleResize);
       chartInstance.current?.dispose();
     };
-  }, [items, calculatedValues, isDark, hideValues, title]);
+  }, [title, items, calculatedValues, isDark, hideValues, selectedReturnPeriod]);
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div ref={chartRef} style={{ width: '100%', height: '400px' }} />
-      </CardContent>
-    </Card>
-  );
+  return <div ref={chartRef} style={{ width: '100%', height: '400px' }} />;
 };
-
-// StakingTable component
-const StakingTable: React.FC<{
-  title: string;
-  items: Array<{ item: StakingItem; idx: number }>;
-  calculatedValues: Array<{ totalQuantity: number; itemValue: number }>;
-  totalValue: number;
-  hideValues: boolean;
-  editIndex: number | null;
-  editItem: StakingItem | null;
-  onStartEditing: (index: number) => void;
-  onSaveEdit: () => void;
-  onCancelEditing: () => void;
-  onRemoveItem: (index: number) => void;
-  onEditChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  renderEditableCell: (field: keyof StakingItem, item: StakingItem, index: number, isNumeric?: boolean, hideWhenPrivate?: boolean) => React.ReactNode;
-  formatNumber: (value: number, decimals?: number) => string;
-}> = ({
-  title,
-  items,
-  calculatedValues,
-  totalValue,
-  hideValues,
-  editIndex,
-  editItem,
-  onStartEditing,
-  onSaveEdit,
-  onCancelEditing,
-  onRemoveItem,
-  onEditChange,
-  renderEditableCell,
-  formatNumber
-}) => {
-  if (items.length === 0) return null;
-
-  return (
-    <Card className="mb-8">
-      <CardHeader>
-        <CardTitle className="text-xl">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[50px]"></TableHead>
-              <TableHead>Ticker</TableHead>
-              <TableHead>Staked</TableHead>
-              <TableHead>Unclaimed</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>30d Return</TableHead>
-              <TableHead>Value</TableHead>
-              <TableHead>%</TableHead>
-              <TableHead>Site</TableHead>
-              <TableHead>Account</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map(({ item, idx }) => {
-              const { totalQuantity, itemValue } = calculatedValues[idx];
-              const percentOfTotal = totalValue > 0 ? (itemValue / totalValue) * 100 : 0;
-
-              return (
-                <TableRow key={idx}>
-                  <TableCell>
-                    {editIndex === idx ? (
-                      <div className="flex space-x-1">
-                        <Button
-                          onClick={onSaveEdit}
-                          size="icon"
-                          variant="ghost"
-                          className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50"
-                        >
-                          <SaveIcon className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          onClick={onCancelEditing}
-                          size="icon"
-                          variant="ghost"
-                          className="h-6 w-6"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        onClick={() => onRemoveItem(idx)}
-                        size="icon"
-                        variant="ghost"
-                        className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-medium">{renderEditableCell('ticker', item, idx)}</TableCell>
-                  <TableCell>{renderEditableCell('stakedQuantity', item, idx, true, true)}</TableCell>
-                  <TableCell>{renderEditableCell('unclaimedQuantity', item, idx, true, true)}</TableCell>
-                  <TableCell>{hideValues ? '***' : formatNumber(totalQuantity, 4)}</TableCell>
-                  <TableCell>{renderEditableCell('price', item, idx, true)}</TableCell>
-                  <TableCell>
-                    {item.return30d ? (
-                      <Badge variant={parseFloat(item.return30d) >= 0 ? "default" : "destructive"} className={cn(
-                        parseFloat(item.return30d) >= 0
-                          ? "bg-green-600 text-white hover:bg-green-700"
-                          : ""
-                      )}>
-                        {parseFloat(item.return30d) >= 0 ? '+' : ''}{formatNumber(parseFloat(item.return30d), 2)}%
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">N/A</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-medium">{hideValues ? '***' : `$${formatNumber(itemValue)}`}</TableCell>
-                  <TableCell>{formatNumber(percentOfTotal, 1)}%</TableCell>
-                  <TableCell>
-                    {editIndex === idx && editItem ? (
-                      <Input
-                        type="text"
-                        name="stakingUrl"
-                        value={editItem.stakingUrl}
-                        onChange={onEditChange}
-                        placeholder="https://..."
-                        className="h-8 text-xs"
-                      />
-                    ) : (
-                      item.stakingUrl ? (
-                        <a
-                          href={item.stakingUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center text-primary hover:underline text-xs"
-                        >
-                          <ExternalLink className="h-3 w-3 mr-1" />
-                          Visit
-                        </a>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onStartEditing(idx)}
-                          className="h-6 text-xs text-muted-foreground hover:text-foreground"
-                        >
-                          Add
-                        </Button>
-                      )
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {editIndex === idx && editItem ? (
-                      <Input
-                        type="text"
-                        name="account"
-                        value={editItem.account}
-                        onChange={onEditChange}
-                        className="h-8 text-xs"
-                      />
-                    ) : (
-                      <div
-                        onClick={() => onStartEditing(idx)}
-                        className="cursor-pointer hover:bg-accent rounded px-1 py-1 text-xs"
-                        title={item.account ? `Full account: ${item.account}` : 'No account specified'}
-                      >
-                        {item.account && item.account.length > 12
-                          ? item.account.substring(0, 12) + '...'
-                          : item.account || 'N/A'
-                        }
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-          <TableFooter>
-            <TableRow>
-              <TableCell colSpan={6} className="font-medium">
-                <strong>Total {title} Value:</strong>
-              </TableCell>
-              <TableCell colSpan={5} className="font-medium">
-                <strong>{hideValues ? '***' : `$${formatNumber(totalValue)}`}</strong>
-              </TableCell>
-            </TableRow>
-          </TableFooter>
-        </Table>
-      </CardContent>
-    </Card>
-  );
-};
-
-// Define constants at the top of your component
-const APP_VERSION = '1.0.0';
-
-// API configuration - use proxy in both dev and production
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const Staking: React.FC = () => {
-  // Get the authenticated user and wallet auth
-  const { user, getAccessToken } = useWalletAuthContext();
+  // Get the authenticated user
+  const { user } = useAuth();
+  const { getAccessToken, refreshToken } = useWalletAuthContext();
   
   // Define the storage helper BEFORE any useState that uses it
   const storage = {
@@ -428,92 +419,11 @@ const Staking: React.FC = () => {
       .map(({ item, idx }) => ({ item, idx }));
   }, [stakingItems, calculatedValues, totalValue]);
 
-  // Filter staking items by account type
-  const otherItems = stakingItems.filter(item => !item.account?.toLowerCase().startsWith('solo'));
-  const soloItems = stakingItems.filter(item => item.account?.toLowerCase().startsWith('solo'));
+  // Add return period selector state
+  const [selectedReturnPeriod, setSelectedReturnPeriod] = useState<'7d' | '30d' | '60d' | '90d' | '120d'>('30d');
 
-  // Calculate values for Other items (everything except Solo)
-  const otherCalculatedValues = useMemo(() => {
-    return otherItems.map(item => {
-      const totalQuantity = parseFloat(item.stakedQuantity || '0') + parseFloat(item.unclaimedQuantity || '0');
-      const itemValue = totalQuantity * parseFloat(item.price || '0');
-      return { totalQuantity, itemValue };
-    });
-  }, [otherItems]);
-
-  const otherTotalValue = useMemo(() => {
-    return otherCalculatedValues.reduce((sum, { itemValue }) => sum + itemValue, 0);
-  }, [otherCalculatedValues]);
-
-  // Sort Other items by percent of total value descending
-  const sortedOtherItems = useMemo(() => {
-    if (otherItems.length === 0) return [];
-    return otherItems
-      .map((item, idx) => {
-        const { itemValue } = otherCalculatedValues[idx];
-        const percentOfTotal = otherTotalValue > 0 ? (itemValue / otherTotalValue) * 100 : 0;
-        return { item, idx, percentOfTotal };
-      })
-      .sort((a, b) => b.percentOfTotal - a.percentOfTotal)
-      .map(({ item, idx }) => ({ item, idx }));
-  }, [otherItems, otherCalculatedValues, otherTotalValue]);
-
-  // Calculate values for Solo items
-  const soloCalculatedValues = useMemo(() => {
-    return soloItems.map(item => {
-      const totalQuantity = parseFloat(item.stakedQuantity || '0') + parseFloat(item.unclaimedQuantity || '0');
-      const itemValue = totalQuantity * parseFloat(item.price || '0');
-      return { totalQuantity, itemValue };
-    });
-  }, [soloItems]);
-
-  const soloTotalValue = useMemo(() => {
-    return soloCalculatedValues.reduce((sum, { itemValue }) => sum + itemValue, 0);
-  }, [soloCalculatedValues]);
-
-  // Sort Solo items by percent of total value descending
-  const sortedSoloItems = useMemo(() => {
-    if (soloItems.length === 0) return [];
-    return soloItems
-      .map((item, idx) => {
-        const { itemValue } = soloCalculatedValues[idx];
-        const percentOfTotal = soloTotalValue > 0 ? (itemValue / soloTotalValue) * 100 : 0;
-        return { item, idx, percentOfTotal };
-      })
-      .sort((a, b) => b.percentOfTotal - a.percentOfTotal)
-      .map(({ item, idx }) => ({ item, idx }));
-  }, [soloItems, soloCalculatedValues, soloTotalValue]);
-
-  // Combined items for "All" tab
-  const combinedItems = useMemo(() => {
-    return [...otherItems, ...soloItems];
-  }, [otherItems, soloItems]);
-
-  // Calculate values for combined items
-  const combinedCalculatedValues = useMemo(() => {
-    return combinedItems.map(item => {
-      const totalQuantity = parseFloat(item.stakedQuantity || '0') + parseFloat(item.unclaimedQuantity || '0');
-      const itemValue = totalQuantity * parseFloat(item.price || '0');
-      return { totalQuantity, itemValue };
-    });
-  }, [combinedItems]);
-
-  const combinedTotalValue = useMemo(() => {
-    return combinedCalculatedValues.reduce((sum, { itemValue }) => sum + itemValue, 0);
-  }, [combinedCalculatedValues]);
-
-  // Sort combined items by percent of total value descending
-  const sortedCombinedItems = useMemo(() => {
-    if (combinedItems.length === 0) return [];
-    return combinedItems
-      .map((item, idx) => {
-        const { itemValue } = combinedCalculatedValues[idx];
-        const percentOfTotal = combinedTotalValue > 0 ? (itemValue / combinedTotalValue) * 100 : 0;
-        return { item, idx, percentOfTotal };
-      })
-      .sort((a, b) => b.percentOfTotal - a.percentOfTotal)
-      .map(({ item, idx }) => ({ item, idx }));
-  }, [combinedItems, combinedCalculatedValues, combinedTotalValue]);
+  // Add tab selector state
+  const [activeTab, setActiveTab] = useState<'combined' | 'ledger' | 'solo'>('combined');
 
   const [newItem, setNewItem] = useState<StakingItem>({
     account: '',
@@ -530,8 +440,6 @@ const Staking: React.FC = () => {
   const [priceData, setPriceData] = useState<PriceData>({});
   const [priceUpdateDate, setPriceUpdateDate] = useState<string>('');
   const [priceUpdateError, setPriceUpdateError] = useState<string | null>(null);
-  const [returnData, setReturnData] = useState<ReturnData>({});
-  const [pricesLoaded, setPricesLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
   // ADD HIDE VALUES STATE HERE
@@ -546,6 +454,30 @@ const Staking: React.FC = () => {
   // Theme detection for heatmaps
   const [isDark, setIsDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
 
+  // Add prices loaded state
+  const [pricesLoaded, setPricesLoaded] = useState(false);
+
+  // Filter staking items based on active tab
+  const filteredStakingItems = useMemo(() => {
+    if (activeTab === 'combined') {
+      return sortedStakingItems;
+    } else if (activeTab === 'ledger') {
+      return sortedStakingItems.filter(({ item }) => !item.account.toLowerCase().startsWith('solo'));
+    } else if (activeTab === 'solo') {
+      return sortedStakingItems.filter(({ item }) => item.account.toLowerCase().startsWith('solo'));
+    }
+    return sortedStakingItems;
+  }, [sortedStakingItems, activeTab]);
+
+  // Calculate filtered totals
+  const filteredCalculatedValues = useMemo(() => {
+    return filteredStakingItems.map(({ idx }) => calculatedValues[idx]);
+  }, [filteredStakingItems, calculatedValues]);
+
+  const filteredTotalValue = useMemo(() => {
+    return filteredCalculatedValues.reduce((sum, { itemValue }) => sum + itemValue, 0);
+  }, [filteredCalculatedValues]);
+
   // Helper function
   const showStatus = (text: string, type: 'success' | 'error' = 'success') => {
     setStatusMessage({ text, type });
@@ -555,6 +487,7 @@ const Staking: React.FC = () => {
   useEffect(() => {
     const loadInitialData = async () => {
       setIsLoading(true);
+      setPricesLoaded(false);
       try {
         // Wait for user to be available before fetching data
         if (user) {
@@ -590,90 +523,133 @@ const Staking: React.FC = () => {
     storage.save('hideStakingValues', hideValues);
   }, [hideValues]);
 
+  // Listen for theme changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsDark(e.matches);
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  // Helper function to get a valid access token (refresh if expired)
+  const getValidAccessToken = useCallback(async (): Promise<string | null> => {
+    const token = getAccessToken();
+    if (!token) return null;
+
+    try {
+      // Decode token to check expiration
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Date.now() / 1000;
+
+      // If token expires within 5 minutes, refresh it
+      if (payload.exp && payload.exp - currentTime < 300) {
+        const refreshedUser = await refreshToken();
+        if (refreshedUser) {
+          const newToken = getAccessToken();
+          return newToken;
+        } else {
+          return null;
+        }
+      }
+
+      return token;
+    } catch (error) {
+      console.error('Error checking token validity:', error);
+      return null;
+    }
+  }, [getAccessToken, refreshToken]);
+
   const fetchPriceData = useCallback(async () => {
     // setIsUpdatingPrices(true);
     setPriceUpdateError(null);
 
     try {
-      const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
+      // Get unique ticker symbols from staking items
+      const symbols = [...new Set(stakingItems.map(item => item.ticker.toLowerCase()))];
+      
+      if (symbols.length === 0) {
+        console.log('No symbols to fetch prices for');
+        setPricesLoaded(true);
+        return;
       }
 
-      // Fetch current prices
-      const pricesResponse = await fetch(`${API_BASE_URL}/prices`, {
-        method: 'GET',
-        headers,
-      });
-
-      if (!pricesResponse.ok) {
-        throw new Error(`Failed to fetch price data: ${pricesResponse.status} ${pricesResponse.statusText}`);
-      }
-
-      const pricesData = await pricesResponse.json();
-
-      // Collect unique symbols from staking items
-      const uniqueSymbols = [...new Set(stakingItems.map(item => item.ticker.toLowerCase()))];
-
-      // Fetch historical prices for specific symbols only
       const baseUrl = API_BASE_URL.startsWith('http')
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
-      const historicalUrl = new URL(`${baseUrl}/crypto_xdays`);
-      uniqueSymbols.forEach(symbol => {
-        historicalUrl.searchParams.append('baseCurrencies', symbol);
+      const url = new URL(`${baseUrl}/crypto_xdays`);
+      symbols.forEach(symbol => {
+        url.searchParams.append('baseCurrencies', symbol);
       });
 
-      const historicalResponse = await fetch(historicalUrl.toString(), {
-        method: 'GET',
-        headers,
-      });
-
-      if (!historicalResponse.ok) {
-        throw new Error(`Failed to fetch historical data: ${historicalResponse.status} ${historicalResponse.statusText}`);
+      const accessToken = await getValidAccessToken();
+      if (!accessToken) {
+        throw new Error('No valid access token available');
       }
 
-      const historicalData = await historicalResponse.json();
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch price data: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
 
       // Handle the response based on your API structure
       let prices: PriceData = {};
       let returns: ReturnData = {};
       let date = '';
 
-      if (pricesData.prices && typeof pricesData.prices === 'object') {
-        prices = pricesData.prices;
-      }
+      // Process the crypto xdays data
+      data.forEach((item: any) => {
+        const symbol = item.baseCurrency.toLowerCase();
+        if (item.close_1d !== null) {
+          prices[symbol] = item.close_1d;
+        }
 
-      if (pricesData.last_updated) {
-        date = pricesData.last_updated;
-      } else if (pricesData.date) {
-        date = pricesData.date;
-      }
+        // Calculate returns based on historical data
+        if (item.close_1d !== null && item.close_7d !== null) {
+          returns[`${symbol}_7d`] = ((item.close_1d - item.close_7d) / item.close_7d) * 100;
+        }
+        if (item.close_1d !== null && item.close_30d !== null) {
+          returns[`${symbol}_30d`] = ((item.close_1d - item.close_30d) / item.close_30d) * 100;
+        }
+        if (item.close_1d !== null && item.close_60d !== null) {
+          returns[`${symbol}_60d`] = ((item.close_1d - item.close_60d) / item.close_60d) * 100;
+        }
+        if (item.close_1d !== null && item.close_90d !== null) {
+          returns[`${symbol}_90d`] = ((item.close_1d - item.close_90d) / item.close_90d) * 100;
+        }
+        if (item.close_1d !== null && item.close_120d !== null) {
+          returns[`${symbol}_120d`] = ((item.close_1d - item.close_120d) / item.close_120d) * 100;
+        }
+      });
 
-      // Calculate returns from historical data
-      if (Array.isArray(historicalData)) {
-        historicalData.forEach((item: any) => {
-          const symbol = item.baseCurrency?.toLowerCase();
-          if (symbol && prices[symbol] !== undefined && item.close_30d !== undefined) {
-            const currentPrice = prices[symbol];
-            const historicalPrice = item.close_30d;
-            const returnPct = ((currentPrice - historicalPrice) / historicalPrice) * 100;
-            returns[symbol] = returnPct;
-          }
-        });
+      if (data.length > 0 && data[0].last_updated) {
+        date = data[0].last_updated;
+      } else {
+        date = new Date().toISOString();
       }
 
       setPriceData(prices);
-      setReturnData(returns);
       setPriceUpdateDate(date);
-      setPricesLoaded(true);
 
-      // Update staking item prices
+      // Update staking item prices and returns
       updateStakingPrices(prices, returns, date);
+
+      const updatedCount = Object.keys(prices).length;
+      showStatus(`Successfully updated prices for ${updatedCount} ticker${updatedCount !== 1 ? 's' : ''}`, 'success');
+
+      setPricesLoaded(true);
 
     } catch (error) {
       console.error('Error fetching price data:', error);
@@ -681,26 +657,25 @@ const Staking: React.FC = () => {
     } finally {
       // setIsUpdatingPrices(false);
     }
-  }, [API_BASE_URL, getAccessToken, stakingItems]);
+  }, [API_BASE_URL, getValidAccessToken, showStatus]);
   
-  // Update staking items with latest prices
+  // Update staking items with latest prices and returns
   const updateStakingPrices = (prices: PriceData, returns: ReturnData, date: string) => {
     const updatedItems = stakingItems.map(item => {
       const ticker = item.ticker.toLowerCase();
-      const updatedItem: StakingItem = {
-        ...item,
-        priceLastUpdated: date
-      };
-
       if (prices[ticker] !== undefined) {
-        updatedItem.price = prices[ticker].toString();
+        return {
+          ...item,
+          price: prices[ticker].toString(),
+          return7d: returns[`${ticker}_7d`] !== undefined ? returns[`${ticker}_7d`].toString() : item.return7d,
+          return30d: returns[`${ticker}_30d`] !== undefined ? returns[`${ticker}_30d`].toString() : item.return30d,
+          return60d: returns[`${ticker}_60d`] !== undefined ? returns[`${ticker}_60d`].toString() : item.return60d,
+          return90d: returns[`${ticker}_90d`] !== undefined ? returns[`${ticker}_90d`].toString() : item.return90d,
+          return120d: returns[`${ticker}_120d`] !== undefined ? returns[`${ticker}_120d`].toString() : item.return120d,
+          priceLastUpdated: date
+        };
       }
-
-      if (returns[ticker] !== undefined) {
-        updatedItem.return30d = returns[ticker].toString();
-      }
-
-      return updatedItem;
+      return item;
     });
     
     setStakingItems(updatedItems);
@@ -816,8 +791,9 @@ const Staking: React.FC = () => {
       setStakingItems(updatedItems);
       
       // Also sync the updated list to API immediately
-      if (user?.address) {
+      if (user?.name) {
         await saveStakingToAPI(updatedItems);
+        console.log('Successfully deleted item and synced with API');
       }
       
     } catch (error) {
@@ -867,25 +843,25 @@ const Staking: React.FC = () => {
     }).format(value);
   };
 
-  // Replace the fetchStakingData function with this corrected version
   const fetchStakingData = useCallback(async () => {
     if (!user?.address) {
+      console.log('No user logged in, skipping API fetch');
       return [];
     }
 
     try {
       const username = encodeURIComponent(user.address);
-      const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
+      const accessToken = await getValidAccessToken();
+      if (!accessToken) {
+        throw new Error('No valid access token available');
       }
 
       const response = await fetch(`${API_BASE_URL}/staking?username=${username}`, {
         method: 'GET',
-        headers,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
       });
 
       if (!response.ok) {
@@ -893,6 +869,7 @@ const Staking: React.FC = () => {
       }
 
       const data = await response.json();
+      console.log('API response:', data);
       
       // Handle the response based on your API structure
       let apiData = [];
@@ -918,7 +895,7 @@ const Staking: React.FC = () => {
       // No fallback - just throw the error
       throw error;
     }
-  }, [user?.address, API_BASE_URL, getAccessToken]);
+  }, [user?.address, API_BASE_URL, getValidAccessToken]);
 
   // Add this function to handle data migration
   const migrateDataStructure = (items: any[]): StakingItem[] => {
@@ -926,7 +903,7 @@ const Staking: React.FC = () => {
       // If the item doesn't have username, add it
       if (!item.username) {
         return {
-          username: user?.address || 'Legacy User',
+          username: user?.name || 'Legacy User',
           ...item
         };
       }
@@ -962,17 +939,17 @@ const Staking: React.FC = () => {
     }
 
     try {
-      const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
+      const accessToken = await getValidAccessToken();
+      if (!accessToken) {
+        throw new Error('No valid access token available');
       }
 
       const response = await fetch(`${API_BASE_URL}/staking`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           username: user.address,
           data: data
@@ -982,17 +959,16 @@ const Staking: React.FC = () => {
       if (!response.ok) {
         throw new Error(`Failed to save to API: ${response.status} ${response.statusText}`);
       }
-      
+
       if (showSuccessMessage) {
         alert('Data successfully synced with server!');
       }
       
       return true;
     } catch (error) {
-      console.error('Error saving to API:', error);
       throw error; // Re-throw so calling functions can handle it
     }
-  }, [user?.address, API_BASE_URL, getAccessToken]);
+  }, [user?.address, API_BASE_URL, getValidAccessToken]);
 
   // Add a refresh button function
   const refreshFromAPI = async () => {
@@ -1028,6 +1004,24 @@ const Staking: React.FC = () => {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Staking Value</h1>
         <div className="flex gap-2 flex-wrap">
+          {/* Return period selector */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 px-2">Return:</span>
+            {(['7d', '30d', '60d', '90d', '120d'] as const).map((period) => (
+              <button
+                key={period}
+                onClick={() => setSelectedReturnPeriod(period)}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                  selectedReturnPeriod === period
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                {period}
+              </button>
+            ))}
+          </div>
+
           {/* Sync button */}
           <button 
             onClick={refreshFromAPI}
@@ -1099,7 +1093,7 @@ const Staking: React.FC = () => {
                   id="username"
                   type="text"
                   name="username"
-                  value={user?.address || 'Not logged in'}
+                  value={user?.name || 'Not logged in'}
                   disabled
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                 />
@@ -1199,213 +1193,123 @@ const Staking: React.FC = () => {
       )}
 
       {isLoading ? (
-          <div className="text-center my-8">
+        <div className="text-center my-8">
           <div className="inline-flex items-center space-x-2">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
             <span className="text-gray-600 dark:text-gray-400">
-              {user ? `Loading staking data for ${user.address}...` : 'Loading staking data...'}
+              {user ? `Loading staking data for ${user.name}...` : 'Loading staking data...'}
             </span>
           </div>
         </div>
       ) : stakingItems.length === 0 ? (
-        <Card className="border-yellow-500/20 bg-yellow-500/10">
-          <CardContent className="pt-6">
-            <p className="text-sm">
-              {user
-                ? `No staking assets found for ${user.address}. ${Object.keys(priceData).length} prices loaded.`
-                : 'Please log in to view staking data.'
-              }
-            </p>
-          </CardContent>
-        </Card>
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400 px-4 py-3 rounded">
+          {user 
+            ? `No staking assets found for ${user.name}. ${Object.keys(priceData).length} prices loaded.`
+            : 'Please log in to view staking data.'
+          }
+        </div>
       ) : (
-        <Tabs defaultValue="combined" className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="combined">Combined</TabsTrigger>
-            <TabsTrigger value="personal">Personal Accounts</TabsTrigger>
-            <TabsTrigger value="solo">Solo Accounts</TabsTrigger>
-          </TabsList>
+        <div>
+          {/* Tab Navigation */}
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'combined' | 'ledger' | 'solo')} className="mb-6">
+            <TabsList className="mb-6 flex-wrap">
+              <TabsTrigger value="combined">
+                Combined ({stakingItems.length})
+              </TabsTrigger>
+              <TabsTrigger value="ledger">
+                Ledger ({stakingItems.filter(item => !item.account.toLowerCase().startsWith('solo')).length})
+              </TabsTrigger>
+              <TabsTrigger value="solo">
+                Solo ({stakingItems.filter(item => item.account.toLowerCase().startsWith('solo')).length})
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="combined">
-            <StakingTable
-              title="All Holdings"
-              items={sortedCombinedItems}
-              calculatedValues={combinedCalculatedValues}
-              totalValue={combinedTotalValue}
-              hideValues={hideValues}
-              editIndex={editIndex}
-              editItem={editItem}
-              onStartEditing={startEditing}
-              onSaveEdit={saveEdit}
-              onCancelEditing={cancelEditing}
-              onRemoveItem={(idx) => {
-                // Find the original index in the full stakingItems array
-                const originalIndex = stakingItems.findIndex(item =>
-                  item.account === combinedItems[idx].account &&
-                  item.ticker === combinedItems[idx].ticker
-                );
-                if (originalIndex !== -1) {
-                  removeStakingItem(originalIndex);
-                }
-              }}
-              onEditChange={handleEditChange}
-              renderEditableCell={renderEditableCell}
-              formatNumber={formatNumber}
-            />
+            <TabsContent value="combined" className="mt-6">
+              <StakingTableContent
+                filteredStakingItems={filteredStakingItems}
+                filteredCalculatedValues={filteredCalculatedValues}
+                filteredTotalValue={filteredTotalValue}
+                activeTab={activeTab}
+                selectedReturnPeriod={selectedReturnPeriod}
+                hideValues={hideValues}
+                editIndex={editIndex}
+                editItem={editItem}
+                setEditItem={setEditItem}
+                renderEditableCell={renderEditableCell}
+                saveEdit={saveEdit}
+                cancelEditing={cancelEditing}
+                removeStakingItem={removeStakingItem}
+                startEditing={startEditing}
+                formatNumber={formatNumber}
+              />
+            </TabsContent>
 
-            {combinedItems.length === 0 && (
-              <Card className="border-yellow-500/20 bg-yellow-500/10">
-                <CardContent className="pt-6">
-                  <p className="text-sm">No staking assets found.</p>
-                </CardContent>
-              </Card>
-            )}
+            <TabsContent value="ledger" className="mt-6">
+              <StakingTableContent
+                filteredStakingItems={filteredStakingItems}
+                filteredCalculatedValues={filteredCalculatedValues}
+                filteredTotalValue={filteredTotalValue}
+                activeTab={activeTab}
+                selectedReturnPeriod={selectedReturnPeriod}
+                hideValues={hideValues}
+                editIndex={editIndex}
+                editItem={editItem}
+                setEditItem={setEditItem}
+                renderEditableCell={renderEditableCell}
+                saveEdit={saveEdit}
+                cancelEditing={cancelEditing}
+                removeStakingItem={removeStakingItem}
+                startEditing={startEditing}
+                formatNumber={formatNumber}
+              />
+            </TabsContent>
 
-            {/* Combined Treemap */}
-            {pricesLoaded && combinedItems.length > 0 && (
-              <div className="mb-8">
-                <StakingTreemap
-                  title="30D Return"
-                  items={combinedItems}
-                  calculatedValues={combinedCalculatedValues}
-                  isDark={isDark}
-                  hideValues={hideValues}
-                />
-              </div>
-            )}
+            <TabsContent value="solo" className="mt-6">
+              <StakingTableContent
+                filteredStakingItems={filteredStakingItems}
+                filteredCalculatedValues={filteredCalculatedValues}
+                filteredTotalValue={filteredTotalValue}
+                activeTab={activeTab}
+                selectedReturnPeriod={selectedReturnPeriod}
+                hideValues={hideValues}
+                editIndex={editIndex}
+                editItem={editItem}
+                setEditItem={setEditItem}
+                renderEditableCell={renderEditableCell}
+                saveEdit={saveEdit}
+                cancelEditing={cancelEditing}
+                removeStakingItem={removeStakingItem}
+                startEditing={startEditing}
+                formatNumber={formatNumber}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
 
-            {!pricesLoaded && combinedItems.length > 0 && (
-              <div className="mb-8 text-center">
-                <div className="inline-flex items-center space-x-2">
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span className="text-muted-foreground text-sm">
-                    Loading price data for charts...
-                  </span>
-                </div>
-              </div>
-            )}
-          </TabsContent>
+      {/* Staking Performance Treemap */}
+      {pricesLoaded && filteredStakingItems.length > 0 && (
+        <div className="mb-8">
+          <StakingTreemap
+            title={`${selectedReturnPeriod} Return - ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`}
+            items={filteredStakingItems.map(({ item }) => item)}
+            calculatedValues={filteredCalculatedValues}
+            isDark={isDark}
+            hideValues={hideValues}
+            selectedReturnPeriod={selectedReturnPeriod}
+          />
+        </div>
+      )}
 
-          <TabsContent value="personal">
-            <StakingTable
-              title="Personal Accounts"
-              items={sortedOtherItems}
-              calculatedValues={otherCalculatedValues}
-              totalValue={otherTotalValue}
-              hideValues={hideValues}
-              editIndex={editIndex}
-              editItem={editItem}
-              onStartEditing={startEditing}
-              onSaveEdit={saveEdit}
-              onCancelEditing={cancelEditing}
-              onRemoveItem={(idx) => {
-                // Find the original index in the full stakingItems array
-                const originalIndex = stakingItems.findIndex(item =>
-                  item.account === otherItems[idx].account &&
-                  item.ticker === otherItems[idx].ticker
-                );
-                if (originalIndex !== -1) {
-                  removeStakingItem(originalIndex);
-                }
-              }}
-              onEditChange={handleEditChange}
-              renderEditableCell={renderEditableCell}
-              formatNumber={formatNumber}
-            />
-
-            {otherItems.length === 0 && (
-              <Card className="border-yellow-500/20 bg-yellow-500/10">
-                <CardContent className="pt-6">
-                  <p className="text-sm">No personal staking assets found.</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Personal Accounts Treemap */}
-            {pricesLoaded && otherItems.length > 0 && (
-              <div className="mb-8">
-                <StakingTreemap
-                  title="30D Return"
-                  items={otherItems}
-                  calculatedValues={otherCalculatedValues}
-                  isDark={isDark}
-                  hideValues={hideValues}
-                />
-              </div>
-            )}
-
-            {!pricesLoaded && otherItems.length > 0 && (
-              <div className="mb-8 text-center">
-                <div className="inline-flex items-center space-x-2">
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span className="text-muted-foreground text-sm">
-                    Loading price data for charts...
-                  </span>
-                </div>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="solo">
-            <StakingTable
-              title="Solo Accounts"
-              items={sortedSoloItems}
-              calculatedValues={soloCalculatedValues}
-              totalValue={soloTotalValue}
-              hideValues={hideValues}
-              editIndex={editIndex}
-              editItem={editItem}
-              onStartEditing={startEditing}
-              onSaveEdit={saveEdit}
-              onCancelEditing={cancelEditing}
-              onRemoveItem={(idx) => {
-                // Find the original index in the full stakingItems array
-                const originalIndex = stakingItems.findIndex(item =>
-                  item.account === soloItems[idx].account &&
-                  item.ticker === soloItems[idx].ticker
-                );
-                if (originalIndex !== -1) {
-                  removeStakingItem(originalIndex);
-                }
-              }}
-              onEditChange={handleEditChange}
-              renderEditableCell={renderEditableCell}
-              formatNumber={formatNumber}
-            />
-
-            {soloItems.length === 0 && (
-              <Card className="border-yellow-500/20 bg-yellow-500/10">
-                <CardContent className="pt-6">
-                  <p className="text-sm">No solo staking assets found.</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Solo Accounts Treemap */}
-            {pricesLoaded && soloItems.length > 0 && (
-              <div className="mb-8">
-                <StakingTreemap
-                  title="30D Return"
-                  items={soloItems}
-                  calculatedValues={soloCalculatedValues}
-                  isDark={isDark}
-                  hideValues={hideValues}
-                />
-              </div>
-            )}
-
-            {!pricesLoaded && soloItems.length > 0 && (
-              <div className="mb-8 text-center">
-                <div className="inline-flex items-center space-x-2">
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span className="text-muted-foreground text-sm">
-                    Loading price data for charts...
-                  </span>
-                </div>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+      {!pricesLoaded && filteredStakingItems.length > 0 && (
+        <div className="mb-8 text-center">
+          <div className="inline-flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            <span className="text-gray-600 dark:text-gray-400 text-sm">
+              Loading price data for charts...
+            </span>
+          </div>
+        </div>
       )}
 
       {statusMessage && (
