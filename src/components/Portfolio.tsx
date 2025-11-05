@@ -80,9 +80,30 @@ interface RanksData {
   tec_riskRangeInd: number;
   tec_riskRangeLow: number;
   ticker: string;
-  ibol?: number;
+  ivol?: number;
   predicted_beta?: number;
   risk_contribution?: number;
+}
+
+interface CryptoRankData {
+  baseCurrency: string;
+  crypto_ranks: number;
+  lppl_side: string;
+  lppl_pos_conf: number;
+  lppl_neg_conf: number;
+  strategy_side: string;
+  strategy_profit_per_trade: number;
+  strategy_expectancy: number;
+  strategy_profit_factor: number;
+  quoteCurrency: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  ivol: number;
+  predicted_beta: number;
+  risk_contribution: number;
 }
 
 // Portfolio transactions per symbol
@@ -109,6 +130,7 @@ const Portfolio: React.FC = () => {
   const [stockData, setStockData] = useState<StockXDaysData[]>([]);
   const [latestPrices, setLatestPrices] = useState<LatestPriceData[]>([]);
   const [ranksData, setRanksData] = useState<RanksData[]>([]);
+  const [cryptoRanksData, setCryptoRanksData] = useState<CryptoRankData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,6 +162,7 @@ const Portfolio: React.FC = () => {
   // Column configuration
   const [showColumnConfig, setShowColumnConfig] = useState(false);
   const [columnConfig, setColumnConfig] = useState<Array<{key: string, visible: boolean, order: number}>>([
+    // Stock columns
     { key: 'fundamental', visible: true, order: 0 },
     { key: 'technical', visible: true, order: 1 },
     { key: 'ivol', visible: true, order: 2 },
@@ -156,6 +179,21 @@ const Portfolio: React.FC = () => {
     { key: 'tec_riskRangeHigh', visible: false, order: 13 },
     { key: 'tec_riskRangeLow', visible: false, order: 14 },
     { key: 'tag', visible: false, order: 15 },
+    // Crypto columns
+    { key: 'crypto_ranks', visible: true, order: 16 },
+    { key: 'lppl_side', visible: false, order: 17 },
+    { key: 'lppl_pos_conf', visible: false, order: 18 },
+    { key: 'lppl_neg_conf', visible: false, order: 19 },
+    { key: 'strategy_side', visible: false, order: 20 },
+    { key: 'strategy_profit_per_trade', visible: false, order: 21 },
+    { key: 'strategy_expectancy', visible: false, order: 22 },
+    { key: 'strategy_profit_factor', visible: false, order: 23 },
+    { key: 'quoteCurrency', visible: false, order: 24 },
+    { key: 'open', visible: false, order: 25 },
+    { key: 'high', visible: false, order: 26 },
+    { key: 'low', visible: false, order: 27 },
+    { key: 'close', visible: false, order: 28 },
+    { key: 'volume', visible: false, order: 29 },
   ]);
 
   // Drag and drop state
@@ -741,6 +779,57 @@ const Portfolio: React.FC = () => {
     }
   }, []);
 
+  // Fetch crypto ranks data
+  const fetchCryptoRanksData = useCallback(async (symbols: string[]) => {
+    if (symbols.length === 0) return;
+
+    try {
+      const baseUrl = API_BASE_URL.startsWith('http')
+        ? API_BASE_URL
+        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
+
+      // Fetch crypto ranks data for each symbol
+      const accessToken = getAccessToken();
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
+      const cryptoRanksPromises = symbols.map(async (symbol) => {
+        const url = `${baseUrl}/crypto_ranks?baseCurrency=${symbol.toLowerCase()}`;
+
+        try {
+          const response = await fetch(url, {
+            method: 'GET',
+            headers,
+          });
+
+          if (!response.ok) {
+            console.warn(`Failed to fetch crypto ranks for ${symbol}: ${response.status}`);
+            return null;
+          }
+
+          const data = await response.json();
+          // Return the first item if it's an array, or the data itself
+          return Array.isArray(data) ? data[0] : data;
+        } catch (error) {
+          console.warn(`Error fetching crypto ranks for ${symbol}:`, error);
+          return null;
+        }
+      });
+
+      const cryptoRanksResults = await Promise.all(cryptoRanksPromises);
+      const validCryptoRanksData = cryptoRanksResults.filter(item => item !== null) as CryptoRankData[];
+
+      setCryptoRanksData(validCryptoRanksData);
+    } catch (error) {
+      console.error('Error fetching crypto ranks data:', error);
+      setCryptoRanksData([]);
+    }
+  }, []);
+
   // Refresh data for active portfolio
   const refreshData = useCallback(async () => {
     const activePortfolio = portfolios.find(w => w.id === activePortfolioId);
@@ -750,10 +839,13 @@ const Portfolio: React.FC = () => {
     setError(null);
     setLatestPrices([]); // Clear latest prices while refreshing
     setRanksData([]); // Clear ranks data while refreshing
+    setCryptoRanksData([]); // Clear crypto ranks data while refreshing
 
     try {
       if (activePortfolio.type === 'crypto') {
         await fetchCryptoData(activePortfolio.symbols);
+        // Fetch crypto ranks data for crypto portfolios
+        await fetchCryptoRanksData(activePortfolio.symbols);
       } else {
         await fetchStockData(activePortfolio.symbols);
         // Only fetch ranks data for stocks, not crypto
@@ -764,7 +856,7 @@ const Portfolio: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [activePortfolioId, portfolios, fetchCryptoData, fetchStockData, fetchRanksData]);
+  }, [activePortfolioId, portfolios, fetchCryptoData, fetchStockData, fetchRanksData, fetchCryptoRanksData]);
 
   // Load aggregated positions for current portfolio
   const loadAggregates = useCallback(async (symbols: string[]) => {
@@ -1220,14 +1312,16 @@ const Portfolio: React.FC = () => {
               Refresh Data
             </Button>
 
-            <Button
-              onClick={() => setShowColumnConfig(!showColumnConfig)}
-              variant="outline"
-              size="sm"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Columns
-            </Button>
+            {activePortfolio && (
+              <Button
+                onClick={() => setShowColumnConfig(!showColumnConfig)}
+                variant="outline"
+                size="sm"
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Columns
+              </Button>
+            )}
 
             {activePortfolio && (
               <Button
@@ -1332,11 +1426,20 @@ const Portfolio: React.FC = () => {
           <Card className="mb-8">
             <CardHeader>
               <CardTitle>Column Configuration</CardTitle>
-              <p className="text-sm text-muted-foreground">Choose which rank columns to display and drag to reorder them for stock portfolios</p>
+              <p className="text-sm text-muted-foreground">Choose which rank columns to display and drag to reorder them for {activePortfolio?.type === 'crypto' ? 'crypto' : 'stock'} portfolios</p>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {columnConfig
+                  .filter(col => {
+                    if (activePortfolio?.type === 'crypto') {
+                      // Crypto columns
+                      return ['crypto_ranks', 'lppl_side', 'lppl_pos_conf', 'lppl_neg_conf', 'strategy_side', 'strategy_profit_per_trade', 'strategy_expectancy', 'strategy_profit_factor', 'quoteCurrency', 'open', 'high', 'low', 'close', 'volume', 'ivol', 'beta', 'risk_contribution'].includes(col.key);
+                    } else {
+                      // Stock columns
+                      return !['crypto_ranks', 'lppl_side', 'lppl_pos_conf', 'lppl_neg_conf', 'strategy_side', 'strategy_profit_per_trade', 'strategy_expectancy', 'strategy_profit_factor', 'quoteCurrency', 'open', 'high', 'low', 'close', 'volume'].includes(col.key);
+                    }
+                  })
                   .sort((a, b) => a.order - b.order)
                   .map((col, index) => (
                   <div
@@ -1383,6 +1486,20 @@ const Portfolio: React.FC = () => {
                         {col.key === 'tec_riskRangeHigh' && 'Risk Range High'}
                         {col.key === 'tec_riskRangeLow' && 'Risk Range Low'}
                         {col.key === 'tag' && 'Tag'}
+                        {col.key === 'crypto_ranks' && 'Crypto Rank'}
+                        {col.key === 'lppl_side' && 'LPPL Side'}
+                        {col.key === 'lppl_pos_conf' && 'LPPL Pos Conf'}
+                        {col.key === 'lppl_neg_conf' && 'LPPL Neg Conf'}
+                        {col.key === 'strategy_side' && 'Strategy Side'}
+                        {col.key === 'strategy_profit_per_trade' && 'Strategy Profit/Trade'}
+                        {col.key === 'strategy_expectancy' && 'Strategy Expectancy'}
+                        {col.key === 'strategy_profit_factor' && 'Strategy Profit Factor'}
+                        {col.key === 'quoteCurrency' && 'Quote Currency'}
+                        {col.key === 'open' && 'Open Price'}
+                        {col.key === 'high' && 'High Price'}
+                        {col.key === 'low' && 'Low Price'}
+                        {col.key === 'close' && 'Close Price'}
+                        {col.key === 'volume' && 'Volume'}
                       </label>
                     </div>
                   </div>
@@ -1504,6 +1621,30 @@ const Portfolio: React.FC = () => {
                                   {col.key === 'tag' && 'Tag'}
                                 </TableHead>
                               ))}
+                            {portfolio.type === 'crypto' && columnConfig
+                              .filter(col => ['crypto_ranks', 'lppl_side', 'lppl_pos_conf', 'lppl_neg_conf', 'strategy_side', 'strategy_profit_per_trade', 'strategy_expectancy', 'strategy_profit_factor', 'quoteCurrency', 'open', 'high', 'low', 'close', 'volume', 'ivol', 'beta', 'risk_contribution'].includes(col.key) && col.visible)
+                              .sort((a, b) => a.order - b.order)
+                              .map(col => (
+                                <TableHead key={col.key} className="text-right">
+                                  {col.key === 'crypto_ranks' && 'Crypto Rank'}
+                                  {col.key === 'lppl_side' && 'LPPL Side'}
+                                  {col.key === 'lppl_pos_conf' && 'LPPL Pos Conf'}
+                                  {col.key === 'lppl_neg_conf' && 'LPPL Neg Conf'}
+                                  {col.key === 'strategy_side' && 'Strategy Side'}
+                                  {col.key === 'strategy_profit_per_trade' && 'Strategy P/T'}
+                                  {col.key === 'strategy_expectancy' && 'Strategy Exp'}
+                                  {col.key === 'strategy_profit_factor' && 'Strategy PF'}
+                                  {col.key === 'quoteCurrency' && 'Quote Curr'}
+                                  {col.key === 'open' && 'Open'}
+                                  {col.key === 'high' && 'High'}
+                                  {col.key === 'low' && 'Low'}
+                                  {col.key === 'close' && 'Close'}
+                                  {col.key === 'volume' && 'Volume'}
+                                  {col.key === 'ivol' && 'IVol'}
+                                  {col.key === 'beta' && 'Beta'}
+                                  {col.key === 'risk_contribution' && 'Risk Contrib'}
+                                </TableHead>
+                              ))}
                             <TableHead className="text-right">Qty</TableHead>
                             <TableHead className="text-right">Value</TableHead>
                             <SortableHeader column="costBasis" className="text-right">Cost Basis</SortableHeader>
@@ -1530,6 +1671,12 @@ const Portfolio: React.FC = () => {
                             const currentValue = agg.total_quantity * latest;
                             const costBasis = agg.total_cost_basis;
                             const unrealizedGain = currentValue - costBasis;
+
+                            // Get ranks data for stocks
+                            const ranksDataItem = portfolio.type === 'stocks' ? ranksData.find(r => r.ticker === symbol) : null;
+
+                            // Get crypto ranks data for crypto
+                            const cryptoRanksDataItem = portfolio.type === 'crypto' ? cryptoRanksData.find(r => r.baseCurrency?.toUpperCase() === symbol) : null;
 
                             const formatPrice = (price: number | null) => price ? `$${price.toFixed(2)}` : 'N/A';
                             const formatReturn = (returnPct: number | null) => {
@@ -1562,7 +1709,7 @@ const Portfolio: React.FC = () => {
                                     const rankData = ranksData.find(r => r.ticker === symbol);
                                     const value = rankData?.[col.key === 'fundamental' ? 'rankFundamental' :
                                                      col.key === 'technical' ? 'rankTechnical' :
-                                                     col.key === 'ivol' ? 'ibol' :
+                                                     col.key === 'ivol' ? 'ivol' :
                                                      col.key === 'beta' ? 'predicted_beta' :
                                                      col.key === 'risk_contribution' ? 'risk_contribution' :
                                                      col.key === 'industry' ? 'industry' :
@@ -1595,6 +1742,72 @@ const Portfolio: React.FC = () => {
                                         {col.key === 'tec_riskRangeHigh' && (value ? `$${value}` : 'N/A')}
                                         {col.key === 'tec_riskRangeLow' && (value ? `$${value}` : 'N/A')}
                                         {col.key === 'tag' && (value || 'N/A')}
+                                      </TableCell>
+                                    );
+                                  })}
+                                {portfolio.type === 'crypto' && columnConfig
+                                  .filter(col => ['crypto_ranks', 'lppl_side', 'lppl_pos_conf', 'lppl_neg_conf', 'strategy_side', 'strategy_profit_per_trade', 'strategy_expectancy', 'strategy_profit_factor', 'quoteCurrency', 'open', 'high', 'low', 'close', 'volume', 'ivol', 'beta', 'risk_contribution'].includes(col.key) && col.visible)
+                                  .sort((a, b) => a.order - b.order)
+                                  .map(col => {
+                                    let cellContent: React.ReactNode = 'N/A';
+
+                                    switch (col.key) {
+                                      case 'crypto_ranks':
+                                        cellContent = cryptoRanksDataItem?.crypto_ranks !== null && cryptoRanksDataItem?.crypto_ranks !== undefined ? cryptoRanksDataItem.crypto_ranks.toFixed(1) : 'N/A';
+                                        break;
+                                      case 'lppl_side':
+                                        cellContent = cryptoRanksDataItem?.lppl_side || 'N/A';
+                                        break;
+                                      case 'lppl_pos_conf':
+                                        cellContent = cryptoRanksDataItem?.lppl_pos_conf !== null && cryptoRanksDataItem?.lppl_pos_conf !== undefined ? cryptoRanksDataItem.lppl_pos_conf.toFixed(3) : 'N/A';
+                                        break;
+                                      case 'lppl_neg_conf':
+                                        cellContent = cryptoRanksDataItem?.lppl_neg_conf !== null && cryptoRanksDataItem?.lppl_neg_conf !== undefined ? cryptoRanksDataItem.lppl_neg_conf.toFixed(3) : 'N/A';
+                                        break;
+                                      case 'strategy_side':
+                                        cellContent = cryptoRanksDataItem?.strategy_side || 'N/A';
+                                        break;
+                                      case 'strategy_profit_per_trade':
+                                        cellContent = cryptoRanksDataItem?.strategy_profit_per_trade !== null && cryptoRanksDataItem?.strategy_profit_per_trade !== undefined ? cryptoRanksDataItem.strategy_profit_per_trade.toFixed(3) : 'N/A';
+                                        break;
+                                      case 'strategy_expectancy':
+                                        cellContent = cryptoRanksDataItem?.strategy_expectancy !== null && cryptoRanksDataItem?.strategy_expectancy !== undefined ? cryptoRanksDataItem.strategy_expectancy.toFixed(3) : 'N/A';
+                                        break;
+                                      case 'strategy_profit_factor':
+                                        cellContent = cryptoRanksDataItem?.strategy_profit_factor !== null && cryptoRanksDataItem?.strategy_profit_factor !== undefined ? cryptoRanksDataItem.strategy_profit_factor.toFixed(3) : 'N/A';
+                                        break;
+                                      case 'quoteCurrency':
+                                        cellContent = cryptoRanksDataItem?.quoteCurrency || 'N/A';
+                                        break;
+                                      case 'open':
+                                        cellContent = cryptoRanksDataItem?.open !== null && cryptoRanksDataItem?.open !== undefined ? `$${cryptoRanksDataItem.open.toFixed(2)}` : 'N/A';
+                                        break;
+                                      case 'high':
+                                        cellContent = cryptoRanksDataItem?.high !== null && cryptoRanksDataItem?.high !== undefined ? `$${cryptoRanksDataItem.high.toFixed(2)}` : 'N/A';
+                                        break;
+                                      case 'low':
+                                        cellContent = cryptoRanksDataItem?.low !== null && cryptoRanksDataItem?.low !== undefined ? `$${cryptoRanksDataItem.low.toFixed(2)}` : 'N/A';
+                                        break;
+                                      case 'close':
+                                        cellContent = cryptoRanksDataItem?.close !== null && cryptoRanksDataItem?.close !== undefined ? `$${cryptoRanksDataItem.close.toFixed(2)}` : 'N/A';
+                                        break;
+                                      case 'volume':
+                                        cellContent = cryptoRanksDataItem?.volume !== null && cryptoRanksDataItem?.volume !== undefined ? cryptoRanksDataItem.volume.toLocaleString() : 'N/A';
+                                        break;
+                                      case 'ivol':
+                                        cellContent = cryptoRanksDataItem?.ivol !== null && cryptoRanksDataItem?.ivol !== undefined ? cryptoRanksDataItem.ivol.toFixed(2) : 'N/A';
+                                        break;
+                                      case 'beta':
+                                        cellContent = cryptoRanksDataItem?.predicted_beta !== null && cryptoRanksDataItem?.predicted_beta !== undefined ? cryptoRanksDataItem.predicted_beta.toFixed(2) : 'N/A';
+                                        break;
+                                      case 'risk_contribution':
+                                        cellContent = cryptoRanksDataItem?.risk_contribution !== null && cryptoRanksDataItem?.risk_contribution !== undefined ? cryptoRanksDataItem.risk_contribution.toFixed(2) : 'N/A';
+                                        break;
+                                    }
+
+                                    return (
+                                      <TableCell key={col.key} className="text-right">
+                                        {cellContent}
                                       </TableCell>
                                     );
                                   })}

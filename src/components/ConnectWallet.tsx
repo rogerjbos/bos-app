@@ -1,51 +1,74 @@
 import Identicon from "@polkadot/react-identicon";
 import { Check, ChevronRight, Download, User, Wallet } from "lucide-react";
-import { useState } from "react";
-import { useTypink } from "typink";
-import AuthStatus from "./AuthStatus";
+import { useState, useEffect } from "react";
+import { web3Accounts, web3Enable } from "@polkadot/extension-dapp";
 import ConnectMetaMask from "./ConnectMetaMask";
 import { Button } from "./ui/Button";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
 } from "./ui/Dialog";
 
 type View = "wallets" | "accounts";
 
+interface PolkadotAccount {
+  address: string;
+  name?: string;
+  source: string;
+}
+
 export default function ConnectWallet() {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>("wallets");
+  const [polkadotAccounts, setPolkadotAccounts] = useState<PolkadotAccount[]>([]);
+  const [connectedAccount, setConnectedAccount] = useState<PolkadotAccount | null>(null);
+  const [extensions, setExtensions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const {
-    wallets,
-    connectedWallets,
-    accounts,
-    connectedAccount,
-    connectWallet,
-    disconnect,
-    setConnectedAccount,
-  } = useTypink();
+  // Initialize Polkadot extensions on mount
+  useEffect(() => {
+    const initExtensions = async () => {
+      try {
+        const exts = await web3Enable('Bos App');
+        setExtensions(exts);
+        setLoading(false);
+      } catch (error) {
+        console.error('Failed to initialize Polkadot extensions:', error);
+        setLoading(false);
+      }
+    };
 
-  const handleConnectWallet = async (walletId: string) => {
+    initExtensions();
+  }, []);
+
+  const handleConnectWallet = async (extensionName: string) => {
     try {
-      await connectWallet(walletId);
+      const accounts = await web3Accounts({ extensions: [extensionName] });
+      const polkadotAccounts = accounts.map(acc => ({
+        address: acc.address,
+        name: acc.meta.name,
+        source: acc.meta.source,
+      }));
+
+      setPolkadotAccounts(polkadotAccounts);
       setView("accounts");
     } catch (error) {
       console.error("Failed to connect wallet:", error);
     }
   };
 
-  const handleSelectAccount = (account: any) => {
+  const handleSelectAccount = (account: PolkadotAccount) => {
     setConnectedAccount(account);
     setOpen(false);
     setView("wallets");
   };
 
   const handleDisconnect = () => {
-    disconnect();
+    setConnectedAccount(null);
+    setPolkadotAccounts([]);
     setOpen(false);
     setView("wallets");
   };
@@ -53,7 +76,6 @@ export default function ConnectWallet() {
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (!isOpen) {
-      // Reset to wallets view when closing
       setTimeout(() => setView("wallets"), 200);
     }
   };
@@ -62,10 +84,29 @@ export default function ConnectWallet() {
     return `${address.slice(0, 6)}...${address.slice(-6)}`;
   };
 
+  // Get available wallets from extensions
+  const availableWallets = [
+    {
+      id: 'polkadot-js',
+      name: 'Polkadot.js',
+      installed: extensions.some(ext => ext.name === 'polkadot-js'),
+    },
+    {
+      id: 'talisman',
+      name: 'Talisman',
+      installed: extensions.some(ext => ext.name === 'talisman'),
+    },
+    {
+      id: 'subwallet-js',
+      name: 'SubWallet',
+      installed: extensions.some(ext => ext.name === 'subwallet-js'),
+    },
+  ];
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <Button
-        variant={connectedAccount ? "default" : "default"}
+        variant={connectedAccount ? "secondary" : "default"}
         size="lg"
         onClick={() => setOpen(true)}
         className="gap-2"
@@ -97,80 +138,60 @@ export default function ConnectWallet() {
           <>
             <DialogHeader>
               <DialogTitle className="text-gradient">
-                {connectedWallets.length > 0
+                {connectedAccount
                   ? "Connected Wallets"
                   : "Connect Wallet"}
               </DialogTitle>
               <DialogDescription>
-                {connectedWallets.length > 0
+                {connectedAccount
                   ? "Select a wallet to view accounts or connect a new one"
-                  : "Choose a wallet to connect to your Polkadot account"}
+                  : "Choose a wallet to connect to your account"}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-3 mt-4">
-              {/* Authentication Status */}
-              <AuthStatus />
-
               {/* MetaMask (EVM) option */}
               <ConnectMetaMask />
 
-              {/* Sort: installed first, then not installed */}
-              {[...wallets]
-                .sort((a, b) => {
-                  if (a.installed && !b.installed) return -1;
-                  if (!a.installed && b.installed) return 1;
-                  return 0;
-                })
-                .map((wallet) => {
-                  const isConnected = connectedWallets.some(
-                    (w) => w.id === wallet.id
-                  );
-                  const accountCount = accounts.filter(
-                    (a) => a.source === wallet.id
-                  ).length;
-
-                  return (
+              {/* Polkadot wallets */}
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-gray-400 mb-2">Substrate Wallets</h3>
+                {loading ? (
+                  <div className="text-center py-4 text-gray-400 text-sm">
+                    Loading wallet extensions...
+                  </div>
+                ) : availableWallets.length === 0 ? (
+                  <div className="text-center py-4 text-gray-400 text-sm">
+                    No Polkadot wallet extensions detected. Install a wallet extension to connect.
+                  </div>
+                ) : (
+                  availableWallets.map((wallet) => (
                     <div
                       key={wallet.id}
                       className="group relative flex items-center justify-between p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-pink-500/50 transition-all duration-300"
                     >
                       <div className="flex items-center gap-3">
-                        {wallet.logo ? (
-                          <img
-                            src={wallet.logo}
-                            alt={wallet.name}
-                            className="w-10 h-10 rounded-lg"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center">
-                            <Wallet className="w-6 h-6 text-white" />
-                          </div>
-                        )}
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center">
+                          <Wallet className="w-6 h-6 text-white" />
+                        </div>
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-white">
                               {wallet.name}
                             </span>
-                            {isConnected && (
+                            {connectedAccount?.source === wallet.id && (
                               <div className="flex items-center gap-1 text-xs text-green-400">
                                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
                                 Connected
                               </div>
                             )}
                           </div>
-                          {isConnected && accountCount > 0 && (
-                            <p className="text-xs text-gray-400 mt-0.5">
-                              {accountCount} account
-                              {accountCount !== 1 ? "s" : ""}
-                            </p>
-                          )}
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
                         {wallet.installed ? (
-                          isConnected ? (
+                          connectedAccount?.source === wallet.id ? (
                             <>
                               <Button
                                 variant="ghost"
@@ -184,7 +205,7 @@ export default function ConnectWallet() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => disconnect(wallet.id)}
+                                onClick={() => handleDisconnect()}
                               >
                                 Disconnect
                               </Button>
@@ -205,13 +226,10 @@ export default function ConnectWallet() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              // Typink wallets have different install URLs based on wallet type
                               const installUrls: Record<string, string> = {
-                                "polkadot-js":
-                                  "https://polkadot.js.org/extension/",
+                                "polkadot-js": "https://polkadot.js.org/extension/",
                                 talisman: "https://talisman.xyz/",
                                 "subwallet-js": "https://subwallet.app/",
-                                nova: "https://novawallet.io/",
                               };
                               const url = installUrls[wallet.id];
                               if (url) window.open(url, "_blank");
@@ -224,8 +242,9 @@ export default function ConnectWallet() {
                         )}
                       </div>
                     </div>
-                  );
-                })}
+                  ))
+                )}
+              </div>
             </div>
 
             {connectedAccount && (
@@ -261,7 +280,7 @@ export default function ConnectWallet() {
             </DialogHeader>
 
             <div className="space-y-3 mt-4">
-              {accounts.length === 0 ? (
+              {polkadotAccounts.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
                   <User className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p>No accounts found</p>
@@ -270,7 +289,7 @@ export default function ConnectWallet() {
                   </p>
                 </div>
               ) : (
-                accounts.map((account) => {
+                polkadotAccounts.map((account) => {
                   const isSelected =
                     connectedAccount?.address === account.address;
 
