@@ -782,9 +782,13 @@ const Portfolio: React.FC = () => {
         ? API_BASE_URL
         : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
 
+      const accessToken = getAccessToken();
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
 
       // Fetch ranks data for each symbol
       const ranksPromises = symbols.map(async (symbol) => {
