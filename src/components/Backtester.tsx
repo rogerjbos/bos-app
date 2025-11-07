@@ -165,7 +165,7 @@ const Backtester: React.FC = () => {
       // Find the earliest date from the decision data
       const minDecisionDate = filteredDecisions.length > 0
         ? filteredDecisions.reduce((min, decision) =>
-            new Date(decision.date) < new Date(min) ? decision.date : min,
+            new Date(decision.date + 'T00:00:00Z') < new Date(min + 'T00:00:00Z') ? decision.date : min,
             filteredDecisions[0].date
           )
         : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // fallback to 1 year back
@@ -225,7 +225,13 @@ const Backtester: React.FC = () => {
 
     if (filteredDecisions.length === 0) return returns;
 
-    const sortedDecisions = filteredDecisions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // Sort decisions by date (parse dates consistently)
+    const sortedDecisions = [...filteredDecisions].sort((a, b) => {
+      const dateA = new Date(a.date + 'T00:00:00Z').getTime();
+      const dateB = new Date(b.date + 'T00:00:00Z').getTime();
+      return dateA - dateB;
+    });
+
     const currentAssetType = activeTab;
     const ticker = sortedDecisions[0].ticker;
 
@@ -236,12 +242,19 @@ const Backtester: React.FC = () => {
       if (currentAssetType === 'stocks') {
         const stockReturns = returnsData as StockReturns[];
         const periodReturns = stockReturns
-          .filter(r => r.symbol === ticker &&
-                      new Date(r.date) >= startDate &&
-                      new Date(r.date) <= endDate &&
-                      r.daily_return !== null &&
-                      r.daily_return !== undefined)
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          .filter(r => {
+            const rDate = new Date(r.date + 'T00:00:00Z');
+            return r.symbol === ticker &&
+                   rDate >= startDate &&
+                   rDate <= endDate &&
+                   r.daily_return !== null &&
+                   r.daily_return !== undefined;
+          })
+          .sort((a, b) => {
+            const dateA = new Date(a.date + 'T00:00:00Z').getTime();
+            const dateB = new Date(b.date + 'T00:00:00Z').getTime();
+            return dateA - dateB;
+          });
 
         if (periodReturns.length > 0) {
           const logReturns = periodReturns.map(r => Math.log(1 + (r.daily_return || 0) / 100));
@@ -251,12 +264,19 @@ const Backtester: React.FC = () => {
       } else {
         const cryptoReturns = returnsData as CryptoReturns[];
         const periodReturns = cryptoReturns
-          .filter(r => r.baseCurrency === ticker &&
-                      new Date(r.date) >= startDate &&
-                      new Date(r.date) <= endDate &&
-                      r.daily_return !== null &&
-                      r.daily_return !== undefined)
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          .filter(r => {
+            const rDate = new Date(r.date + 'T00:00:00Z');
+            return r.baseCurrency === ticker &&
+                   rDate >= startDate &&
+                   rDate <= endDate &&
+                   r.daily_return !== null &&
+                   r.daily_return !== undefined;
+          })
+          .sort((a, b) => {
+            const dateA = new Date(a.date + 'T00:00:00Z').getTime();
+            const dateB = new Date(b.date + 'T00:00:00Z').getTime();
+            return dateA - dateB;
+          });
 
         if (periodReturns.length > 0) {
           const logReturns = periodReturns.map(r => Math.log(1 + (r.daily_return || 0) / 100));
@@ -269,8 +289,8 @@ const Backtester: React.FC = () => {
     };
 
     // Calculate non-held period from start of data to first decision
-    const firstDecisionDate = new Date(sortedDecisions[0].date);
-    const dataStartDate = new Date(Math.min(...filteredDecisions.map(d => new Date(d.date).getTime())));
+    const firstDecisionDate = new Date(sortedDecisions[0].date + 'T00:00:00Z');
+    const dataStartDate = new Date(Math.min(...sortedDecisions.map(d => new Date(d.date + 'T00:00:00Z').getTime())));
 
     if (firstDecisionDate > dataStartDate) {
       const returnValue = calculateCumulativeReturn(dataStartDate, firstDecisionDate);
@@ -293,7 +313,7 @@ const Backtester: React.FC = () => {
 
     for (let i = 0; i < sortedDecisions.length; i++) {
       const decision = sortedDecisions[i];
-      const decisionDate = new Date(decision.date);
+      const decisionDate = new Date(decision.date + 'T00:00:00Z');
 
       // If we have a gap between decisions and position was held, calculate held period return
       if (positionHeld && decisionDate > lastPositionChange) {
@@ -341,7 +361,7 @@ const Backtester: React.FC = () => {
 
     // Handle the final period if position is still held
     const lastDecision = sortedDecisions[sortedDecisions.length - 1];
-    const lastDecisionDate = new Date(lastDecision.date);
+    const lastDecisionDate = new Date(lastDecision.date + 'T00:00:00Z');
     const endDate = new Date(); // Current date as end
 
     if (positionHeld && endDate > lastDecisionDate) {
@@ -374,7 +394,13 @@ const Backtester: React.FC = () => {
 
     if (filteredDecisions.length === 0 || returnsData.length === 0) return dailyData;
 
-    const sortedDecisions = filteredDecisions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // Sort decisions by date consistently
+    const sortedDecisions = [...filteredDecisions].sort((a, b) => {
+      const dateA = new Date(a.date + 'T00:00:00Z').getTime();
+      const dateB = new Date(b.date + 'T00:00:00Z').getTime();
+      return dateA - dateB;
+    });
+
     const currentAssetType = activeTab;
     const ticker = sortedDecisions[0].ticker;
 
@@ -385,13 +411,21 @@ const Backtester: React.FC = () => {
       allDailyReturns = stockReturns
         .filter(r => r.symbol === ticker && r.daily_return !== null && r.daily_return !== undefined)
         .map(r => ({date: r.date, daily_return: r.daily_return!}))
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        .sort((a, b) => {
+          const dateA = new Date(a.date + 'T00:00:00Z').getTime();
+          const dateB = new Date(b.date + 'T00:00:00Z').getTime();
+          return dateA - dateB;
+        });
     } else {
       const cryptoReturns = returnsData as CryptoReturns[];
       allDailyReturns = cryptoReturns
         .filter(r => r.baseCurrency === ticker && r.daily_return !== null && r.daily_return !== undefined)
         .map(r => ({date: r.date, daily_return: r.daily_return!}))
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        .sort((a, b) => {
+          const dateA = new Date(a.date + 'T00:00:00Z').getTime();
+          const dateB = new Date(b.date + 'T00:00:00Z').getTime();
+          return dateA - dateB;
+        });
     }
 
     if (allDailyReturns.length === 0) return dailyData;
@@ -404,8 +438,8 @@ const Backtester: React.FC = () => {
     }> = [];
 
     // Add initial non-held period if there's a gap
-    const firstDecisionDate = new Date(sortedDecisions[0].date);
-    const dataStartDate = new Date(allDailyReturns[0].date);
+    const firstDecisionDate = new Date(sortedDecisions[0].date + 'T00:00:00Z');
+    const dataStartDate = new Date(allDailyReturns[0].date + 'T00:00:00Z');
 
     if (firstDecisionDate > dataStartDate) {
       periods.push({
@@ -421,7 +455,7 @@ const Backtester: React.FC = () => {
 
     for (let i = 0; i < sortedDecisions.length; i++) {
       const decision = sortedDecisions[i];
-      const decisionDate = new Date(decision.date);
+      const decisionDate = new Date(decision.date + 'T00:00:00Z');
 
       // If we have a gap between decisions and position was held, add held period
       if (positionHeld && decisionDate > lastPositionChange) {
@@ -453,8 +487,8 @@ const Backtester: React.FC = () => {
 
     // Handle the final period if position is still held
     const lastDecision = sortedDecisions[sortedDecisions.length - 1];
-    const lastDecisionDate = new Date(lastDecision.date);
-    const dataEndDate = new Date(allDailyReturns[allDailyReturns.length - 1].date);
+    const lastDecisionDate = new Date(lastDecision.date + 'T00:00:00Z');
+    const dataEndDate = new Date(allDailyReturns[allDailyReturns.length - 1].date + 'T00:00:00Z');
 
     if (positionHeld && dataEndDate > lastDecisionDate) {
       periods.push({
@@ -466,7 +500,7 @@ const Backtester: React.FC = () => {
 
     // Now classify each daily return into a period
     allDailyReturns.forEach(daily => {
-      const dailyDate = new Date(daily.date);
+      const dailyDate = new Date(daily.date + 'T00:00:00Z');
       const period = periods.find(p =>
         dailyDate >= p.startDate && dailyDate <= p.endDate
       );
@@ -583,7 +617,7 @@ const Backtester: React.FC = () => {
 
     // Create markLines for buy/sell decisions
     const markLines = filteredDecisions.map((decision) => ({
-      xAxis: new Date(decision.date).getTime(),
+      xAxis: new Date(decision.date + 'T00:00:00Z').getTime(),
       lineStyle: {
         color: decision.action.toLowerCase() === 'buy' ? '#10B981' : '#EF4444',
         width: 2,
@@ -761,7 +795,7 @@ const Backtester: React.FC = () => {
 
     // Create markLines for buy/sell decisions
     const markLines = filteredDecisions.map((decision) => ({
-      xAxis: new Date(decision.date).getTime(),
+      xAxis: new Date(decision.date + 'T00:00:00Z').getTime(),
       lineStyle: {
         color: decision.action.toLowerCase() === 'buy' ? '#10B981' : '#EF4444',
         width: 2,
@@ -925,27 +959,51 @@ const Backtester: React.FC = () => {
     const colorHeldNeg = 'rgba(239,68,68,1)';
     const colorNotHeld = 'rgba(156,163,175,1)';
 
-    // Build data: color bars using buy/sell decision intervals
+    // Build data: show cumulative returns during holding periods
+    // Green bars for positive cumulative returns, red for negative, grey for non-holding
     const sorted = [...dailyReturns].sort((a, b) => a.timestamp - b.timestamp);
-    const decisionsSorted = [...filteredDecisions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const decisionsSorted = [...filteredDecisions].sort((a, b) => new Date(a.date + 'T00:00:00Z').getTime() - new Date(b.date + 'T00:00:00Z').getTime());
 
     let decIndex = 0;
     let state: 'held' | 'not_held' = 'not_held';
+    let cumulativeReturn = 0;
+    let minCumulative = 0;
+    let maxCumulative = 0;
 
     const data = sorted.map((d) => {
       const t = d.timestamp;
 
       // advance decisions up to current timestamp
-      while (decIndex < decisionsSorted.length && new Date(decisionsSorted[decIndex].date).getTime() <= t) {
+      while (decIndex < decisionsSorted.length && new Date(decisionsSorted[decIndex].date + 'T00:00:00Z').getTime() <= t) {
         const action = (decisionsSorted[decIndex].action || '').toString().toLowerCase();
-        if (action === 'buy') state = 'held';
-        if (action === 'sell') state = 'not_held';
+        if (action === 'buy') {
+          state = 'held';
+          cumulativeReturn = 0; // reset cumulative return at start of holding period
+        }
+        if (action === 'sell') {
+          state = 'not_held';
+          cumulativeReturn = 0; // reset for non-holding period
+        }
         decIndex += 1;
       }
 
-      const color = state === 'held' ? colorHeldPos : colorNotHeld;
+      // accumulate return during current period
+      if (state === 'held') {
+        cumulativeReturn += (d.dailyReturn ?? 0);
+      }
+
+      // track min/max for y-axis scaling
+      if (cumulativeReturn < minCumulative) minCumulative = cumulativeReturn;
+      if (cumulativeReturn > maxCumulative) maxCumulative = cumulativeReturn;
+
+      // choose color based on state and cumulative return
+      let color = colorNotHeld;
+      if (state === 'held') {
+        color = cumulativeReturn >= 0 ? colorHeldPos : colorHeldNeg;
+      }
+
       return {
-        value: [d.timestamp, 1],
+        value: [d.timestamp, state === 'held' ? cumulativeReturn : 0],
         itemStyle: { color }
       };
     });
@@ -964,13 +1022,18 @@ const Backtester: React.FC = () => {
         splitLine: { show: false }
       },
       dataZoom: [
-        { type: 'inside', xAxisIndex: [0], start: 0, end: 100 }
+        { type: 'inside', xAxisIndex: [0], start: 0, end: 100 },
+        { type: 'slider', xAxisIndex: [0], start: 0, end: 100, height: 20, bottom: 6 }
       ],
       yAxis: {
         type: 'value',
-        show: false,
-        min: 0,
-        max: 1
+        show: true,
+        nameLocation: 'middle',
+        nameGap: 35,
+        name: 'Cumulative Return (%)',
+        axisLabel: {
+          fontSize: 10
+        }
       },
       tooltip: {
         trigger: 'item',
@@ -978,8 +1041,9 @@ const Backtester: React.FC = () => {
           const idx = params.dataIndex;
           const day = sorted[idx];
           const date = new Date(day.timestamp).toLocaleDateString();
+          const val = params.value[1];
           const periodType = day.periodType === 'held' ? 'Held' : 'Not Held';
-          return `${date}<br/>${periodType}`;
+          return `${date}<br/>${periodType}<br/>Cumulative Return: ${val.toFixed(2)}%`;
         }
       },
       series: [{
@@ -987,7 +1051,7 @@ const Backtester: React.FC = () => {
         barGap: 0,
         barWidth: '70%',
         data,
-        silent: true
+        silent: false
       }]
     };
 
@@ -998,8 +1062,6 @@ const Backtester: React.FC = () => {
   // Initialize charts when data changes
   useEffect(() => {
     if (filteredDecisions.length > 0) {
-      const dailyChart = createDailyReturnsChart('daily-returns-chart');
-      const dailyWithLinesChart = createDailyReturnsWithLinesChart('daily-returns-lines-chart');
       const dailyWithShadingChart = createDailyReturnsWithShadingChart('daily-returns-shading-chart');
       const dailyShadingBarsChart = createPositionBarsChart('daily-returns-shading-bars-chart');
       const periodChart = createPeriodReturnsChart('period-returns-chart');
@@ -1007,8 +1069,6 @@ const Backtester: React.FC = () => {
       // Group charts so zoom/pan are synchronized
       try {
         const groupName = 'backtesterGroup';
-        if (dailyChart) (dailyChart as any).group = groupName;
-        if (dailyWithLinesChart) (dailyWithLinesChart as any).group = groupName;
         if (dailyWithShadingChart) (dailyWithShadingChart as any).group = groupName;
         if (dailyShadingBarsChart) (dailyShadingBarsChart as any).group = groupName;
         if (periodChart) (periodChart as any).group = groupName;
@@ -1019,8 +1079,6 @@ const Backtester: React.FC = () => {
       }
 
       return () => {
-        dailyChart?.dispose();
-        dailyWithLinesChart?.dispose();
         dailyWithShadingChart?.dispose();
         dailyShadingBarsChart?.dispose();
         periodChart?.dispose();
@@ -1172,24 +1230,6 @@ const Backtester: React.FC = () => {
         {/* Charts Section */}
         {filteredDecisions.length > 0 && (
           <div className="grid grid-cols-1 gap-8 mb-8">
-            {/* Daily Returns Chart */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                <FaChartLine className="mr-2" />
-                Daily Returns
-              </h3>
-              <div id="daily-returns-chart" className="w-full h-80"></div>
-            </div>
-
-            {/* Daily Returns Chart with Buy/Sell Lines */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                <FaChartLine className="mr-2" />
-                Daily Returns with Buy/Sell Signals
-              </h3>
-              <div id="daily-returns-lines-chart" className="w-full h-80"></div>
-            </div>
-
             {/* Daily Returns Chart with Position Shading */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
@@ -1197,7 +1237,7 @@ const Backtester: React.FC = () => {
                 Daily Returns with Position Shading
               </h3>
               <div id="daily-returns-shading-chart" className="w-full h-80"></div>
-              {/* Small position bars chart aligned with shading chart */}
+              {/* Cumulative return bars chart aligned with shading chart */}
               <div id="daily-returns-shading-bars-chart" className="w-full h-28 mt-4"></div>
             </div>
 
