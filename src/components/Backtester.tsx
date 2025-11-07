@@ -212,7 +212,7 @@ const Backtester: React.FC = () => {
     return decisions.filter(d => d.strategy === selectedStrategy);
   }, [decisions, selectedStrategy]);
 
-  // Calculate returns for all periods (held and non-held)
+  // Calculate returns for all periods (held and non-held) - for period chart
   const tradeReturns = useMemo(() => {
     const returns: Array<{
       periodType: 'held' | 'not_held';
@@ -363,26 +363,336 @@ const Backtester: React.FC = () => {
     return returns;
   }, [filteredDecisions, returnsData, activeTab]);
 
+  // Calculate daily returns with period classification - for daily chart
+  const dailyReturns = useMemo(() => {
+    const dailyData: Array<{
+      date: string;
+      dailyReturn: number;
+      periodType: 'held' | 'not_held';
+      timestamp: number;
+    }> = [];
+
+    if (filteredDecisions.length === 0 || returnsData.length === 0) return dailyData;
+
+    const sortedDecisions = filteredDecisions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const currentAssetType = activeTab;
+    const ticker = sortedDecisions[0].ticker;
+
+    // Get all daily returns for this ticker
+    let allDailyReturns: Array<{date: string, daily_return: number}> = [];
+    if (currentAssetType === 'stocks') {
+      const stockReturns = returnsData as StockReturns[];
+      allDailyReturns = stockReturns
+        .filter(r => r.symbol === ticker && r.daily_return !== null && r.daily_return !== undefined)
+        .map(r => ({date: r.date, daily_return: r.daily_return!}))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    } else {
+      const cryptoReturns = returnsData as CryptoReturns[];
+      allDailyReturns = cryptoReturns
+        .filter(r => r.baseCurrency === ticker && r.daily_return !== null && r.daily_return !== undefined)
+        .map(r => ({date: r.date, daily_return: r.daily_return!}))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }
+
+    if (allDailyReturns.length === 0) return dailyData;
+
+    // Create periods based on decisions
+    const periods: Array<{
+      startDate: Date;
+      endDate: Date;
+      type: 'held' | 'not_held';
+    }> = [];
+
+    // Add initial non-held period if there's a gap
+    const firstDecisionDate = new Date(sortedDecisions[0].date);
+    const dataStartDate = new Date(allDailyReturns[0].date);
+
+    if (firstDecisionDate > dataStartDate) {
+      periods.push({
+        startDate: dataStartDate,
+        endDate: firstDecisionDate,
+        type: 'not_held'
+      });
+    }
+
+    // Process decisions to create periods
+    let positionHeld = false;
+    let lastPositionChange = firstDecisionDate;
+
+    for (let i = 0; i < sortedDecisions.length; i++) {
+      const decision = sortedDecisions[i];
+      const decisionDate = new Date(decision.date);
+
+      // If we have a gap between decisions and position was held, add held period
+      if (positionHeld && decisionDate > lastPositionChange) {
+        periods.push({
+          startDate: lastPositionChange,
+          endDate: decisionDate,
+          type: 'held'
+        });
+      }
+
+      // If we have a gap between decisions and position was NOT held, add non-held period
+      if (!positionHeld && decisionDate > lastPositionChange) {
+        periods.push({
+          startDate: lastPositionChange,
+          endDate: decisionDate,
+          type: 'not_held'
+        });
+      }
+
+      // Update position status
+      if (decision.action.toLowerCase() === 'buy') {
+        positionHeld = true;
+      } else if (decision.action.toLowerCase() === 'sell') {
+        positionHeld = false;
+      }
+
+      lastPositionChange = decisionDate;
+    }
+
+    // Handle the final period if position is still held
+    const lastDecision = sortedDecisions[sortedDecisions.length - 1];
+    const lastDecisionDate = new Date(lastDecision.date);
+    const dataEndDate = new Date(allDailyReturns[allDailyReturns.length - 1].date);
+
+    if (positionHeld && dataEndDate > lastDecisionDate) {
+      periods.push({
+        startDate: lastDecisionDate,
+        endDate: dataEndDate,
+        type: 'held'
+      });
+    }
+
+    // Now classify each daily return into a period
+    allDailyReturns.forEach(daily => {
+      const dailyDate = new Date(daily.date);
+      const period = periods.find(p =>
+        dailyDate >= p.startDate && dailyDate <= p.endDate
+      );
+
+      if (period) {
+        dailyData.push({
+          date: daily.date,
+          dailyReturn: daily.daily_return,
+          periodType: period.type,
+          timestamp: dailyDate.getTime()
+        });
+      }
+    });
+
+    return dailyData.sort((a, b) => a.timestamp - b.timestamp);
+  }, [filteredDecisions, returnsData, activeTab]);
 
 
-  // Create ECharts returns bar chart
-  const createReturnsChart = (containerId: string) => {
+
+  // Create ECharts daily returns bar chart
+  const createDailyReturnsChart = (containerId: string) => {
     const chartDom = document.getElementById(containerId);
     if (!chartDom) return;
 
     const chart = echarts.init(chartDom);
 
-    const returnsData = tradeReturns.map((trade) => ({
-      name: trade.periodLabel,
-      value: trade.return,
+    const chartData = dailyReturns.map((day) => ({
+      value: [day.timestamp, day.dailyReturn],
       itemStyle: {
-        color: trade.periodType === 'not_held'
+        color: day.periodType === 'not_held'
           ? '#9CA3AF' // grey for non-held periods
-          : trade.return >= 0
+          : day.dailyReturn >= 0
             ? '#10B981' // green for positive held returns
             : '#EF4444' // red for negative held returns
       }
     }));
+
+    const option = {
+      title: {
+        text: `${selectedTicker} Daily Returns`,
+        left: 'center'
+      },
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: any) => {
+          const day = dailyReturns[params.dataIndex];
+          const date = new Date(day.timestamp).toLocaleDateString();
+          const periodType = day.periodType === 'held' ? 'Held' : 'Not Held';
+          return `${date}<br/>${periodType}<br/>Daily Return: ${day.dailyReturn.toFixed(2)}%`;
+        }
+      },
+      grid: {
+        left: '5%',
+        right: '5%',
+        bottom: '15%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'time',
+        name: 'Date',
+        nameLocation: 'middle',
+        nameGap: 30,
+        axisLabel: {
+          formatter: (value: number) => {
+            return new Date(value).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: '2-digit'
+            });
+          }
+        }
+      },
+      yAxis: {
+        type: 'value',
+        name: 'Daily Return (%)',
+        nameLocation: 'middle',
+        nameGap: 50
+      },
+      dataZoom: [
+        { type: 'inside', xAxisIndex: [0], start: 0, end: 100 },
+        { type: 'slider', xAxisIndex: [0], start: 0, end: 100, height: 20, bottom: 6 }
+      ],
+      series: [{
+        type: 'bar',
+        data: chartData,
+        barWidth: '80%',
+        itemStyle: {
+          borderRadius: [2, 2, 0, 0]
+        }
+      }]
+    };
+
+    chart.setOption(option);
+    return chart;
+  };
+
+  // Create ECharts daily returns chart with buy/sell lines
+  const createDailyReturnsWithLinesChart = (containerId: string) => {
+    const chartDom = document.getElementById(containerId);
+    if (!chartDom) return;
+
+    const chart = echarts.init(chartDom);
+
+    const chartData = dailyReturns.map((day) => ({
+      value: [day.timestamp, day.dailyReturn],
+      itemStyle: {
+        color: day.periodType === 'not_held'
+          ? '#9CA3AF' // grey for non-held periods
+          : day.dailyReturn >= 0
+            ? '#10B981' // green for positive held returns
+            : '#EF4444' // red for negative held returns
+      }
+    }));
+
+    // Create markLines for buy/sell decisions
+    const markLines = filteredDecisions.map((decision) => ({
+      xAxis: new Date(decision.date).getTime(),
+      lineStyle: {
+        color: decision.action.toLowerCase() === 'buy' ? '#10B981' : '#EF4444',
+        width: 2,
+        type: 'solid'
+      },
+      label: {
+        show: true,
+        position: 'top',
+        formatter: decision.action.toUpperCase(),
+        color: decision.action.toLowerCase() === 'buy' ? '#10B981' : '#EF4444',
+        fontSize: 12,
+        fontWeight: 'bold'
+      }
+    }));
+
+    const option = {
+      title: {
+        text: `${selectedTicker} Daily Returns with Buy/Sell Signals`,
+        left: 'center'
+      },
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: any) => {
+          const day = dailyReturns[params.dataIndex];
+          const date = new Date(day.timestamp).toLocaleDateString();
+          const periodType = day.periodType === 'held' ? 'Held' : 'Not Held';
+          return `${date}<br/>${periodType}<br/>Daily Return: ${day.dailyReturn.toFixed(2)}%`;
+        }
+      },
+      grid: {
+        left: '5%',
+        right: '5%',
+        bottom: '15%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'time',
+        name: 'Date',
+        nameLocation: 'middle',
+        nameGap: 30,
+        axisLabel: {
+          formatter: (value: number) => {
+            return new Date(value).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: '2-digit'
+            });
+          }
+        }
+      },
+      yAxis: {
+        type: 'value',
+        name: 'Daily Return (%)',
+        nameLocation: 'middle',
+        nameGap: 50
+      },
+      dataZoom: [
+        { type: 'inside', xAxisIndex: [0], start: 0, end: 100 },
+        { type: 'slider', xAxisIndex: [0], start: 0, end: 100, height: 20, bottom: 6 }
+      ],
+      series: [{
+        type: 'bar',
+        data: chartData,
+        barWidth: '80%',
+        itemStyle: {
+          borderRadius: [2, 2, 0, 0]
+        },
+        markLine: {
+          data: markLines
+        }
+      }]
+    };
+
+    chart.setOption(option);
+    return chart;
+  };
+
+  // Create ECharts period returns bar chart
+  const createPeriodReturnsChart = (containerId: string) => {
+    const chartDom = document.getElementById(containerId);
+    if (!chartDom) return;
+
+    const chart = echarts.init(chartDom);
+
+    // Calculate proportional bar widths based on duration
+    const durations = tradeReturns.map(trade => trade.duration);
+    const maxDuration = Math.max(...durations);
+
+    const returnsData = tradeReturns.map((trade) => {
+      // Calculate proportional bar width (minimum 20px, maximum 100px)
+      const minBarWidth = 20;
+      const maxBarWidth = 100;
+      const barWidth = maxDuration > 0
+        ? minBarWidth + ((trade.duration / maxDuration) * (maxBarWidth - minBarWidth))
+        : minBarWidth;
+
+      return {
+        name: trade.periodLabel,
+        value: trade.return,
+        barWidth: Math.round(barWidth),
+        itemStyle: {
+          color: trade.periodType === 'not_held'
+            ? '#9CA3AF' // grey for non-held periods
+            : trade.return >= 0
+              ? '#10B981' // green for positive held returns
+              : '#EF4444' // red for negative held returns
+        }
+      };
+    });
 
     const option = {
       title: {
@@ -396,9 +706,20 @@ const Backtester: React.FC = () => {
           return `${trade.periodLabel}<br/>Return: ${params.value.toFixed(2)}%<br/>Start: ${trade.startDate}<br/>End: ${trade.endDate}<br/>Duration: ${trade.duration} days`;
         }
       },
+      grid: {
+        left: '5%',
+        right: '5%',
+        bottom: '20%',
+        containLabel: true
+      },
       xAxis: {
         type: 'category',
-        data: returnsData.map(d => d.name)
+        data: returnsData.map(d => d.name),
+        axisLabel: {
+          rotate: 45,
+          interval: 0,
+          fontSize: 10
+        }
       },
       yAxis: {
         type: 'value',
@@ -409,6 +730,7 @@ const Backtester: React.FC = () => {
       series: [{
         type: 'bar',
         data: returnsData,
+        barCategoryGap: '30%',
         itemStyle: {
           borderRadius: [2, 2, 0, 0]
         }
@@ -419,16 +741,292 @@ const Backtester: React.FC = () => {
     return chart;
   };
 
+  // Create ECharts daily returns chart with background shading for held periods
+  const createDailyReturnsWithShadingChart = (containerId: string) => {
+    const chartDom = document.getElementById(containerId);
+    if (!chartDom) return;
+
+    const chart = echarts.init(chartDom);
+
+    const chartData = dailyReturns.map((day) => ({
+      value: [day.timestamp, day.dailyReturn],
+      itemStyle: {
+        color: day.periodType === 'not_held'
+          ? '#9CA3AF' // grey for non-held periods
+          : day.dailyReturn >= 0
+            ? '#10B981' // green for positive held returns
+            : '#EF4444' // red for negative held returns
+      }
+    }));
+
+    // Create markLines for buy/sell decisions
+    const markLines = filteredDecisions.map((decision) => ({
+      xAxis: new Date(decision.date).getTime(),
+      lineStyle: {
+        color: decision.action.toLowerCase() === 'buy' ? '#10B981' : '#EF4444',
+        width: 2,
+        type: 'solid'
+      },
+      label: {
+        show: true,
+        position: 'top',
+        formatter: decision.action.toUpperCase(),
+        color: decision.action.toLowerCase() === 'buy' ? '#10B981' : '#EF4444',
+        fontSize: 12,
+        fontWeight: 'bold'
+      }
+    }));
+
+    // Build validated markArea pairs for shading held/non-held periods.
+    // Each item is an array of two points: [{ xAxis: start, itemStyle: { color }}, { xAxis: end }]
+    const markAreas: any[] = [];
+    let currentPeriod: string | null = null;
+    let periodStart: number | null = null;
+    let periodStartIndex: number | null = null;
+
+    // Sort dailyReturns by timestamp to ensure proper ordering
+    const sortedDailyReturns = [...dailyReturns].sort((a, b) => a.timestamp - b.timestamp);
+
+    for (let i = 0; i < sortedDailyReturns.length; i++) {
+      const day = sortedDailyReturns[i];
+
+      if (currentPeriod === null) {
+        currentPeriod = day.periodType;
+        periodStart = Number(day.timestamp);
+        periodStartIndex = i;
+        continue;
+      }
+
+      if (day.periodType !== currentPeriod) {
+        const start = Number(periodStart);
+        const end = Number(day.timestamp);
+
+        // Validate timestamps
+        if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+          // For held periods, decide green vs red by average daily return over the segment
+          let color = 'rgba(156,163,175,0.12)'; // slightly darker grey for non-held
+
+          if (currentPeriod === 'held') {
+            const segment = sortedDailyReturns.slice(periodStartIndex ?? 0, i);
+            const avg = segment.reduce((s, d) => s + (d.dailyReturn ?? 0), 0) / (segment.length || 1);
+            color = avg >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)';
+          }
+
+          markAreas.push([
+            { xAxis: start, itemStyle: { color } },
+            { xAxis: end }
+          ]);
+        }
+
+        // start new period
+        currentPeriod = day.periodType;
+        periodStart = Number(day.timestamp);
+        periodStartIndex = i;
+      }
+    }
+
+    // Close last period
+    if (currentPeriod !== null && periodStart !== null && sortedDailyReturns.length > 0) {
+      const lastDay = sortedDailyReturns[sortedDailyReturns.length - 1];
+      const start = Number(periodStart);
+      const end = Number(lastDay.timestamp);
+      if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
+  let color = 'rgba(156,163,175,0.12)';
+        if (currentPeriod === 'held') {
+          const segment = sortedDailyReturns.slice(periodStartIndex ?? 0, sortedDailyReturns.length);
+          const avg = segment.reduce((s, d) => s + (d.dailyReturn ?? 0), 0) / (segment.length || 1);
+          color = avg >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)';
+        }
+
+        markAreas.push([
+          { xAxis: start, itemStyle: { color } },
+          { xAxis: end }
+        ]);
+      }
+    }
+
+    const option = {
+      title: {
+        text: `${selectedTicker} Daily Returns with Position Shading`,
+        left: 'center'
+      },
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: any) => {
+          const day = dailyReturns[params.dataIndex];
+          const date = new Date(day.timestamp).toLocaleDateString();
+          const periodType = day.periodType === 'held' ? 'Held' : 'Not Held';
+          return `${date}<br/>${periodType}<br/>Daily Return: ${day.dailyReturn.toFixed(2)}%`;
+        }
+      },
+      grid: {
+        left: '5%',
+        right: '5%',
+        bottom: '15%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'time',
+        name: 'Date',
+        nameLocation: 'middle',
+        nameGap: 30,
+        axisLabel: {
+          formatter: (value: number) => {
+            return new Date(value).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: '2-digit'
+            });
+          }
+        }
+      },
+      yAxis: {
+        type: 'value',
+        name: 'Daily Return (%)',
+        nameLocation: 'middle',
+        nameGap: 50
+      },
+      dataZoom: [
+        { type: 'inside', xAxisIndex: [0], start: 0, end: 100 },
+        { type: 'slider', xAxisIndex: [0], start: 0, end: 100, height: 20, bottom: 6 }
+      ],
+      series: [
+        {
+          type: 'bar',
+          data: chartData,
+          barWidth: '80%',
+          itemStyle: {
+            borderRadius: [2, 2, 0, 0]
+          },
+          markLine: {
+            data: markLines
+          },
+          markArea: {
+            silent: true,
+            data: markAreas
+          }
+        }
+      ]
+    };
+
+    chart.setOption(option);
+    return chart;
+  };
+
+  // Create a small, aligned bar chart showing position state per day (green/red/grey)
+  const createPositionBarsChart = (containerId: string) => {
+    const chartDom = document.getElementById(containerId);
+    if (!chartDom) return;
+
+    const chart = echarts.init(chartDom);
+
+    // Colors should match other charts
+    const colorHeldPos = 'rgba(16,185,129,1)';
+    const colorHeldNeg = 'rgba(239,68,68,1)';
+    const colorNotHeld = 'rgba(156,163,175,1)';
+
+    // Build data: color bars using buy/sell decision intervals
+    const sorted = [...dailyReturns].sort((a, b) => a.timestamp - b.timestamp);
+    const decisionsSorted = [...filteredDecisions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    let decIndex = 0;
+    let state: 'held' | 'not_held' = 'not_held';
+
+    const data = sorted.map((d) => {
+      const t = d.timestamp;
+
+      // advance decisions up to current timestamp
+      while (decIndex < decisionsSorted.length && new Date(decisionsSorted[decIndex].date).getTime() <= t) {
+        const action = (decisionsSorted[decIndex].action || '').toString().toLowerCase();
+        if (action === 'buy') state = 'held';
+        if (action === 'sell') state = 'not_held';
+        decIndex += 1;
+      }
+
+      const color = state === 'held' ? colorHeldPos : colorNotHeld;
+      return {
+        value: [d.timestamp, 1],
+        itemStyle: { color }
+      };
+    });
+
+    const option = {
+      grid: {
+        left: '5%',
+        right: '5%',
+        top: '8%',
+        bottom: '8%'
+      },
+      xAxis: {
+        type: 'time',
+        axisLabel: { show: false },
+        axisTick: { show: false },
+        splitLine: { show: false }
+      },
+      dataZoom: [
+        { type: 'inside', xAxisIndex: [0], start: 0, end: 100 }
+      ],
+      yAxis: {
+        type: 'value',
+        show: false,
+        min: 0,
+        max: 1
+      },
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: any) => {
+          const idx = params.dataIndex;
+          const day = sorted[idx];
+          const date = new Date(day.timestamp).toLocaleDateString();
+          const periodType = day.periodType === 'held' ? 'Held' : 'Not Held';
+          return `${date}<br/>${periodType}`;
+        }
+      },
+      series: [{
+        type: 'bar',
+        barGap: 0,
+        barWidth: '70%',
+        data,
+        silent: true
+      }]
+    };
+
+    chart.setOption(option);
+    return chart;
+  };
+
   // Initialize charts when data changes
   useEffect(() => {
     if (filteredDecisions.length > 0) {
-      const returnsChart = createReturnsChart('returns-chart');
+      const dailyChart = createDailyReturnsChart('daily-returns-chart');
+      const dailyWithLinesChart = createDailyReturnsWithLinesChart('daily-returns-lines-chart');
+      const dailyWithShadingChart = createDailyReturnsWithShadingChart('daily-returns-shading-chart');
+      const dailyShadingBarsChart = createPositionBarsChart('daily-returns-shading-bars-chart');
+      const periodChart = createPeriodReturnsChart('period-returns-chart');
+
+      // Group charts so zoom/pan are synchronized
+      try {
+        const groupName = 'backtesterGroup';
+        if (dailyChart) (dailyChart as any).group = groupName;
+        if (dailyWithLinesChart) (dailyWithLinesChart as any).group = groupName;
+        if (dailyWithShadingChart) (dailyWithShadingChart as any).group = groupName;
+        if (dailyShadingBarsChart) (dailyShadingBarsChart as any).group = groupName;
+        if (periodChart) (periodChart as any).group = groupName;
+        echarts.connect(groupName);
+      } catch (e) {
+        // ignore if echarts.connect fails in some environments
+        // console.warn('echarts group connect failed', e);
+      }
 
       return () => {
-        returnsChart?.dispose();
+        dailyChart?.dispose();
+        dailyWithLinesChart?.dispose();
+        dailyWithShadingChart?.dispose();
+        dailyShadingBarsChart?.dispose();
+        periodChart?.dispose();
       };
     }
-  }, [filteredDecisions, tradeReturns, selectedTicker, selectedStrategy]);
+  }, [filteredDecisions, dailyReturns, tradeReturns, selectedTicker, selectedStrategy]);
 
   const currentTickers = activeTab === 'stocks' ? stockTickers : cryptoTickers;
 
@@ -573,13 +1171,43 @@ const Backtester: React.FC = () => {
 
         {/* Charts Section */}
         {filteredDecisions.length > 0 && (
-          <div className="grid grid-cols-1 gap-6 mb-8">
+          <div className="grid grid-cols-1 gap-8 mb-8">
+            {/* Daily Returns Chart */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <FaChartLine className="mr-2" />
+                Daily Returns
+              </h3>
+              <div id="daily-returns-chart" className="w-full h-80"></div>
+            </div>
+
+            {/* Daily Returns Chart with Buy/Sell Lines */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <FaChartLine className="mr-2" />
+                Daily Returns with Buy/Sell Signals
+              </h3>
+              <div id="daily-returns-lines-chart" className="w-full h-80"></div>
+            </div>
+
+            {/* Daily Returns Chart with Position Shading */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <FaChartLine className="mr-2" />
+                Daily Returns with Position Shading
+              </h3>
+              <div id="daily-returns-shading-chart" className="w-full h-80"></div>
+              {/* Small position bars chart aligned with shading chart */}
+              <div id="daily-returns-shading-bars-chart" className="w-full h-28 mt-4"></div>
+            </div>
+
+            {/* Period Returns Chart */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                 <FaChartLine className="mr-2" />
                 Period Returns
               </h3>
-              <div id="returns-chart" className="w-full h-96"></div>
+              <div id="period-returns-chart" className="w-full h-80"></div>
             </div>
           </div>
         )}
@@ -587,8 +1215,18 @@ const Backtester: React.FC = () => {
 
 
         {/* Summary Statistics */}
-        {tradeReturns.length > 0 && (
+        {(dailyReturns.length > 0 || tradeReturns.length > 0) && (
           <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Days</h4>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{dailyReturns.length}</p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Held Days</h4>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {dailyReturns.filter(d => d.periodType === 'held').length}
+              </p>
+            </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
               <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Periods</h4>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{tradeReturns.length}</p>
@@ -597,24 +1235,6 @@ const Backtester: React.FC = () => {
               <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Held Periods</h4>
               <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                 {tradeReturns.filter(t => t.periodType === 'held').length}
-              </p>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Not Held Periods</h4>
-              <p className="text-2xl font-bold text-gray-600 dark:text-gray-400">
-                {tradeReturns.filter(t => t.periodType === 'not_held').length}
-              </p>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Avg Return (Held)</h4>
-              <p className={`text-2xl font-bold ${
-                tradeReturns.filter(t => t.periodType === 'held').reduce((sum, t) => sum + t.return, 0) /
-                tradeReturns.filter(t => t.periodType === 'held').length >= 0
-                  ? 'text-green-600 dark:text-green-400'
-                  : 'text-red-600 dark:text-red-400'
-              }`}>
-                {(tradeReturns.filter(t => t.periodType === 'held').reduce((sum, t) => sum + t.return, 0) /
-                  tradeReturns.filter(t => t.periodType === 'held').length || 0).toFixed(2)}%
               </p>
             </div>
           </div>
