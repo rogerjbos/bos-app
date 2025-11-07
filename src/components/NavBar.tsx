@@ -2,16 +2,40 @@ import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import React, { useContext, useState } from 'react';
 import { Link } from 'react-router-dom';
 import pulseLogo from '../assets/pulse_logo.jpg';
+import { useAuth } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 import ConnectMetaMask from './ConnectMetaMask';
 
 const NavBar: React.FC = () => {
   const { theme, toggleTheme } = useContext(ThemeContext);
+  const { isAuthenticated } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
+
+  // Navigation items based on authentication status
+  const getNavigationItems = () => {
+    const publicItems = [
+      { to: '/', label: 'Home' },
+      { to: '/counter', label: 'Counter' },
+    ];
+
+    const protectedItems = [
+      { to: '/reports', label: 'Reports' },
+      { to: '/staking', label: 'Staking' },
+      { to: '/watchlist', label: 'Watchlist' },
+      { to: '/portfolio', label: 'Portfolio' },
+      { to: '/bots', label: 'Bots' },
+      { to: '/backtester', label: 'Backtester' },
+      { to: '/ranks', label: 'Ranks' },
+    ];
+
+    return isAuthenticated ? [...publicItems, ...protectedItems] : publicItems;
+  };
+
+  const navigationItems = getNavigationItems();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
@@ -32,54 +56,15 @@ const NavBar: React.FC = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex md:items-center md:space-x-4">
-            <Link
-              to="/"
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-            >
-              Home
-            </Link>
-            <Link
-              to="/reports"
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-            >
-              Reports
-            </Link>
-            <Link
-              to="/staking"
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-            >
-              Staking
-            </Link>
-            <Link
-              to="/watchlist"
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-            >
-              Watchlist
-            </Link>
-            <Link
-              to="/portfolio"
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-            >
-              Portfolio
-            </Link>
-            <Link
-              to="/bots"
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-            >
-              Bots
-            </Link>
-            <Link
-              to="/ranks"
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-            >
-              Ranks
-            </Link>
-            <Link
-              to="/counter"
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-            >
-              Counter
-            </Link>
+            {navigationItems.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+              >
+                {item.label}
+              </Link>
+            ))}
 
             {/* Wallet Connection */}
             <ConnectMetaMask />
@@ -117,62 +102,16 @@ const NavBar: React.FC = () => {
       {isMenuOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
-            <Link
-              to="/"
-              onClick={toggleMenu}
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
-            >
-              Home
-            </Link>
-            <Link
-              to="/reports"
-              onClick={toggleMenu}
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
-            >
-              Reports
-            </Link>
-            <Link
-              to="/staking"
-              onClick={toggleMenu}
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
-            >
-              Staking
-            </Link>
-            <Link
-              to="/watchlist"
-              onClick={toggleMenu}
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
-            >
-              Watchlist
-            </Link>
-            <Link
-              to="/portfolio"
-              onClick={toggleMenu}
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
-            >
-              Portfolio
-            </Link>
-            <Link
-              to="/bots"
-              onClick={toggleMenu}
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
-            >
-              Bots
-            </Link>
-            <Link
-              to="/ranks"
-              onClick={toggleMenu}
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
-            >
-              Ranks
-            </Link>
-            <Link
-              to="/counter"
-              onClick={toggleMenu}
-              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
-            >
-              Counter
-            </Link>
+            {navigationItems.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                onClick={toggleMenu}
+                className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+              >
+                {item.label}
+              </Link>
+            ))}
 
             {/* Mobile Theme Toggle */}
             <button

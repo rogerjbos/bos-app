@@ -3,6 +3,7 @@ import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import NavBar from './components/NavBar';
 import ProtectedRoute from './components/ProtectedRoute';
 import Ranks from './components/Ranks';
+import BacktesterPage from './pages/BacktesterPage';
 import BotsPage from './pages/BotsPage';
 import Counter from './pages/Counter';
 import HomePage from './pages/HomePage';
@@ -38,6 +39,7 @@ const App: React.FC = () => {
                 <Route path="/watchlist" element={<ProtectedRoute element={<WatchlistPage />} />} />
                 <Route path="/portfolio" element={<ProtectedRoute element={<PortfolioPage />} />} />
                 <Route path="/bots" element={<ProtectedRoute element={<BotsPage />} />} />
+                <Route path="/backtester" element={<ProtectedRoute element={<BacktesterPage />} />} />
                 <Route path="/ranks" element={<ProtectedRoute element={<Ranks />} />} />
                 <Route path="/counter" element={<Counter />} />
               </Routes>

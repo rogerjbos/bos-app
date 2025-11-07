@@ -9,6 +9,7 @@ import { Input } from './ui/Input';
 import { Label } from './ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
+import { ThemeContext } from '../context/ThemeContext';
 
 interface RankData {
   date?: string;
@@ -170,8 +171,31 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankD
   const chartRef = React.useRef<HTMLDivElement>(null);
   const chartInstance = React.useRef<echarts.ECharts | null>(null);
 
+  // Get theme from context
+  const { theme } = React.useContext(ThemeContext);
+
   // Determine if this is crypto data
   const isCrypto = cryptoRankData.length > 0;
+
+  // Get theme-aware colors for tooltip
+  const getThemeColors = useCallback(() => {
+    const root = document.documentElement;
+    const computedStyle = getComputedStyle(root);
+    
+    if (theme === 'dark') {
+      return {
+        textColor: '#ffffff', // white text for dark mode
+        backgroundColor: 'rgba(0, 0, 0, 0.8)', // dark background
+        borderColor: '#555555' // dark border
+      };
+    } else {
+      return {
+        textColor: '#000000', // black text for light mode
+        backgroundColor: 'rgba(255, 255, 255, 0.95)', // light background
+        borderColor: '#cccccc' // light border
+      };
+    }
+  }, [theme]);
 
   useEffect(() => {
     if (!chartRef.current || data.length === 0) return;
@@ -184,6 +208,9 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankD
     const rankAlignedData = isCrypto
       ? alignCryptoRankDataWithOHLC(chartData.categoryData, cryptoRankData)
       : alignRankDataWithOHLC(chartData.categoryData, rankData);
+
+    // Get theme-aware colors
+    const themeColors = getThemeColors();
 
     // Prepare legend data based on whether this is crypto or stock
     const legendData = isCrypto
@@ -206,10 +233,11 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankD
           type: 'cross'
         },
         borderWidth: 1,
-        borderColor: '#ccc',
+        borderColor: themeColors.borderColor,
+        backgroundColor: themeColors.backgroundColor,
         padding: 10,
         textStyle: {
-          color: '#fff'
+          color: themeColors.textColor
         },
         position: function (pos: number[], params: any, el: any, elRect: any, size: any) {
           const obj: Record<string, number> = {
@@ -483,7 +511,7 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankD
         chartInstance.current = null;
       }
     };
-  }, [data, symbol, rankData, cryptoRankData, isCrypto]);
+  }, [data, symbol, rankData, cryptoRankData, isCrypto, theme, getThemeColors]);
 
   return (
     <div className="w-full">
