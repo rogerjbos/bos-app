@@ -292,6 +292,12 @@ const StakingTreemap: React.FC<{
         }
       },
       tooltip: {
+        backgroundColor: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+        borderColor: isDark ? '#374151' : '#d1d5db',
+        textStyle: {
+          color: isDark ? '#ffffff' : '#000000',
+          fontSize: 12
+        },
         formatter: (params: any) => {
           const data = params.data;
           const valueDisplay = hideValues ? '***' : `$${data.value.toLocaleString()}`;
