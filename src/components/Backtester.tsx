@@ -1,7 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import * as echarts from 'echarts';
 import React, { useEffect, useMemo, useState } from 'react';
-import { FaChartLine, FaSync, FaTable } from 'react-icons/fa';
+import { FaChartLine, FaSync } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { useWalletAuthContext } from '../providers/WalletAuthProvider';
 
@@ -212,75 +212,150 @@ const Backtester: React.FC = () => {
     return decisions.filter(d => d.strategy === selectedStrategy);
   }, [decisions, selectedStrategy]);
 
-  // Calculate returns for buy-sell pairs
+  // Calculate returns for all periods (held and non-held)
   const tradeReturns = useMemo(() => {
     const returns: Array<{
-      buyDate: string;
-      sellDate: string;
-      buyPrice?: number;
-      sellPrice?: number;
+      periodType: 'held' | 'not_held';
+      startDate: string;
+      endDate: string;
       return: number;
       duration: number; // days
+      periodLabel: string;
     }> = [];
 
-    const buys: Decision[] = [];
+    if (filteredDecisions.length === 0) return returns;
+
+    const sortedDecisions = filteredDecisions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const currentAssetType = activeTab;
+    const ticker = sortedDecisions[0].ticker;
 
-    for (const decision of filteredDecisions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())) {
-      if (decision.action.toLowerCase() === 'buy') {
-        buys.push(decision);
-      } else if (decision.action.toLowerCase() === 'sell' && buys.length > 0) {
-        const buy = buys.pop()!;
-        const buyDate = new Date(buy.date);
-        const sellDate = new Date(decision.date);
-        const duration = Math.ceil((sellDate.getTime() - buyDate.getTime()) / (1000 * 60 * 60 * 24));
+    // Helper function to calculate cumulative return for a date range
+    const calculateCumulativeReturn = (startDate: Date, endDate: Date) => {
+      let cumulativeReturn = 0;
 
-        let tradeReturn = 0;
+      if (currentAssetType === 'stocks') {
+        const stockReturns = returnsData as StockReturns[];
+        const periodReturns = stockReturns
+          .filter(r => r.symbol === ticker &&
+                      new Date(r.date) >= startDate &&
+                      new Date(r.date) <= endDate &&
+                      r.daily_return !== null &&
+                      r.daily_return !== undefined)
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-        // Calculate cumulative return using daily returns data
-        if (currentAssetType === 'stocks') {
-          const stockReturns = returnsData as StockReturns[];
-          // Filter returns data for the period between buy and sell dates
-          const periodReturns = stockReturns
-            .filter(r => r.symbol === decision.ticker &&
-                        new Date(r.date) >= buyDate &&
-                        new Date(r.date) <= sellDate &&
-                        r.daily_return !== null &&
-                        r.daily_return !== undefined)
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-          if (periodReturns.length > 0) {
-            // Calculate cumulative return: exp(sum(log(1+daily_return))) - 1
-            const logReturns = periodReturns.map(r => Math.log(1 + (r.daily_return || 0) / 100));
-            const sumLogReturns = logReturns.reduce((sum, val) => sum + val, 0);
-            tradeReturn = (Math.exp(sumLogReturns) - 1) * 100;
-          }
-        } else {
-          const cryptoReturns = returnsData as CryptoReturns[];
-          // Filter returns data for the period between buy and sell dates
-          const periodReturns = cryptoReturns
-            .filter(r => r.baseCurrency === decision.ticker &&
-                        new Date(r.date) >= buyDate &&
-                        new Date(r.date) <= sellDate &&
-                        r.daily_return !== null &&
-                        r.daily_return !== undefined)
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-          if (periodReturns.length > 0) {
-            // Calculate cumulative return: exp(sum(log(1+daily_return))) - 1
-            const logReturns = periodReturns.map(r => Math.log(1 + (r.daily_return || 0) / 100));
-            const sumLogReturns = logReturns.reduce((sum, val) => sum + val, 0);
-            tradeReturn = (Math.exp(sumLogReturns) - 1) * 100;
-          }
+        if (periodReturns.length > 0) {
+          const logReturns = periodReturns.map(r => Math.log(1 + (r.daily_return || 0) / 100));
+          const sumLogReturns = logReturns.reduce((sum, val) => sum + val, 0);
+          cumulativeReturn = (Math.exp(sumLogReturns) - 1) * 100;
         }
+      } else {
+        const cryptoReturns = returnsData as CryptoReturns[];
+        const periodReturns = cryptoReturns
+          .filter(r => r.baseCurrency === ticker &&
+                      new Date(r.date) >= startDate &&
+                      new Date(r.date) <= endDate &&
+                      r.daily_return !== null &&
+                      r.daily_return !== undefined)
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
+        if (periodReturns.length > 0) {
+          const logReturns = periodReturns.map(r => Math.log(1 + (r.daily_return || 0) / 100));
+          const sumLogReturns = logReturns.reduce((sum, val) => sum + val, 0);
+          cumulativeReturn = (Math.exp(sumLogReturns) - 1) * 100;
+        }
+      }
+
+      return cumulativeReturn;
+    };
+
+    // Calculate non-held period from start of data to first decision
+    const firstDecisionDate = new Date(sortedDecisions[0].date);
+    const dataStartDate = new Date(Math.min(...filteredDecisions.map(d => new Date(d.date).getTime())));
+
+    if (firstDecisionDate > dataStartDate) {
+      const returnValue = calculateCumulativeReturn(dataStartDate, firstDecisionDate);
+      const duration = Math.ceil((firstDecisionDate.getTime() - dataStartDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (duration > 0) {
         returns.push({
-          buyDate: buy.date,
-          sellDate: decision.date,
-          buyPrice: undefined, // Not using individual prices anymore
-          sellPrice: undefined,
-          return: tradeReturn,
-          duration
+          periodType: 'not_held',
+          startDate: dataStartDate.toISOString().split('T')[0],
+          endDate: sortedDecisions[0].date,
+          return: returnValue,
+          duration,
+          periodLabel: `Not Held ${returns.filter(r => r.periodType === 'not_held').length + 1}`
+        });
+      }
+    }
+
+    let positionHeld = false;
+    let lastPositionChange = firstDecisionDate;
+
+    for (let i = 0; i < sortedDecisions.length; i++) {
+      const decision = sortedDecisions[i];
+      const decisionDate = new Date(decision.date);
+
+      // If we have a gap between decisions and position was held, calculate held period return
+      if (positionHeld && decisionDate > lastPositionChange) {
+        const returnValue = calculateCumulativeReturn(lastPositionChange, decisionDate);
+        const duration = Math.ceil((decisionDate.getTime() - lastPositionChange.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (duration > 0) {
+          returns.push({
+            periodType: 'held',
+            startDate: lastPositionChange.toISOString().split('T')[0],
+            endDate: decision.date,
+            return: returnValue,
+            duration,
+            periodLabel: `Held ${returns.filter(r => r.periodType === 'held').length + 1}`
+          });
+        }
+      }
+
+      // If we have a gap between decisions and position was NOT held, calculate non-held period return
+      if (!positionHeld && decisionDate > lastPositionChange) {
+        const returnValue = calculateCumulativeReturn(lastPositionChange, decisionDate);
+        const duration = Math.ceil((decisionDate.getTime() - lastPositionChange.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (duration > 0) {
+          returns.push({
+            periodType: 'not_held',
+            startDate: lastPositionChange.toISOString().split('T')[0],
+            endDate: decision.date,
+            return: returnValue,
+            duration,
+            periodLabel: `Not Held ${returns.filter(r => r.periodType === 'not_held').length + 1}`
+          });
+        }
+      }
+
+      // Update position status
+      if (decision.action.toLowerCase() === 'buy') {
+        positionHeld = true;
+      } else if (decision.action.toLowerCase() === 'sell') {
+        positionHeld = false;
+      }
+
+      lastPositionChange = decisionDate;
+    }
+
+    // Handle the final period if position is still held
+    const lastDecision = sortedDecisions[sortedDecisions.length - 1];
+    const lastDecisionDate = new Date(lastDecision.date);
+    const endDate = new Date(); // Current date as end
+
+    if (positionHeld && endDate > lastDecisionDate) {
+      const returnValue = calculateCumulativeReturn(lastDecisionDate, endDate);
+      const duration = Math.ceil((endDate.getTime() - lastDecisionDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (duration > 0) {
+        returns.push({
+          periodType: 'held',
+          startDate: lastDecision.date,
+          endDate: endDate.toISOString().split('T')[0],
+          return: returnValue,
+          duration,
+          periodLabel: `Held ${returns.filter(r => r.periodType === 'held').length + 1}`
         });
       }
     }
@@ -288,62 +363,7 @@ const Backtester: React.FC = () => {
     return returns;
   }, [filteredDecisions, returnsData, activeTab]);
 
-  // Create ECharts timeline visualization
-  const createTimelineChart = (containerId: string) => {
-    const chartDom = document.getElementById(containerId);
-    if (!chartDom) return;
 
-    const chart = echarts.init(chartDom);
-
-    // Prepare data for timeline
-    const timelineData = filteredDecisions.map((decision, index) => ({
-      name: `${decision.action.toUpperCase()} ${decision.date}`,
-      value: [new Date(decision.date).getTime(), decision.action === 'buy' ? 1 : -1],
-      itemStyle: {
-        color: decision.action === 'buy' ? '#10b981' : '#ef4444'
-      }
-    }));
-
-    const option = {
-      title: {
-        text: `${selectedTicker} - ${selectedStrategy} Trading Timeline`,
-        left: 'center'
-      },
-      tooltip: {
-        trigger: 'item',
-        formatter: (params: any) => {
-          const date = new Date(params.value[0]).toLocaleDateString();
-          const action = params.value[1] === 1 ? 'BUY' : 'SELL';
-          return `${action} on ${date}`;
-        }
-      },
-      xAxis: {
-        type: 'time',
-        name: 'Date',
-        nameLocation: 'middle',
-        nameGap: 30
-      },
-      yAxis: {
-        type: 'category',
-        data: [''],
-        axisLabel: {
-          show: false
-        }
-      },
-      series: [{
-        type: 'scatter',
-        data: timelineData,
-        symbolSize: 12,
-        itemStyle: {
-          borderWidth: 2,
-          borderColor: '#fff'
-        }
-      }]
-    };
-
-    chart.setOption(option);
-    return chart;
-  };
 
   // Create ECharts returns bar chart
   const createReturnsChart = (containerId: string) => {
@@ -352,24 +372,28 @@ const Backtester: React.FC = () => {
 
     const chart = echarts.init(chartDom);
 
-    const returnsData = tradeReturns.map((trade, index) => ({
-      name: `Trade ${index + 1}`,
+    const returnsData = tradeReturns.map((trade) => ({
+      name: trade.periodLabel,
       value: trade.return,
       itemStyle: {
-        color: trade.return >= 0 ? '#10b981' : '#ef4444'
+        color: trade.periodType === 'not_held'
+          ? '#9CA3AF' // grey for non-held periods
+          : trade.return >= 0
+            ? '#10B981' // green for positive held returns
+            : '#EF4444' // red for negative held returns
       }
     }));
 
     const option = {
       title: {
-        text: `${selectedTicker} Trade Returns`,
+        text: `${selectedTicker} Period Returns`,
         left: 'center'
       },
       tooltip: {
         trigger: 'item',
         formatter: (params: any) => {
           const trade = tradeReturns[params.dataIndex];
-          return `Return: ${params.value.toFixed(2)}%<br/>Buy: ${trade.buyDate}<br/>Sell: ${trade.sellDate}<br/>Duration: ${trade.duration} days`;
+          return `${trade.periodLabel}<br/>Return: ${params.value.toFixed(2)}%<br/>Start: ${trade.startDate}<br/>End: ${trade.endDate}<br/>Duration: ${trade.duration} days`;
         }
       },
       xAxis: {
@@ -398,11 +422,9 @@ const Backtester: React.FC = () => {
   // Initialize charts when data changes
   useEffect(() => {
     if (filteredDecisions.length > 0) {
-      const timelineChart = createTimelineChart('timeline-chart');
       const returnsChart = createReturnsChart('returns-chart');
 
       return () => {
-        timelineChart?.dispose();
         returnsChart?.dispose();
       };
     }
@@ -551,102 +573,48 @@ const Backtester: React.FC = () => {
 
         {/* Charts Section */}
         {filteredDecisions.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 gap-6 mb-8">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                 <FaChartLine className="mr-2" />
-                Trading Timeline
+                Period Returns
               </h3>
-              <div id="timeline-chart" className="w-full h-80"></div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-                <FaChartLine className="mr-2" />
-                Trade Returns
-              </h3>
-              <div id="returns-chart" className="w-full h-80"></div>
+              <div id="returns-chart" className="w-full h-96"></div>
             </div>
           </div>
         )}
 
-        {/* Data Table */}
-        {filteredDecisions.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                <FaTable className="mr-2" />
-                Decision Data - {selectedTicker} ({selectedStrategy})
-              </h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Action
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Strategy
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {filteredDecisions.map((decision, index) => (
-                    <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {new Date(decision.date).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          decision.action.toLowerCase() === 'buy'
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        }`}>
-                          {decision.action.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {decision.strategy}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+
 
         {/* Summary Statistics */}
         {tradeReturns.length > 0 && (
           <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Trades</h4>
+              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Periods</h4>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{tradeReturns.length}</p>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Winning Trades</h4>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {tradeReturns.filter(t => t.return > 0).length}
+              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Held Periods</h4>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {tradeReturns.filter(t => t.periodType === 'held').length}
               </p>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Losing Trades</h4>
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                {tradeReturns.filter(t => t.return < 0).length}
+              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Not Held Periods</h4>
+              <p className="text-2xl font-bold text-gray-600 dark:text-gray-400">
+                {tradeReturns.filter(t => t.periodType === 'not_held').length}
               </p>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Avg Return</h4>
+              <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Avg Return (Held)</h4>
               <p className={`text-2xl font-bold ${
-                tradeReturns.reduce((sum, t) => sum + t.return, 0) / tradeReturns.length >= 0
+                tradeReturns.filter(t => t.periodType === 'held').reduce((sum, t) => sum + t.return, 0) /
+                tradeReturns.filter(t => t.periodType === 'held').length >= 0
                   ? 'text-green-600 dark:text-green-400'
                   : 'text-red-600 dark:text-red-400'
               }`}>
-                {(tradeReturns.reduce((sum, t) => sum + t.return, 0) / tradeReturns.length).toFixed(2)}%
+                {(tradeReturns.filter(t => t.periodType === 'held').reduce((sum, t) => sum + t.return, 0) /
+                  tradeReturns.filter(t => t.periodType === 'held').length || 0).toFixed(2)}%
               </p>
             </div>
           </div>
