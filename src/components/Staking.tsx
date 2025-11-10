@@ -37,6 +37,7 @@ const APP_VERSION = '1.0.0';
 
 // API configuration (similar to Ranks.tsx)
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_KEY = import.meta.env.VITE_API_KEY;
 const StakingTableContent: React.FC<{
   filteredStakingItems: Array<{ item: StakingItem; idx: number }>;
   filteredCalculatedValues: Array<{ totalQuantity: number; itemValue: number }>;
@@ -660,12 +661,69 @@ const Staking: React.FC = () => {
   }, []);
 
   const fetchPriceData = useCallback(async () => {
-    // For SIWS client-side only, we'll work without API calls
-    // Prices would need to be entered manually or fetched from public APIs
+    if (!isAuthenticated) {
+      setPriceUpdateError('User not authenticated');
+      setPricesLoaded(true);
+      return;
+    }
+
     setPriceUpdateError(null);
-    setPricesLoaded(true);
-    showStatus('Working in offline mode - prices must be entered manually', 'success');
-  }, [showStatus]);
+    try {
+      // Get unique symbols from staking items
+      const symbols = [...new Set(stakingItems.map(item => item.ticker))];
+
+      if (symbols.length === 0) {
+        setPricesLoaded(true);
+        return;
+      }
+
+      // Fetch price and return data from API
+      const username = user?.name || walletAddress || '';
+      const response = await fetch(`${API_BASE_URL}/prices`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch staking data: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Update staking items with the fetched data
+      if (data.prices && data.returns) {
+        const updatedItems = stakingItems.map(item => {
+          const symbol = item.ticker.toLowerCase();
+          const price = data.prices[symbol];
+          const return30d = data.returns[symbol];
+
+          if (price !== undefined) {
+            return {
+              ...item,
+              price: price.toString(),
+              return30d: return30d !== undefined ? return30d.toString() : item.return30d,
+              priceLastUpdated: new Date().toISOString()
+            };
+          }
+          return item;
+        });
+
+        setStakingItems(updatedItems);
+        storage.save('stakingData', updatedItems);
+        setPriceUpdateDate(new Date().toLocaleString());
+        showStatus('Staking data updated successfully', 'success');
+      }
+    } catch (err) {
+      console.error('Error fetching staking data:', err);
+      setPriceUpdateError(`Failed to load staking data: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      showStatus('Failed to load staking data - working in offline mode', 'error');
+    } finally {
+      setPricesLoaded(true);
+    }
+  }, [isAuthenticated, user?.name, walletAddress, stakingItems, showStatus]);
 
   // Update staking items with latest prices and returns
   const updateStakingPrices = (prices: PriceData, returns: ReturnData, date: string) => {
@@ -1053,7 +1111,7 @@ const Staking: React.FC = () => {
       ) : (
         <div>
           {/* Tab Navigation */}
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'combined' | 'ledger' | 'solo' | 'deleted')} className="mb-6">
+          <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as 'combined' | 'ledger' | 'solo' | 'deleted')} className="mb-6">
             <TabsList className="mb-6 flex-wrap">
               <TabsTrigger value="combined">
                 Combined ({stakingItems.length})

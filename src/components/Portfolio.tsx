@@ -87,24 +87,170 @@ interface RanksData {
 
 interface CryptoRankData {
   baseCurrency: string;
-  crypto_ranks: number;
-  lppl_side: string;
-  lppl_pos_conf: number;
-  lppl_neg_conf: number;
-  strategy_side: string;
-  strategy_profit_per_trade: number;
-  strategy_expectancy: number;
-  strategy_profit_factor: number;
-  quoteCurrency: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-  ivol: number;
-  predicted_beta: number;
-  risk_contribution: number;
+  date: string | null;
+  crypto_ranks: number | null;
+  lppl_side: string | number | null;
+  lppl_pos_conf: number | null;
+  lppl_neg_conf: number | null;
+  strategy_side: string | number | null;
+  strategy_profit_per_trade: number | null;
+  strategy_expectancy: number | null;
+  strategy_profit_factor: number | null;
+  quoteCurrency: string | null;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
+  volume: number | null;
+  ivol: number | null;
+  predicted_beta: number | null;
+  risk_contribution: number | null;
 }
+
+const hasValue = (value: unknown): boolean => value !== null && value !== undefined;
+
+const parseNullableNumber = (value: unknown): number | null => {
+  if (!hasValue(value)) {
+    return null;
+  }
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+};
+
+const parseNullableString = (value: unknown): string | null => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return null;
+};
+
+const getTimeValue = (value: unknown): number => {
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+  }
+  return Number.NEGATIVE_INFINITY;
+};
+
+const mergeCryptoRankEntries = (entries: any[], fallbackSymbol: string): CryptoRankData | null => {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return null;
+  }
+
+  const normalizedSymbol = fallbackSymbol.toUpperCase();
+  const sortedEntries = [...entries].sort((a, b) => getTimeValue(b?.date) - getTimeValue(a?.date));
+
+  const merged: CryptoRankData = {
+    baseCurrency: normalizedSymbol,
+    date: null,
+    crypto_ranks: null,
+    lppl_side: null,
+    lppl_pos_conf: null,
+    lppl_neg_conf: null,
+    strategy_side: null,
+    strategy_profit_per_trade: null,
+    strategy_expectancy: null,
+    strategy_profit_factor: null,
+    quoteCurrency: null,
+    open: null,
+    high: null,
+    low: null,
+    close: null,
+    volume: null,
+    ivol: null,
+    predicted_beta: null,
+    risk_contribution: null,
+  };
+
+  sortedEntries.forEach((entry) => {
+    if (!entry) return;
+
+    const entrySymbol = typeof entry.baseCurrency === 'string' ? entry.baseCurrency.toUpperCase() : normalizedSymbol;
+    merged.baseCurrency = entrySymbol || normalizedSymbol;
+
+    const entryDate = parseNullableString(entry.date);
+    if (entryDate && getTimeValue(entryDate) > getTimeValue(merged.date)) {
+      merged.date = entryDate;
+    }
+
+    if (hasValue(entry.crypto_ranks) && merged.crypto_ranks == null) {
+      merged.crypto_ranks = parseNullableNumber(entry.crypto_ranks);
+    }
+
+    if (hasValue(entry.lppl_side) && merged.lppl_side == null) {
+      merged.lppl_side = entry.lppl_side;
+    }
+
+    if (hasValue(entry.lppl_pos_conf) && merged.lppl_pos_conf == null) {
+      merged.lppl_pos_conf = parseNullableNumber(entry.lppl_pos_conf);
+    }
+
+    if (hasValue(entry.lppl_neg_conf) && merged.lppl_neg_conf == null) {
+      merged.lppl_neg_conf = parseNullableNumber(entry.lppl_neg_conf);
+    }
+
+    if (hasValue(entry.strategy_side) && merged.strategy_side == null) {
+      merged.strategy_side = entry.strategy_side;
+    }
+
+    if (hasValue(entry.strategy_profit_per_trade) && merged.strategy_profit_per_trade == null) {
+      merged.strategy_profit_per_trade = parseNullableNumber(entry.strategy_profit_per_trade);
+    }
+
+    if (hasValue(entry.strategy_expectancy) && merged.strategy_expectancy == null) {
+      merged.strategy_expectancy = parseNullableNumber(entry.strategy_expectancy);
+    }
+
+    if (hasValue(entry.strategy_profit_factor) && merged.strategy_profit_factor == null) {
+      merged.strategy_profit_factor = parseNullableNumber(entry.strategy_profit_factor);
+    }
+
+    if (!merged.quoteCurrency && hasValue(entry.quoteCurrency)) {
+      merged.quoteCurrency = parseNullableString(entry.quoteCurrency);
+    }
+
+    if (hasValue(entry.open) && merged.open == null) {
+      merged.open = parseNullableNumber(entry.open);
+    }
+
+    if (hasValue(entry.high) && merged.high == null) {
+      merged.high = parseNullableNumber(entry.high);
+    }
+
+    if (hasValue(entry.low) && merged.low == null) {
+      merged.low = parseNullableNumber(entry.low);
+    }
+
+    if (hasValue(entry.close) && merged.close == null) {
+      merged.close = parseNullableNumber(entry.close);
+    }
+
+    if (hasValue(entry.volume) && merged.volume == null) {
+      merged.volume = parseNullableNumber(entry.volume);
+    }
+
+    if (hasValue(entry.ivol) && merged.ivol == null) {
+      merged.ivol = parseNullableNumber(entry.ivol);
+    }
+
+    if (hasValue(entry.predicted_beta) && merged.predicted_beta == null) {
+      merged.predicted_beta = parseNullableNumber(entry.predicted_beta);
+    }
+
+    if (hasValue(entry.risk_contribution) && merged.risk_contribution == null) {
+      merged.risk_contribution = parseNullableNumber(entry.risk_contribution);
+    }
+  });
+
+  return merged;
+};
 
 // Portfolio transactions per symbol
 interface PortfolioTransactionInput {
@@ -121,7 +267,7 @@ interface PortfolioAggregatePosition {
 }
 
 const Portfolio: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated, walletAddress } = useAuth();
   // REMOVED for SIWS migration: const { getAccessToken } = useWalletAuthContext();
 
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
@@ -200,10 +346,10 @@ const Portfolio: React.FC = () => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Helper function
-  const showStatus = (text: string, type: 'success' | 'error' = 'success') => {
+  const showStatus = useCallback((text: string, type: 'success' | 'error' = 'success') => {
     setStatusMessage({ text, type });
     setTimeout(() => setStatusMessage(null), 3000);
-  };
+  }, []);
 
   // Load column configuration from localStorage
   const loadColumnConfig = () => {
@@ -450,19 +596,20 @@ const Portfolio: React.FC = () => {
 
   // Load portfolios from backend API
   useEffect(() => {
-    if (user?.name) {
+    if (isAuthenticated) {
       loadPortfolios();
     }
-  }, [user?.name]);
+  }, [isAuthenticated]);
 
   // Load portfolios from API
   const loadPortfolios = async () => {
-    if (!user?.name) return;
+    if (!isAuthenticated) return;
 
     setIsInitialLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/portfolios?username=${encodeURIComponent(user.name)}`, {
+      const username = user?.name || walletAddress || '';
+      const response = await fetch(`${API_BASE_URL}/portfolios?username=${encodeURIComponent(username)}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
@@ -475,7 +622,12 @@ const Portfolio: React.FC = () => {
       }
 
       const data = await response.json();
-      setPortfolios(data.portfolios || []);
+      setPortfolios(data || []);
+
+      // Automatically select the first portfolio if none is selected
+      if (data && data.length > 0 && !activePortfolioId) {
+        setActivePortfolioId(data[0].id);
+      }
     } catch (err) {
       console.error('Error loading portfolios:', err);
       setError(`Failed to load portfolios: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -498,18 +650,18 @@ const Portfolio: React.FC = () => {
   }, []);
 
   // Fetch crypto data
-  const fetchCryptoData = useCallback(async (symbols: string[]) => {
-    if (symbols.length === 0) return;
+  const fetchCryptoData = useCallback(async (symbols: string[]): Promise<CryptoXDaysData[]> => {
+    if (symbols.length === 0) return [];
 
-    setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/crypto/prices`, {
-        method: 'POST',
+      const params = new URLSearchParams();
+      symbols.forEach(symbol => params.append('baseCurrencies', symbol));
+
+      const response = await fetch(`${API_BASE_URL}/crypto_xdays?${params.toString()}`, {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ symbols }),
       });
 
       if (!response.ok) {
@@ -517,27 +669,29 @@ const Portfolio: React.FC = () => {
       }
 
       const data = await response.json();
-      setCryptoData(data.prices || []);
+      const normalizedData: CryptoXDaysData[] = Array.isArray(data) ? data : [];
+      setCryptoData(normalizedData);
+      return normalizedData;
     } catch (err) {
       console.error('Error fetching crypto data:', err);
       showStatus(`Failed to load crypto data: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
-    } finally {
-      setIsLoading(false);
+      return [];
     }
-  }, []);
+  }, [showStatus]);
 
-  // Fetch latest prices from Tiingo API via backend
-  const fetchLatestPrices = useCallback(async (symbols: string[], historicalData: CryptoXDaysData[]) => {
+  // Fetch latest prices from backend
+  const fetchLatestPrices = useCallback(async (symbols: string[], historicalData: CryptoXDaysData[] = []) => {
     if (symbols.length === 0) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/prices/latest`, {
-        method: 'POST',
+      const params = new URLSearchParams();
+      symbols.forEach(symbol => params.append('symbols', symbol));
+
+      const response = await fetch(`${API_BASE_URL}/latest_crypto_price?${params.toString()}`, {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ symbols }),
       });
 
       if (!response.ok) {
@@ -545,26 +699,53 @@ const Portfolio: React.FC = () => {
       }
 
       const data = await response.json();
-      setLatestPrices(data.prices || []);
+
+      // Convert to expected format and calculate returns from cryptoData
+      const result = data.map((item: any) => {
+        const symbol = item.symbol.toUpperCase();
+        const currentPrice = item.close;
+        const historical = historicalData.find(h => h.baseCurrency === symbol);
+
+        // Calculate returns from historical data
+        const calculateReturn = (historicalPrice: number | null) => {
+          if (!historicalPrice || historicalPrice === 0) return null;
+          return ((currentPrice - historicalPrice) / historicalPrice) * 100;
+        };
+
+        return {
+          symbol: symbol,
+          latestPrice: currentPrice,
+          returns: {
+            '1d': calculateReturn(historical?.close_1d || null),
+            '7d': calculateReturn(historical?.close_7d || null),
+            '30d': calculateReturn(historical?.close_30d || null),
+            '60d': calculateReturn(historical?.close_60d || null),
+            '90d': calculateReturn(historical?.close_90d || null),
+            '120d': calculateReturn(historical?.close_120d || null),
+          }
+        };
+      });
+
+      setLatestPrices(result);
     } catch (err) {
       console.error('Error fetching latest prices:', err);
       showStatus(`Failed to load latest prices: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
-  }, []);
+  }, [showStatus]);
 
   // Fetch stock data
   const fetchStockData = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
 
-    setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/stocks/prices`, {
-        method: 'POST',
+      const params = new URLSearchParams();
+      symbols.forEach(symbol => params.append('symbols', symbol));
+
+      const response = await fetch(`${API_BASE_URL}/stock_xdays?${params.toString()}`, {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ symbols }),
       });
 
       if (!response.ok) {
@@ -572,66 +753,91 @@ const Portfolio: React.FC = () => {
       }
 
       const data = await response.json();
-      setStockData(data.prices || []);
+      setStockData(data || []);
     } catch (err) {
       console.error('Error fetching stock data:', err);
       showStatus(`Failed to load stock data: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
-    } finally {
-      setIsLoading(false);
     }
-  }, []);
+  }, [showStatus]);
 
   // Fetch ranks data
   const fetchRanksData = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/stocks/ranks`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ symbols }),
-      });
+      const allRanksData: any[] = [];
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ranks data: ${response.status}`);
+      // Fetch ranks for each symbol individually since the endpoint only accepts one ticker
+      for (const symbol of symbols) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/ranks?ticker=${encodeURIComponent(symbol)}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${API_KEY}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.length > 0) {
+              allRanksData.push(...data);
+            }
+          }
+        } catch (symbolError) {
+          console.warn(`Failed to fetch ranks for ${symbol}:`, symbolError);
+          // Continue with other symbols
+        }
       }
 
-      const data = await response.json();
-      setRanksData(data.ranks || []);
+      setRanksData(allRanksData);
     } catch (err) {
       console.error('Error fetching ranks data:', err);
       showStatus(`Failed to load stock ranks: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
-  }, []);
+  }, [showStatus]);
 
   // Fetch crypto ranks data
   const fetchCryptoRanksData = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/crypto/ranks`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ symbols }),
-      });
+      const aggregatedEntries = new Map<string, CryptoRankData>();
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch crypto ranks data: ${response.status}`);
+      // Fetch ranks for each symbol individually since the endpoint only accepts one baseCurrency
+      for (const symbol of symbols) {
+        const symbolUpper = symbol.toUpperCase();
+        const symbolLower = symbol.toLowerCase();
+        try {
+          const response = await fetch(`${API_BASE_URL}/crypto_ranks?baseCurrency=${encodeURIComponent(symbolLower)}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${API_KEY}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('[Portfolio] crypto_ranks response', symbolUpper, {
+              count: Array.isArray(data) ? data.length : 'not-array',
+              sample: Array.isArray(data) && data.length > 0 ? data[0] : null,
+            });
+            const mergedEntry = mergeCryptoRankEntries(data, symbolUpper);
+            if (mergedEntry) {
+              aggregatedEntries.set(mergedEntry.baseCurrency, mergedEntry);
+            }
+          }
+        } catch (symbolError) {
+          console.warn(`Failed to fetch crypto ranks for ${symbolUpper}:`, symbolError);
+          // Continue with other symbols
+        }
       }
 
-      const data = await response.json();
-      setCryptoRanksData(data.ranks || []);
+      setCryptoRanksData(Array.from(aggregatedEntries.values()));
     } catch (err) {
       console.error('Error fetching crypto ranks data:', err);
       showStatus(`Failed to load crypto ranks: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
-  }, []);
+  }, [showStatus]);
 
   // Refresh data for active portfolio
   const refreshData = useCallback(async () => {
@@ -646,7 +852,8 @@ const Portfolio: React.FC = () => {
 
     try {
       if (activePortfolio.type === 'crypto') {
-        await fetchCryptoData(activePortfolio.symbols);
+        const historicalData = await fetchCryptoData(activePortfolio.symbols);
+        await fetchLatestPrices(activePortfolio.symbols, historicalData);
         // Fetch crypto ranks data for crypto portfolios
         await fetchCryptoRanksData(activePortfolio.symbols);
       } else {
@@ -659,15 +866,25 @@ const Portfolio: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [activePortfolioId, portfolios, fetchCryptoData, fetchStockData, fetchRanksData, fetchCryptoRanksData]);
+  }, [activePortfolioId, portfolios, fetchCryptoData, fetchStockData, fetchRanksData, fetchCryptoRanksData, fetchLatestPrices]);
 
   // Load aggregated positions for current portfolio
   const loadAggregates = useCallback(async (symbols: string[]) => {
     const activePortfolio = portfolios.find(w => w.id === activePortfolioId);
-    if (!activePortfolio || !user?.name || symbols.length === 0) return;
+    if (!activePortfolio || !isAuthenticated || symbols.length === 0) return;
+
+    const username = user?.name || walletAddress || '';
+    if (!username) {
+      showStatus('Unable to load aggregates: missing username', 'error');
+      return;
+    }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/aggregates`, {
+      const params = new URLSearchParams();
+      params.append('username', username);
+      symbols.forEach(symbol => params.append('symbols', symbol));
+
+      const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/transactions/aggregate?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
@@ -676,23 +893,33 @@ const Portfolio: React.FC = () => {
       });
 
       if (!response.ok) {
+        if (response.status === 404) {
+          setAggregates({});
+          return;
+        }
         throw new Error(`Failed to load aggregates: ${response.status}`);
       }
 
       const data = await response.json();
-      setAggregates(data.aggregates || {});
+      const aggregatesMap: Record<string, any> = {};
+      (data || []).forEach((item: any) => {
+        if (item?.symbol) {
+          aggregatesMap[item.symbol.toUpperCase()] = item;
+        }
+      });
+      setAggregates(aggregatesMap);
     } catch (err) {
       console.error('Error loading aggregates:', err);
       showStatus(`Failed to load portfolio aggregates: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
-  }, [activePortfolioId, portfolios, user?.name]);
+  }, [activePortfolioId, portfolios, isAuthenticated, user, walletAddress, showStatus]);
 
   // Open transactions modal for a symbol
   const openTransactionsModal = async (symbol: string) => {
     setTxSymbol(symbol);
     setShowTxModal(true);
 
-    if (!user?.name) return;
+    if (!isAuthenticated) return;
 
     try {
       const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/transactions/${symbol}`, {
@@ -733,7 +960,7 @@ const Portfolio: React.FC = () => {
   };
 
   const saveTransactions = async () => {
-    if (!user?.name || !txSymbol) return;
+    if (!isAuthenticated || !txSymbol) return;
 
     try {
       const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/transactions/${txSymbol}`, {
@@ -766,12 +993,13 @@ const Portfolio: React.FC = () => {
       return;
     }
 
-    if (!user?.name) {
+    if (!isAuthenticated) {
       showStatus('User not authenticated', 'error');
       return;
     }
 
     try {
+      const username = user?.name || walletAddress || '';
       const response = await fetch(`${API_BASE_URL}/portfolios`, {
         method: 'POST',
         headers: {
@@ -810,12 +1038,13 @@ const Portfolio: React.FC = () => {
       return;
     }
 
-    if (!user?.name) {
+    if (!isAuthenticated) {
       showStatus('User not authenticated', 'error');
       return;
     }
 
     try {
+      const username = user?.name || walletAddress || '';
       const response = await fetch(`${API_BASE_URL}/portfolios/${portfolioId}`, {
         method: 'DELETE',
         headers: {
@@ -849,7 +1078,7 @@ const Portfolio: React.FC = () => {
     const activePortfolio = portfolios.find(w => w.id === activePortfolioId);
     if (!activePortfolio) return;
 
-    if (!user?.name) {
+    if (!isAuthenticated) {
       showStatus('User not authenticated', 'error');
       return;
     }
@@ -867,6 +1096,7 @@ const Portfolio: React.FC = () => {
     }
 
     try {
+      const username = user?.name || walletAddress || '';
       const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/symbols`, {
         method: 'POST',
         headers: {
@@ -900,12 +1130,13 @@ const Portfolio: React.FC = () => {
       return;
     }
 
-    if (!user?.name) {
+    if (!isAuthenticated) {
       showStatus('User not authenticated', 'error');
       return;
     }
 
     try {
+      const username = user?.name || walletAddress || '';
       const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/symbols/${symbol}`, {
         method: 'DELETE',
         headers: {
