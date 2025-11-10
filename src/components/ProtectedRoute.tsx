@@ -4,10 +4,11 @@ import { useAuth } from '../context/AuthContext';
 
 interface ProtectedRouteProps {
   element: React.ReactElement;
+  authorizedOnly?: boolean;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ element }) => {
-  const { isAuthenticated, loading } = useAuth();
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ element, authorizedOnly = false }) => {
+  const { isAuthenticated, isAuthorizedWallet, loading } = useAuth();
 
   if (loading) {
     // Loading spinner with Tailwind
@@ -21,6 +22,27 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ element }) => {
     );
   }
 
+  // If route requires authorized wallet only, check both authentication and authorization
+  if (authorizedOnly) {
+    if (!isAuthenticated) {
+      return <Navigate to="/login" replace />;
+    }
+    if (!isAuthorizedWallet) {
+      // User is authenticated but not authorized - redirect to home with error
+      return (
+        <Navigate
+          to="/?error=unauthorized"
+          replace
+          state={{
+            message: "Access denied. Your wallet address is not authorized to access this page."
+          }}
+        />
+      );
+    }
+    return element;
+  }
+
+  // Standard authentication check
   return isAuthenticated ? element : <Navigate to="/login" replace />;
 };
 

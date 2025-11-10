@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
-import { FaPlusSquare, FaSave, FaTimes, FaTrash, FaExternalLinkAlt, FaUndo } from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext';
-import { useWalletAuthContext } from '../providers/WalletAuthProvider';
 import * as echarts from 'echarts';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FaExternalLinkAlt, FaPlusSquare, FaSave, FaTimes, FaTrash, FaUndo } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
 
 
 // Check your interface definition to ensure all required fields are present
@@ -345,11 +344,107 @@ const StakingTreemap: React.FC<{
   return <div ref={chartRef} style={{ width: '100%', height: '400px' }} />;
 };
 
+const DeletedStakingTableContent: React.FC<{
+  filteredStakingItems: Array<{ item: StakingItem; idx: number }>;
+  filteredCalculatedValues: Array<{ totalQuantity: number; itemValue: number }>;
+  filteredTotalValue: number;
+  selectedReturnPeriod: '7d' | '30d' | '60d' | '90d' | '120d';
+  hideValues: boolean;
+  restoreStakingItems: (index: number) => void;
+  formatNumber: (value: number, decimals?: number) => string;
+}> = ({
+  filteredStakingItems,
+  filteredCalculatedValues,
+  filteredTotalValue,
+  selectedReturnPeriod,
+  hideValues,
+  restoreStakingItems,
+  formatNumber
+}) => (
+  <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs">
+        <thead className="bg-gray-50 dark:bg-gray-700">
+          <tr>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300"></th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ticker</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Staked</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unclaimed</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Price</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{selectedReturnPeriod} Return</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Value</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">%</th>
+            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+          {filteredStakingItems.map(({ item, idx }) => {
+            const { totalQuantity, itemValue } = filteredCalculatedValues[filteredStakingItems.findIndex(f => f.idx === idx)];
+            const percentOfTotal = filteredTotalValue > 0 ? (itemValue / filteredTotalValue) * 100 : 0;
+
+            return (
+              <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td className="px-2 py-2 whitespace-nowrap text-xs">
+                  <button
+                    onClick={() => restoreStakingItems(idx)}
+                    className="inline-flex items-center px-1 py-1 border border-transparent text-xs rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-1 focus:ring-green-500"
+                  >
+                    {FaUndo({ style: { fontSize: '10px' } })}
+                  </button>
+                </td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{item.ticker}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(parseFloat(item.stakedQuantity || '0'), 4)}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(parseFloat(item.unclaimedQuantity || '0'), 4)}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(totalQuantity, 4)}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : `$${formatNumber(parseFloat(item.price || '0'))}`}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                  {(() => {
+                    const returnValue = (() => {
+                      switch (selectedReturnPeriod) {
+                        case '7d': return item.return7d;
+                        case '30d': return item.return30d;
+                        case '60d': return item.return60d;
+                        case '90d': return item.return90d;
+                        case '120d': return item.return120d;
+                        default: return undefined;
+                      }
+                    })();
+                    return returnValue ? (
+                      <span className={parseFloat(returnValue) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                        {parseFloat(returnValue) >= 0 ? '+' : ''}{formatNumber(parseFloat(returnValue), 2)}%
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">N/A</span>
+                    );
+                  })()}
+                </td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{hideValues ? '***' : `$${formatNumber(itemValue)}`}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{formatNumber(percentOfTotal, 1)}%</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{item.account}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot className="bg-gray-50 dark:bg-gray-700">
+          <tr>
+            <td colSpan={6} className="px-2 py-2 text-xs font-medium text-gray-900 dark:text-white">
+              <strong>Total Deleted Value:</strong>
+            </td>
+            <td colSpan={4} className="px-2 py-2 text-xs font-medium text-gray-900 dark:text-white">
+              <strong>{hideValues ? '***' : `$${formatNumber(filteredTotalValue)}`}</strong>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+);
+
 const Staking: React.FC = () => {
-  // Get the authenticated user
-  const { user } = useAuth();
-  const { getAccessToken, refreshToken } = useWalletAuthContext();
-  
+  // Get the authenticated user and authentication status
+  const { user, isAuthenticated, walletAddress } = useAuth();
+
   // Define the storage helper BEFORE any useState that uses it
   const storage = {
     save: (key: string, data: any) => {
@@ -380,7 +475,7 @@ const Staking: React.FC = () => {
       }
     }
   };
-    
+
   // Now you can safely use storage in useState initializers
   const [stakingItems, setStakingItems] = useState<StakingItem[]>(() => {
     // Try to load from localStorage immediately during state initialization
@@ -395,10 +490,10 @@ const Staking: React.FC = () => {
     if (saved && Array.isArray(saved) && saved.length > 0) {
       return saved;
     }
-    
+
     return []; // Default to empty array
   });
-  
+
   // Add these calculations at the component level
   const calculatedValues = useMemo(() => {
     return stakingItems.map(item => {
@@ -447,7 +542,7 @@ const Staking: React.FC = () => {
   const [priceUpdateDate, setPriceUpdateDate] = useState<string>('');
   const [priceUpdateError, setPriceUpdateError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // ADD HIDE VALUES STATE HERE
   const [hideValues, setHideValues] = useState(() => {
     const saved = storage.load('hideStakingValues');
@@ -464,7 +559,13 @@ const Staking: React.FC = () => {
   const [pricesLoaded, setPricesLoaded] = useState(false);
 
   // Add deleted staking items state
-  const [deletedStakingItems, setDeletedStakingItems] = useState<StakingItem[]>([]);
+  const [deletedStakingItems, setDeletedStakingItems] = useState<StakingItem[]>(() => {
+    const saved = storage.load('deletedStakingData');
+    if (saved && Array.isArray(saved)) {
+      return saved;
+    }
+    return [];
+  });
 
   // Filter staking items based on active tab
   const filteredStakingItems = useMemo(() => {
@@ -524,32 +625,20 @@ const Staking: React.FC = () => {
       try {
         // Wait for user to be available before fetching data
         if (user) {
-          // Only try loading from API if we have no items OR if user changed
-          if (stakingItems.length === 0) {
-            try {
-              await fetchStakingData(); // Changed from fetchBackupData
-            } catch (dataError) {
-              console.error("Failed to load staking data:", dataError);
-              // Fix: Properly handle the unknown error type
-              const errorMessage = dataError instanceof Error ? dataError.message : 'Unknown error occurred';
-              setPriceUpdateError(`Failed to load staking data: ${errorMessage}`);
-            }
-          }
+          // For SIWS, we work with local storage only
+          console.log('SIWS authenticated user:', user.address);
         }
-        
-        // Always load prices
+
+        // Always load prices (if API available)
         await fetchPriceData();
-        
-        // Also load deleted items
-        await fetchDeletedStakingData();
-        
+
       } catch (e) {
         console.error("Error in loadInitialData:", e);
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     loadInitialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]); // Intentionally excluding other dependencies to prevent infinite loops
@@ -570,131 +659,14 @@ const Staking: React.FC = () => {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
-  // Helper function to get a valid access token (refresh if expired)
-  const getValidAccessToken = useCallback(async (): Promise<string | null> => {
-    const token = getAccessToken();
-    if (!token) return null;
-
-    try {
-      // Decode token to check expiration
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const currentTime = Date.now() / 1000;
-
-      // If token expires within 5 minutes, refresh it
-      if (payload.exp && payload.exp - currentTime < 300) {
-        const refreshedUser = await refreshToken();
-        if (refreshedUser) {
-          const newToken = getAccessToken();
-          return newToken;
-        } else {
-          return null;
-        }
-      }
-
-      return token;
-    } catch (error) {
-      console.error('Error checking token validity:', error);
-      return null;
-    }
-  }, [getAccessToken, refreshToken]);
-
   const fetchPriceData = useCallback(async () => {
-    // setIsUpdatingPrices(true);
+    // For SIWS client-side only, we'll work without API calls
+    // Prices would need to be entered manually or fetched from public APIs
     setPriceUpdateError(null);
+    setPricesLoaded(true);
+    showStatus('Working in offline mode - prices must be entered manually', 'success');
+  }, [showStatus]);
 
-    try {
-      // Get unique ticker symbols from staking items
-      const symbols = [...new Set(stakingItems.map(item => item.ticker.toLowerCase()))];
-      
-      if (symbols.length === 0) {
-        console.log('No symbols to fetch prices for');
-        setPricesLoaded(true);
-        return;
-      }
-
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-
-      const url = new URL(`${baseUrl}/crypto_xdays`);
-      symbols.forEach(symbol => {
-        url.searchParams.append('baseCurrencies', symbol);
-      });
-
-      const accessToken = await getValidAccessToken();
-      if (!accessToken) {
-        throw new Error('No valid access token available');
-      }
-
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch price data: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      // Handle the response based on your API structure
-      let prices: PriceData = {};
-      let returns: ReturnData = {};
-      let date = '';
-
-      // Process the crypto xdays data
-      data.forEach((item: any) => {
-        const symbol = item.baseCurrency.toLowerCase();
-        if (item.close_1d !== null) {
-          prices[symbol] = item.close_1d;
-        }
-
-        // Calculate returns based on historical data
-        if (item.close_1d !== null && item.close_7d !== null) {
-          returns[`${symbol}_7d`] = ((item.close_1d - item.close_7d) / item.close_7d) * 100;
-        }
-        if (item.close_1d !== null && item.close_30d !== null) {
-          returns[`${symbol}_30d`] = ((item.close_1d - item.close_30d) / item.close_30d) * 100;
-        }
-        if (item.close_1d !== null && item.close_60d !== null) {
-          returns[`${symbol}_60d`] = ((item.close_1d - item.close_60d) / item.close_60d) * 100;
-        }
-        if (item.close_1d !== null && item.close_90d !== null) {
-          returns[`${symbol}_90d`] = ((item.close_1d - item.close_90d) / item.close_90d) * 100;
-        }
-        if (item.close_1d !== null && item.close_120d !== null) {
-          returns[`${symbol}_120d`] = ((item.close_1d - item.close_120d) / item.close_120d) * 100;
-        }
-      });
-
-      if (data.length > 0 && data[0].last_updated) {
-        date = data[0].last_updated;
-      } else {
-        date = new Date().toISOString();
-      }
-
-      setPriceData(prices);
-      setPriceUpdateDate(date);
-
-      // Update staking item prices and returns
-      updateStakingPrices(prices, returns, date);
-
-      const updatedCount = Object.keys(prices).length;
-      showStatus(`Successfully updated prices for ${updatedCount} ticker${updatedCount !== 1 ? 's' : ''}`, 'success');
-
-      setPricesLoaded(true);
-
-    } catch (error) {
-      console.error('Error fetching price data:', error);
-      setPriceUpdateError(`Failed to load price data: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      // setIsUpdatingPrices(false);
-    }
-  }, [API_BASE_URL, getValidAccessToken, showStatus]);
-  
   // Update staking items with latest prices and returns
   const updateStakingPrices = (prices: PriceData, returns: ReturnData, date: string) => {
     const updatedItems = stakingItems.map(item => {
@@ -713,503 +685,159 @@ const Staking: React.FC = () => {
       }
       return item;
     });
-    
+
     setStakingItems(updatedItems);
   };
 
+  // Helper function to format numbers
+  const formatNumber = (value: number, decimals: number = 2): string => {
+    if (isNaN(value)) return '0';
+    return value.toLocaleString('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+  };
+
+  // Handle input changes for the new item form
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setNewItem({
+    setNewItem(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Add a new staking item
+  const addStakingItem = () => {
+    if (!newItem.ticker || !newItem.account) {
+      showStatus('Please fill in ticker and account', 'error');
+      return;
+    }
+
+    const itemToAdd: StakingItem = {
       ...newItem,
-      [name]: value
+      username: user?.name || '',
+      price: newItem.price || '0',
+      return7d: newItem.return7d || '0',
+      return30d: newItem.return30d || '0',
+      return60d: newItem.return60d || '0',
+      return90d: newItem.return90d || '0',
+      return120d: newItem.return120d || '0',
+    };
+
+    const updatedItems = [...stakingItems, itemToAdd];
+    setStakingItems(updatedItems);
+    storage.save('stakingData', updatedItems);
+
+    // Reset form
+    setNewItem({
+      account: '',
+      ticker: '',
+      stakedQuantity: '0',
+      unclaimedQuantity: '0',
+      price: '0',
+      stakingUrl: ''
     });
+
+    showStatus('Staking item added successfully', 'success');
   };
 
-  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!editItem) return;
-    
-    const { name, value } = e.target;
-    setEditItem({
-      ...editItem,
-      [name]: value
-    });
+  // Remove a staking item
+  const removeStakingItem = (index: number) => {
+    const itemToRemove = stakingItems[index];
+    const updatedDeletedItems = [...deletedStakingItems, itemToRemove];
+    setDeletedStakingItems(updatedDeletedItems);
+    storage.save('deletedStakingData', updatedDeletedItems);
+
+    const updatedItems = stakingItems.filter((_, i) => i !== index);
+    setStakingItems(updatedItems);
+    storage.save('stakingData', updatedItems);
+
+    showStatus('Item moved to deleted', 'success');
   };
 
+  // Restore deleted staking items
+  const restoreStakingItems = (index: number) => {
+    const itemToRestore = deletedStakingItems[index];
+    const updatedItems = [...stakingItems, itemToRestore];
+    setStakingItems(updatedItems);
+    storage.save('stakingData', updatedItems);
+
+    const updatedDeletedItems = deletedStakingItems.filter((_, i) => i !== index);
+    setDeletedStakingItems(updatedDeletedItems);
+    storage.save('deletedStakingData', updatedDeletedItems);
+
+    showStatus('Item restored successfully', 'success');
+  };
+
+  // Start editing an item
   const startEditing = (index: number) => {
     setEditIndex(index);
-    setEditItem({...stakingItems[index]});
+    setEditItem({ ...stakingItems[index] });
   };
 
+  // Save edit
+  const saveEdit = () => {
+    if (editIndex !== null && editItem) {
+      const updatedItems = [...stakingItems];
+      updatedItems[editIndex] = { ...editItem, username: user?.name || '' };
+      setStakingItems(updatedItems);
+      storage.save('stakingData', updatedItems);
+      setEditIndex(null);
+      setEditItem(null);
+      showStatus('Item updated successfully', 'success');
+    }
+  };
+
+  // Cancel editing
   const cancelEditing = () => {
     setEditIndex(null);
     setEditItem(null);
   };
 
-  const saveEdit = () => {
-    if (editIndex === null || !editItem) return;
-    
-    const updatedItems = [...stakingItems];
-    updatedItems[editIndex] = editItem;
-    setStakingItems(updatedItems);
-    setEditIndex(null);
-    setEditItem(null);
-  };
-
-  // Replace the existing addStakingItem function
-  const addStakingItem = async () => {
-    if (!newItem.ticker) {
-      alert('Please enter a ticker symbol');
-      return;
-    }
-    
-    // Check for duplicates
-    const isDuplicate = stakingItems.some(item => 
-      item.ticker.toLowerCase() === newItem.ticker.toLowerCase() && 
-      item.account.toLowerCase() === newItem.account.toLowerCase()
-    );
-    
-    if (isDuplicate) {
-      const confirmMessage = `An item with ticker "${newItem.ticker}" and account "${newItem.account}" already exists. Add anyway?`;
-      if (!window.confirm(confirmMessage)) {
-        return;
-      }
-    }
-
-    try {
-      // Check if we have a price for this ticker
-      const ticker = newItem.ticker.toLowerCase();
-      const price = priceData[ticker] !== undefined ? priceData[ticker].toString() : newItem.price;
-      
-      const newStakingItem = {
-        ...newItem,
-        username: user?.address || 'Unknown User',
-        price,
-        priceLastUpdated: priceData[ticker] !== undefined ? priceUpdateDate : undefined
-      };
-      
-      // Add to local state
-      const updatedItems = [...stakingItems, newStakingItem];
-      setStakingItems(updatedItems);
-      
-      // Reset form
-      setNewItem({
-        username: '',
-        account: '',
-        ticker: '',
-        stakedQuantity: '0',
-        unclaimedQuantity: '0',
-        price: '0',
-        stakingUrl: ''
-      });
-      
-      // Hide form after successful add
-      setShowForm(false);
-      
-    } catch (error) {
-      console.error('Error adding item:', error);
-      alert(`Failed to add item: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  // Replace the existing removeStakingItem function
-  const removeStakingItem = async (index: number) => {
-    // Show confirmation dialog
-    const itemToDelete = stakingItems[index];
-    const confirmMessage = `Are you sure you want to delete ${itemToDelete.ticker} from ${itemToDelete.account}?`;
-    
-    if (!window.confirm(confirmMessage)) {
-      return; // User cancelled
-    }
-
-    try {
-      // Remove from local state first
-      const updatedItems = stakingItems.filter((_, i) => i !== index);
-      setStakingItems(updatedItems);
-      
-      // Also sync the updated list to API immediately
-      if (user?.name) {
-        await saveStakingToAPI(updatedItems);
-        console.log('Successfully deleted item and synced with API');
-      }
-      
-    } catch (error) {
-      console.error('Error deleting item:', error);
-      
-      // Show error message but don't revert the deletion from UI
-      // since the user might want to try syncing again later
-      alert(`Item deleted locally, but failed to sync with server: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  // DeletedStakingTableContent component
-  const DeletedStakingTableContent: React.FC<{
-    filteredStakingItems: Array<{ item: StakingItem; idx: number }>;
-    filteredCalculatedValues: Array<{ totalQuantity: number; itemValue: number }>;
-    filteredTotalValue: number;
-    selectedReturnPeriod: '7d' | '30d' | '60d' | '90d' | '120d';
-    hideValues: boolean;
-    restoreStakingItems: (items: StakingItem[]) => Promise<void>;
-    formatNumber: (value: number, decimals?: number) => string;
-  }> = ({
-    filteredStakingItems,
-    filteredCalculatedValues,
-    filteredTotalValue,
-    selectedReturnPeriod,
-    hideValues,
-    restoreStakingItems,
-    formatNumber
-  }) => {
-    const handleRestore = async (item: StakingItem) => {
-      const confirmMessage = `Are you sure you want to restore ${item.ticker} from ${item.account}?`;
-      if (!window.confirm(confirmMessage)) {
-        return;
-      }
-
-      try {
-        await restoreStakingItems([item]);
-      } catch (error) {
-        console.error('Error restoring item:', error);
-      }
-    };
-
-    return (
-      <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300"></th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ticker</th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Staked</th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unclaimed</th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total</th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Price</th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{selectedReturnPeriod} Return</th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Value</th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">%</th>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredStakingItems.map(({ item, idx }) => {
-                const { totalQuantity, itemValue } = filteredCalculatedValues[idx];
-                const percentOfTotal = filteredTotalValue > 0 ? (itemValue / filteredTotalValue) * 100 : 0;
-
-                return (
-                  <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-2 py-2 whitespace-nowrap text-xs">
-                      <button
-                        onClick={() => handleRestore(item)}
-                        className="inline-flex items-center px-1 py-1 border border-transparent text-xs rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-1 focus:ring-green-500"
-                      >
-                        {FaUndo({ style: { fontSize: '10px' } })}
-                      </button>
-                    </td>
-                    <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{item.ticker}</td>
-                    <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(parseFloat(item.stakedQuantity || '0'), 4)}</td>
-                    <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(parseFloat(item.unclaimedQuantity || '0'), 4)}</td>
-                    <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(totalQuantity, 4)}</td>
-                    <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
-                      ${hideValues ? '***' : formatNumber(parseFloat(item.price || '0'), 2)}
-                    </td>
-                    <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
-                      {(() => {
-                        const returnValue = (() => {
-                          switch (selectedReturnPeriod) {
-                            case '7d': return item.return7d;
-                            case '30d': return item.return30d;
-                            case '60d': return item.return60d;
-                            case '90d': return item.return90d;
-                            case '120d': return item.return120d;
-                            default: return undefined;
-                          }
-                        })();
-                        return returnValue ? (
-                          <span className={parseFloat(returnValue) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                            {parseFloat(returnValue) >= 0 ? '+' : ''}{formatNumber(parseFloat(returnValue), 2)}%
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">N/A</span>
-                        );
-                      })()}
-                    </td>
-                    <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{hideValues ? '***' : `$${formatNumber(itemValue)}`}</td>
-                    <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{formatNumber(percentOfTotal, 1)}%</td>
-                    <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
-                      <div
-                        className="cursor-pointer editable-cell hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1 py-1"
-                        title={item.account ? `Full account: ${item.account}` : 'No account specified'}
-                      >
-                        {item.account && item.account.length > 12
-                          ? item.account.substring(0, 12) + '...'
-                          : item.account || 'N/A'
-                        }
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <td colSpan={7} className="px-2 py-2 text-xs font-medium text-gray-900 dark:text-white">
-                  <strong>Total Deleted Value:</strong>
-                </td>
-                <td colSpan={3} className="px-2 py-2 text-xs font-medium text-gray-900 dark:text-white">
-                  <strong>{hideValues ? '***' : `$${formatNumber(filteredTotalValue)}`}</strong>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+  // Render editable cell
+  const renderEditableCell = (field: keyof StakingItem, item: StakingItem, index: number, isNumeric?: boolean, hideWhenPrivate?: boolean) => {
+    if (editIndex === index && editItem) {
+      return (
+        <input
+          type={isNumeric ? "number" : "text"}
+          name={field}
+          value={editItem[field] || ''}
+          onChange={(e) => editItem && setEditItem({...editItem, [field]: e.target.value})}
+          step={isNumeric ? "any" : undefined}
+          className={`w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 ${hideWhenPrivate && hideValues ? 'blur-sm' : ''}`}
+        />
+      );
+    } else {
+      const value = item[field];
+      const displayValue = hideWhenPrivate && hideValues ? '***' : (value || 'N/A');
+      return (
+        <div
+          onClick={() => startEditing(index)}
+          className="cursor-pointer editable-cell hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1 py-1"
+          title={value ? `Click to edit ${field}` : `No ${field} specified`}
+        >
+          {displayValue}
         </div>
-      </div>
-    );
+      );
+    }
   };
 
-  // Move this function INSIDE the Staking component, before the return statement
+  // Refresh from API (placeholder for SIWS)
+  const refreshFromAPI = () => {
+    showStatus('SIWS mode - no API sync available', 'success');
+  };
+
+  // Update all items with username
   const updateAllItemsWithUsername = () => {
     const updatedItems = stakingItems.map(item => ({
       ...item,
-      username: item.username || user?.address || 'Unknown User'
+      username: user?.name || ''
     }));
-    
     setStakingItems(updatedItems);
     storage.save('stakingData', updatedItems);
-    
-    alert(`Updated ${updatedItems.length} items with username: ${user?.address}`);
+    showStatus('All items updated with username', 'success');
   };
-
-  // Helper function to format numbers
-  const formatNumber = (value: number, decimals: number = 2): string => {
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals
-    }).format(value);
-  };
-
-  // Function to render editable cells
-  const renderEditableCell = (field: keyof StakingItem, item: StakingItem, index: number, isNumeric?: boolean, hideWhenPrivate?: boolean) => {
-    if (editIndex === index && editItem) {
-      if (field === 'price' || field === 'stakedQuantity' || field === 'unclaimedQuantity') {
-        return (
-          <input
-            type="number"
-            name={field}
-            value={editItem[field] || ''}
-            onChange={(e) => editItem && setEditItem({...editItem, [field]: e.target.value})}
-            step="any"
-            className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        );
-      } else {
-        return (
-          <input
-            type="text"
-            name={field}
-            value={editItem[field] || ''}
-            onChange={(e) => editItem && setEditItem({...editItem, [field]: e.target.value})}
-            className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        );
-      }
-    } else {
-      if (hideWhenPrivate && hideValues) {
-        return <span className="text-xs">***</span>;
-      }
-      if (isNumeric && typeof item[field] === 'string') {
-        return <span className="text-xs">{formatNumber(parseFloat(item[field] as string))}</span>;
-      }
-      return <span className="text-xs">{item[field] || 'N/A'}</span>;
-    }
-  };
-
-  // Function to fetch staking data from API
-  const fetchStakingData = useCallback(async () => {
-    try {
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-
-      const accessToken = await getValidAccessToken();
-      if (!accessToken) {
-        throw new Error('No valid access token available');
-      }
-
-      const username = user?.address;
-      if (!username) {
-        throw new Error('No user address available');
-      }
-
-      const url = new URL(`${baseUrl}/staking`);
-      url.searchParams.append('username', username);
-
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch staking data: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      if (data && Array.isArray(data)) {
-        setStakingItems(data);
-        storage.save('stakingData', data);
-        showStatus(`Successfully loaded ${data.length} staking items from server`, 'success');
-      }
-    } catch (error) {
-      console.error('Error fetching staking data:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setPriceUpdateError(`Failed to load staking data: ${errorMessage}`);
-      throw error;
-    }
-  }, [API_BASE_URL, getValidAccessToken, user?.address, showStatus, storage]);
-
-  // Function to fetch deleted staking data
-  const fetchDeletedStakingData = useCallback(async () => {
-    try {
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-
-      const accessToken = await getValidAccessToken();
-      if (!accessToken) {
-        throw new Error('No valid access token available');
-      }
-
-      const username = user?.address;
-      if (!username) {
-        throw new Error('No user address available');
-      }
-
-      const url = new URL(`${baseUrl}/staking/deleted`);
-      url.searchParams.append('username', username);
-
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch deleted staking data: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      if (data && Array.isArray(data)) {
-        setDeletedStakingItems(data);
-      }
-    } catch (error) {
-      console.error('Error fetching deleted staking data:', error);
-      // Don't throw here as this is not critical
-    }
-  }, [API_BASE_URL, getValidAccessToken, user?.address]);
-
-  // Function to save staking data to API
-  const saveStakingToAPI = useCallback(async (items: StakingItem[]) => {
-    try {
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-
-      const accessToken = await getValidAccessToken();
-      if (!accessToken) {
-        throw new Error('No valid access token available');
-      }
-
-      const username = user?.address;
-      if (!username) {
-        throw new Error('No user address available');
-      }
-
-      const response = await fetch(`${baseUrl}/staking`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: username,
-          data: items
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to save staking data: ${response.status} ${response.statusText}`);
-      }
-
-      showStatus('Successfully saved staking data to server', 'success');
-    } catch (error) {
-      console.error('Error saving staking data:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      showStatus(`Failed to save to server: ${errorMessage}`, 'error');
-      throw error;
-    }
-  }, [API_BASE_URL, getValidAccessToken, user?.address, showStatus]);
-
-  // Function to refresh data from API
-  const refreshFromAPI = useCallback(async () => {
-    try {
-      await fetchStakingData();
-      await fetchDeletedStakingData();
-      showStatus('Data refreshed from server', 'success');
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      showStatus(`Failed to refresh data: ${errorMessage}`, 'error');
-    }
-  }, [fetchStakingData, fetchDeletedStakingData, showStatus]);
-
-  // Function to restore staking items
-  const restoreStakingItems = useCallback(async (items: StakingItem[]) => {
-    try {
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-
-      const accessToken = await getValidAccessToken();
-      if (!accessToken) {
-        throw new Error('No valid access token available');
-      }
-
-      const username = user?.address;
-      if (!username) {
-        throw new Error('No user address available');
-      }
-
-      const response = await fetch(`${baseUrl}/staking/restore`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: username,
-          data: items
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to restore staking items: ${response.status} ${response.statusText}`);
-      }
-
-      // Refresh both active and deleted data
-      await fetchStakingData();
-      await fetchDeletedStakingData();
-      showStatus(`Successfully restored ${items.length} staking item(s)`, 'success');
-    } catch (error) {
-      console.error('Error restoring staking items:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      showStatus(`Failed to restore items: ${errorMessage}`, 'error');
-      throw error;
-    }
-  }, [API_BASE_URL, getValidAccessToken, user?.address, fetchStakingData, fetchDeletedStakingData, showStatus]);
 
   // Add this button to your UI near the other action buttons
   return (
@@ -1237,7 +865,7 @@ const Staking: React.FC = () => {
           </div>
 
           {/* Sync button */}
-          <button 
+          <button
             onClick={refreshFromAPI}
             disabled={!user || isLoading}
             title="Get latest data from server"
@@ -1248,7 +876,7 @@ const Staking: React.FC = () => {
 
           {/* Update username button (conditional) */}
           {user && stakingItems.some(item => !item.username) && (
-            <button 
+            <button
               onClick={updateAllItemsWithUsername}
               title="Add username to existing items"
               className="inline-flex items-center px-3 py-2 border border-yellow-300 dark:border-yellow-600 text-sm font-medium rounded-md text-yellow-700 dark:text-yellow-400 bg-white dark:bg-gray-800 hover:bg-yellow-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition duration-150 ease-in-out"
@@ -1256,9 +884,9 @@ const Staking: React.FC = () => {
               🔄 Update Items with Username
             </button>
           )}
-          
+
           {/* Hide values toggle */}
-          <button 
+          <button
             onClick={() => setHideValues(!hideValues)}
             title={hideValues ? "Show values" : "Hide values"}
             className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-400 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition duration-150 ease-in-out"
@@ -1267,15 +895,15 @@ const Staking: React.FC = () => {
           </button>
 
           {/* Add form toggle */}
-          <button 
+          <button
             onClick={() => setShowForm(!showForm)}
             className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 focus:outline-none transition duration-150 ease-in-out"
           >
-            {FaPlusSquare({ 
-              style: { 
+            {FaPlusSquare({
+              style: {
                 marginRight: showForm ? '8px' : 0,
                 fontSize: '0.875rem'
-              } 
+              }
             })}
             {showForm ? 'Hide Form' : ''}
           </button>
@@ -1287,7 +915,7 @@ const Staking: React.FC = () => {
           {priceUpdateError}
         </div>
       )}
-      
+
       {priceUpdateDate && (
         <div className="text-gray-500 dark:text-gray-400 text-sm mb-6">
           Price data last updated: {priceUpdateDate}
@@ -1417,8 +1045,8 @@ const Staking: React.FC = () => {
         </div>
       ) : stakingItems.length === 0 ? (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400 px-4 py-3 rounded">
-          {user 
-            ? `No staking assets found for ${user.name}. ${Object.keys(priceData).length} prices loaded.`
+          {isAuthenticated
+            ? `No staking assets found${user ? ` for ${user.name}` : walletAddress ? ` for ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : ''}. ${Object.keys(priceData).length} prices loaded.`
             : 'Please log in to view staking data.'
           }
         </div>
@@ -1543,8 +1171,8 @@ const Staking: React.FC = () => {
 
       {statusMessage && (
         <div className={`mt-6 px-4 py-3 rounded relative ${
-          statusMessage.type === 'success' 
-            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400' 
+          statusMessage.type === 'success'
+            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
             : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
         }`}>
           <span className="block sm:inline">{statusMessage.text}</span>
@@ -1557,7 +1185,7 @@ const Staking: React.FC = () => {
           </button>
         </div>
       )}
-      
+
       </div>
     </div>
   );

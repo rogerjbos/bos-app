@@ -16,6 +16,14 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      external: [
+        '@polkadot/api',
+        '@polkadot/extension-dapp',
+        '@polkadot/util',
+        '@polkadot/util-crypto',
+        '@polkadot/keyring',
+        '@polkadot/types',
+      ],
       output: {
         manualChunks: undefined,
       },

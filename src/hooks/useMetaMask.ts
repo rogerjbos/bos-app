@@ -121,28 +121,52 @@ export function useMetaMask() {
     setConnected(false);
   }, []);
 
-  // Method to refresh accounts - also prompts user to ensure we get current account
+  // Method to refresh accounts - gets current accounts without triggering selection
   const refreshAccounts = useCallback(async () => {
-    if (!window?.ethereum) return;
+    if (!window?.ethereum) return [];
     try {
-      // Try to request permissions first
-      try {
-        await window.ethereum.request({
-          method: "wallet_requestPermissions",
-          params: [{ eth_accounts: {} }],
-        });
-      } catch (permError) {
-        // Permission request failed or not supported, fall back to eth_requestAccounts
-      }
-
       const accs: string[] = await window.ethereum.request({
-        method: "eth_requestAccounts",
+        method: 'eth_accounts',
       });
       handleAccountsChanged(accs);
       return accs;
     } catch (error) {
       console.warn("Failed to refresh accounts", error);
       return [];
+    }
+  }, [handleAccountsChanged]);
+
+  // Method to switch accounts - forces MetaMask to show account selection
+  const switchAccount = useCallback(async () => {
+    if (!window?.ethereum) return;
+    try {
+      // First try to request permissions which should trigger account selection
+      await window.ethereum.request({
+        method: 'wallet_requestPermissions',
+        params: [{ eth_accounts: {} }],
+      });
+
+      // Then get the accounts
+      const accs: string[] = await window.ethereum.request({
+        method: 'eth_requestAccounts',
+      });
+
+      handleAccountsChanged(accs);
+      return accs;
+    } catch (error) {
+      console.warn("Failed to switch accounts, trying fallback", error);
+
+      // Fallback: try eth_requestAccounts directly
+      try {
+        const accs: string[] = await window.ethereum.request({
+          method: 'eth_requestAccounts',
+        });
+        handleAccountsChanged(accs);
+        return accs;
+      } catch (fallbackError) {
+        console.warn("Fallback account switching also failed", fallbackError);
+        return [];
+      }
     }
   }, [handleAccountsChanged]);
 
@@ -154,6 +178,7 @@ export function useMetaMask() {
     connect,
     disconnect,
     refreshAccounts,
+    switchAccount,
   };
 }
 

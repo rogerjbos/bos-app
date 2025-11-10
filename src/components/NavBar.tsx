@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import pulseLogo from '../assets/pulse_logo.jpg';
 import { useAuth } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
-import ConnectMetaMask from './ConnectMetaMask';
+import ConnectWallet from './ConnectWallet';
 
 const NavBar: React.FC = () => {
   const { theme, toggleTheme } = useContext(ThemeContext);
@@ -110,7 +110,7 @@ const NavBar: React.FC = () => {
                 {clientOpen && (
                   <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-3 z-50">
                     <div className="mb-3">
-                      <ConnectMetaMask />
+                      <ConnectWallet />
                     </div>
                     <div className="border-t border-gray-200 dark:border-gray-700 pt-2">
                       {renderProtectedLinks()}
@@ -121,7 +121,7 @@ const NavBar: React.FC = () => {
             )}
 
             {/* Wallet Connection */}
-            <ConnectMetaMask />
+            <ConnectWallet />
 
             {/* Theme Toggle Button */}
             <button
@@ -169,7 +169,7 @@ const NavBar: React.FC = () => {
             {isAuthenticated && (
               <div className="mt-2 bg-gray-50 dark:bg-gray-800 rounded-md p-2">
                 <div className="px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Client</div>
-                <div className="px-3 py-2"><ConnectMetaMask /></div>
+                <div className="px-3 py-2"><ConnectWallet /></div>
                 <div className="mt-2 space-y-1">
                   {protectedItems.map(item => (
                     <Link
@@ -196,7 +196,7 @@ const NavBar: React.FC = () => {
 
             {/* Mobile Wallet Connection */}
             <div className="px-3 py-2">
-              <ConnectMetaMask />
+              <ConnectWallet />
             </div>
           </div>
         </div>

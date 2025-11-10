@@ -1,7 +1,8 @@
 import Identicon from "@polkadot/react-identicon";
-import { Check, ChevronRight, Download, User, Wallet } from "lucide-react";
-import { useState, useEffect } from "react";
-import { web3Accounts, web3Enable } from "@polkadot/extension-dapp";
+import { useSIWSAuth, useWalletConnect } from '@shawncoe/siws-auth/react';
+import { Check, ChevronRight, Download, RefreshCw, User, UserCheck, Wallet } from "lucide-react";
+import { useState } from "react";
+import { useAuth } from '../context/AuthContext';
 import ConnectMetaMask from "./ConnectMetaMask";
 import { Button } from "./ui/Button";
 import {
@@ -24,53 +25,83 @@ export default function ConnectWallet() {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>("wallets");
   const [polkadotAccounts, setPolkadotAccounts] = useState<PolkadotAccount[]>([]);
-  const [connectedAccount, setConnectedAccount] = useState<PolkadotAccount | null>(null);
-  const [extensions, setExtensions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [switchingAccount, setSwitchingAccount] = useState(false);
+  const [authenticating, setAuthenticating] = useState(false);
 
-  // Initialize Polkadot extensions on mount
-  useEffect(() => {
-    const initExtensions = async () => {
-      try {
-        const exts = await web3Enable('Bos App');
-        setExtensions(exts);
-        setLoading(false);
-      } catch (error) {
-        console.error('Failed to initialize Polkadot extensions:', error);
-        setLoading(false);
-      }
-    };
-
-    initExtensions();
-  }, []);
+  // Use AuthContext and SIWS hooks
+  const { isAuthenticated, walletAddress, signIn, isAuthorizedWallet, signOut } = useAuth();
+  const { connect: siwsConnect, accounts: siwsAccounts, isConnecting: siwsConnecting } = useWalletConnect();
+  const { signIn: siwsSignIn, isSigningIn } = useSIWSAuth();
 
   const handleConnectWallet = async (extensionName: string) => {
     try {
-      const accounts = await web3Accounts({ extensions: [extensionName] });
-      const polkadotAccounts = accounts.map(acc => ({
+      console.log(`Attempting to connect to ${extensionName} via SIWS...`);
+      await siwsConnect();
+      console.log('SIWS connect completed');
+
+      // Use SIWS accounts directly
+      const polkadotAccounts = siwsAccounts.map(acc => ({
         address: acc.address,
-        name: acc.meta.name,
-        source: acc.meta.source,
+        name: `Account ${acc.address.slice(0, 8)}...${acc.address.slice(-4)}`,
+        source: extensionName,
       }));
+
+      console.log(`SIWS: Found ${siwsAccounts.length} address(es)`, siwsAccounts.map(acc => acc.address));
 
       setPolkadotAccounts(polkadotAccounts);
       setView("accounts");
     } catch (error) {
-      console.error("Failed to connect wallet:", error);
+      console.error("Failed to connect wallet via SIWS:", error);
     }
   };
 
-  const handleSelectAccount = (account: PolkadotAccount) => {
-    setConnectedAccount(account);
-    setOpen(false);
-    setView("wallets");
+  const handleSelectAccount = async (account: PolkadotAccount) => {
+    setAuthenticating(true);
+    try {
+      console.log(`Authenticating with Polkadot account: ${account.address}`);
+
+      // Authenticate with SIWS
+      await siwsSignIn({
+        address: account.address,
+        network: "polkadot",
+        statement: "Sign in to Bos App with your Polkadot account"
+      });
+
+      console.log('SIWS authentication completed');
+      setOpen(false);
+      setView("wallets");
+    } catch (error) {
+      console.error('SIWS authentication failed:', error);
+      alert('Failed to authenticate with the selected account. Please try again.');
+    } finally {
+      setAuthenticating(false);
+    }
   };
 
-  const handleDisconnect = () => {
-    setConnectedAccount(null);
-    setPolkadotAccounts([]);
-    setOpen(false);
-    setView("wallets");
+  const handleSwitchAccount = async (walletId: string) => {
+    setSwitchingAccount(true);
+    try {
+      console.log(`Attempting to switch account for wallet: ${walletId}`);
+      await siwsConnect(); // Re-connect will allow account selection
+      console.log('Account switch completed');
+    } catch (error) {
+      console.error('Failed to switch account:', error);
+      alert('Failed to switch accounts. Please try again or check your wallet extension.');
+    } finally {
+      setSwitchingAccount(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      console.log('Disconnecting all wallets...');
+      await signOut();
+      console.log('Disconnection completed');
+    } catch (error) {
+      console.error('Error during disconnection:', error);
+      // Fallback to reload if signOut fails
+      window.location.reload();
+    }
   };
 
   const handleOpenChange = (isOpen: boolean) => {
@@ -84,44 +115,43 @@ export default function ConnectWallet() {
     return `${address.slice(0, 6)}...${address.slice(-6)}`;
   };
 
-  // Get available wallets from extensions
+  // Get available wallets - simplified since we use SIWS
   const availableWallets = [
     {
       id: 'polkadot-js',
       name: 'Polkadot.js',
-      installed: extensions.some(ext => ext.name === 'polkadot-js'),
+      installed: true, // Assume available through SIWS
     },
     {
       id: 'talisman',
       name: 'Talisman',
-      installed: extensions.some(ext => ext.name === 'talisman'),
+      installed: true, // Assume available through SIWS
     },
     {
       id: 'subwallet-js',
       name: 'SubWallet',
-      installed: extensions.some(ext => ext.name === 'subwallet-js'),
+      installed: true, // Assume available through SIWS
     },
   ];
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <Button
-        variant={connectedAccount ? "secondary" : "default"}
+        variant={walletAddress ? "secondary" : "default"}
         size="lg"
         onClick={() => setOpen(true)}
         className="gap-2"
       >
-        {connectedAccount ? (
+        {walletAddress ? (
           <>
             <div className="flex items-center gap-2">
               <Identicon
-                value={connectedAccount.address}
+                value={walletAddress}
                 size={24}
                 theme="polkadot"
               />
               <span>
-                {connectedAccount.name ||
-                  truncateAddress(connectedAccount.address)}
+                {walletAddress.slice(0, 6)}...{walletAddress.slice(-6)}
               </span>
             </div>
           </>
@@ -138,12 +168,12 @@ export default function ConnectWallet() {
           <>
             <DialogHeader>
               <DialogTitle className="text-gradient">
-                {connectedAccount
+                {walletAddress
                   ? "Connected Wallets"
                   : "Connect Wallet"}
               </DialogTitle>
               <DialogDescription>
-                {connectedAccount
+                {walletAddress
                   ? "Select a wallet to view accounts or connect a new one"
                   : "Choose a wallet to connect to your account"}
               </DialogDescription>
@@ -156,11 +186,7 @@ export default function ConnectWallet() {
               {/* Polkadot wallets */}
               <div className="mb-4">
                 <h3 className="text-sm font-semibold text-gray-400 mb-2">Substrate Wallets</h3>
-                {loading ? (
-                  <div className="text-center py-4 text-gray-400 text-sm">
-                    Loading wallet extensions...
-                  </div>
-                ) : availableWallets.length === 0 ? (
+                {availableWallets.length === 0 ? (
                   <div className="text-center py-4 text-gray-400 text-sm">
                     No Polkadot wallet extensions detected. Install a wallet extension to connect.
                   </div>
@@ -179,7 +205,7 @@ export default function ConnectWallet() {
                             <span className="font-semibold text-white">
                               {wallet.name}
                             </span>
-                            {connectedAccount?.source === wallet.id && (
+                            {walletAddress && siwsAccounts.some(acc => acc.address === walletAddress) && (
                               <div className="flex items-center gap-1 text-xs text-green-400">
                                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
                                 Connected
@@ -191,16 +217,26 @@ export default function ConnectWallet() {
 
                       <div className="flex items-center gap-2">
                         {wallet.installed ? (
-                          connectedAccount?.source === wallet.id ? (
+                          walletAddress && siwsAccounts.some(acc => acc.address === walletAddress) ? (
                             <>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => setView("accounts")}
+                                onClick={() => handleSwitchAccount(wallet.id)}
+                                disabled={switchingAccount}
                                 className="gap-1"
                               >
-                                View Accounts
-                                <ChevronRight className="w-4 h-4" />
+                                {switchingAccount ? (
+                                  <>
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                    Switching...
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserCheck className="w-4 h-4" />
+                                    Switch Account
+                                  </>
+                                )}
                               </Button>
                               <Button
                                 variant="outline"
@@ -247,7 +283,7 @@ export default function ConnectWallet() {
               </div>
             </div>
 
-            {connectedAccount && (
+            {walletAddress && (
               <div className="mt-6 pt-6 border-t border-white/10">
                 <Button
                   variant="destructive"
@@ -290,13 +326,13 @@ export default function ConnectWallet() {
                 </div>
               ) : (
                 polkadotAccounts.map((account) => {
-                  const isSelected =
-                    connectedAccount?.address === account.address;
+                  const isSelected = walletAddress === account.address;
 
                   return (
                     <button
                       key={account.address}
                       onClick={() => handleSelectAccount(account)}
+                      disabled={authenticating}
                       className={`
                         w-full group relative flex items-center justify-between p-4 rounded-xl border
                         transition-all duration-300 text-left
@@ -305,6 +341,7 @@ export default function ConnectWallet() {
                             ? "border-pink-500 bg-pink-500/10"
                             : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-violet-500/50"
                         }
+                        ${authenticating ? 'opacity-50 cursor-not-allowed' : ''}
                       `}
                     >
                       <div className="flex items-center gap-3 flex-1">
@@ -318,6 +355,9 @@ export default function ConnectWallet() {
                             {account.name || "Unnamed Account"}
                             {isSelected && (
                               <Check className="w-4 h-4 text-pink-500" />
+                            )}
+                            {authenticating && (
+                              <RefreshCw className="w-4 h-4 animate-spin text-blue-400" />
                             )}
                           </div>
                           <p className="text-xs text-gray-400 mt-0.5 font-mono">

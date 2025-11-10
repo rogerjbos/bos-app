@@ -1,7 +1,6 @@
 import { Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useWalletAuthContext } from '../providers/WalletAuthProvider';
 import { KrakenBotSymbol, KrakenBotSymbolsConfig, SchwabBotSymbol, SchwabBotSymbolsConfig } from '../types/trading';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { Button } from './ui/Button';
@@ -13,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 
 // API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_KEY = import.meta.env.VITE_API_KEY;
 
 // Helper function to sanitize numeric fields
 const sanitizeNumericField = (value: any, defaultValue: number = 0): number => {
@@ -50,9 +50,8 @@ const sanitizeSchwabBotSymbol = (item: any): SchwabBotSymbol => {
 };
 
 const Bots: React.FC = () => {
-  // Get the authenticated user
-  const { user } = useAuth();
-  const { getAccessToken } = useWalletAuthContext();
+  // Get the authenticated user and auth state
+  const { user, isAuthenticated, walletAddress } = useAuth();
 
   const [tradingSymbols, setTradingSymbols] = useState<KrakenBotSymbolsConfig>([]);
   const [schwabSymbols, setSchwabSymbols] = useState<SchwabBotSymbolsConfig>([]);
@@ -123,7 +122,7 @@ const Bots: React.FC = () => {
     const loadInitialData = async () => {
       setIsLoading(true);
       try {
-        if (user) {
+        if (isAuthenticated) {
           const symbols = await fetchTradingConfig();
           // Extract unique baseCurrencies from trading symbols, lowercase
           const baseCurrencies: string[] = [...new Set(symbols.map((s: KrakenBotSymbol) => s.symbol.split('/')[0].toLowerCase()))];
@@ -147,20 +146,20 @@ const Bots: React.FC = () => {
 
     loadInitialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, isAuthenticated, walletAddress]);
 
   const fetchTradingConfig = useCallback(async (): Promise<KrakenBotSymbolsConfig> => {
-    if (!user?.name) {
+    if (!user?.name && !walletAddress) {
       return [];
     }
 
     try {
+      const identifier = user?.name || walletAddress;
       const response = await fetch(`${API_BASE_URL}/kraken-bot-symbols`, {
-        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${getAccessToken()}`,
-          'Content-Type': 'application/json',
-        },
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
@@ -168,147 +167,119 @@ const Bots: React.FC = () => {
       }
 
       const data = await response.json();
-
-      // Handle the response based on your API structure
-      let apiData = [];
-      if (Array.isArray(data)) {
-        apiData = data;
-      } else if (data.data && Array.isArray(data.data)) {
-        apiData = data.data;
-      } else if (data) {
-        // If single object, wrap in array
-        apiData = [data];
-      }
-
-      // Sanitize the data to ensure numeric fields are properly handled
-      const sanitizedData = apiData.map(sanitizeKrakenBotSymbol);
-      setTradingSymbols(sanitizedData);
-      return sanitizedData;
+      setTradingSymbols(data);
+      return data;
     } catch (error) {
-      console.error('Error fetching trading config from API:', error);
-      throw error;
+      console.error('Error fetching trading config:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      showStatus(`Failed to fetch trading config: ${errorMessage}`, 'error');
+      return [];
     }
-  }, [user?.name, API_BASE_URL, getAccessToken]);
+  }, [user?.name, walletAddress, API_BASE_URL, API_KEY]);
 
   const saveTradingConfigToAPI = useCallback(async (data: KrakenBotSymbolsConfig) => {
-    if (!user?.name) {
+    if (!user?.name && !walletAddress) {
       return false;
     }
 
     try {
+      const identifier = user?.name || walletAddress;
       const response = await fetch(`${API_BASE_URL}/kraken-bot-symbols`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${getAccessToken()}`,
-          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          username: user.name,
+          username: identifier,
           data: data
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to save to API: ${response.status} ${response.statusText}`);
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error saving to API:', error);
-      throw error;
-    }
-  }, [user?.name, API_BASE_URL, getAccessToken]);
-
-  const fetchSchwabConfig = useCallback(async () => {
-    if (!user?.name) {
-      return [];
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/schwab-bot-symbols`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${getAccessToken()}`,
-          'Content-Type': 'application/json',
-        },
+        })
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      // Handle the response based on your API structure
-      let apiData = [];
-      if (Array.isArray(data)) {
-        apiData = data;
-      } else if (data.data && Array.isArray(data.data)) {
-        apiData = data.data;
-      } else if (data) {
-        // If single object, wrap in array
-        apiData = [data];
-      }
-
-      // Sanitize the data to ensure numeric fields are properly handled
-      const sanitizedData = apiData.map(sanitizeSchwabBotSymbol);
-      setSchwabSymbols(sanitizedData);
-      return sanitizedData;
-    } catch (error) {
-      console.error('Error fetching schwab config from API:', error);
-      throw error;
-    }
-  }, [user?.name, API_BASE_URL, getAccessToken]);
-
-  const saveSchwabConfigToAPI = useCallback(async (data: SchwabBotSymbolsConfig) => {
-    if (!user?.name) {
-      return false;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/schwab-bot-symbols`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${getAccessToken()}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: user.name,
-          data: data
-        }),
-      });
-
-      if (!response.ok) {
-        // Try to extract error details from response body
-        let errorDetail = `${response.status} ${response.statusText}`;
-        try {
-          const errorText = await response.text();
-          if (errorText) {
-            try {
-              const errorData = JSON.parse(errorText);
-              if (errorData.detail) {
-                errorDetail = errorData.detail;
-              } else if (errorData.message) {
-                errorDetail = errorData.message;
-              }
-            } catch (parseError) {
-              // If it's not JSON, use the raw text
-              errorDetail = errorText.substring(0, 200); // Limit length
-            }
-          }
-        } catch (e) {
-          // Ignore JSON parse errors, keep default error message
-        }
-        throw new Error(`Failed to save to API: ${errorDetail}`);
       }
 
       const result = await response.json();
-      return true;
+      if (result.success) {
+        showStatus('Trading configuration saved successfully', 'success');
+        return true;
+      } else {
+        throw new Error(result.message || 'Failed to save trading config');
+      }
     } catch (error) {
-      console.error('Error saving schwab config to API:', error);
-      throw error;
+      console.error('Error saving trading config:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      showStatus(`Failed to save trading config: ${errorMessage}`, 'error');
+      return false;
     }
-  }, [user?.name, API_BASE_URL, getAccessToken]);
+  }, [user?.name, walletAddress, API_BASE_URL, API_KEY]);
+
+  const fetchSchwabConfig = useCallback(async () => {
+    if (!user?.name && !walletAddress) {
+      return [];
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/schwab-bot-symbols`, {
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setSchwabSymbols(data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching schwab config:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      showStatus(`Failed to fetch schwab config: ${errorMessage}`, 'error');
+      return [];
+    }
+  }, [user?.name, walletAddress, API_BASE_URL, API_KEY]);
+
+  const saveSchwabConfigToAPI = useCallback(async (data: SchwabBotSymbolsConfig) => {
+    if (!user?.name && !walletAddress) {
+      return false;
+    }
+
+    try {
+      const identifier = user?.name || walletAddress;
+      const response = await fetch(`${API_BASE_URL}/schwab-bot-symbols`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          username: identifier,
+          data: data
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        showStatus('Schwab configuration saved successfully', 'success');
+        return true;
+      } else {
+        throw new Error(result.message || 'Failed to save schwab config');
+      }
+    } catch (error) {
+      console.error('Error saving schwab config:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      showStatus(`Failed to save schwab config: ${errorMessage}`, 'error');
+      return false;
+    }
+  }, [user?.name, walletAddress, API_BASE_URL, API_KEY]);
 
   // Auto-save when tradingSymbols changes
   useEffect(() => {
@@ -665,13 +636,11 @@ const Bots: React.FC = () => {
     if (symbols.length === 0) return;
 
     try {
-      const queryParams = symbols.map(sym => `symbols=${encodeURIComponent(sym)}`).join('&');
-      const response = await fetch(`${API_BASE_URL}/crypto_thresholds?${queryParams}`, {
-        method: 'GET',
+      const response = await fetch(`${API_BASE_URL}/crypto_thresholds?${symbols.map(s => `symbols=${encodeURIComponent(s)}`).join('&')}`, {
         headers: {
-          'Authorization': `Bearer ${getAccessToken()}`,
-          'Content-Type': 'application/json',
-        },
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
@@ -679,34 +648,30 @@ const Bots: React.FC = () => {
       }
 
       const data = await response.json();
-
-      // Transform into a map keyed by baseCurrency
-      const thresholdsMap: {[key: string]: {min_entry_threshold: number, min_exit_threshold: number}} = {};
+      const thresholds: {[key: string]: {min_entry_threshold: number, min_exit_threshold: number}} = {};
       data.forEach((item: any) => {
-        thresholdsMap[item.baseCurrency] = {
+        thresholds[item.baseCurrency.toLowerCase()] = {
           min_entry_threshold: item.min_entry_threshold,
           min_exit_threshold: item.min_exit_threshold
         };
       });
-
-      setCryptoThresholds(thresholdsMap);
+      setCryptoThresholds(thresholds);
     } catch (error) {
       console.error('Error fetching crypto thresholds:', error);
       // Don't show error for thresholds, just log it
+      console.warn('Failed to fetch crypto thresholds');
     }
-  }, [API_BASE_URL, getAccessToken]);
+  }, [API_BASE_URL, API_KEY]);
 
   const fetchStockThresholds = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
 
     try {
-      const queryParams = symbols.map(sym => `symbols=${encodeURIComponent(sym)}`).join('&');
-      const response = await fetch(`${API_BASE_URL}/stock_thresholds?${queryParams}`, {
-        method: 'GET',
+      const response = await fetch(`${API_BASE_URL}/stock_thresholds?${symbols.map(s => `symbols=${encodeURIComponent(s)}`).join('&')}`, {
         headers: {
-          'Authorization': `Bearer ${getAccessToken()}`,
-          'Content-Type': 'application/json',
-        },
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
@@ -714,34 +679,30 @@ const Bots: React.FC = () => {
       }
 
       const data = await response.json();
-
-      // Transform into a map keyed by symbol
-      const thresholdsMap: {[key: string]: {entry_threshold: number, exit_threshold: number}} = {};
+      const thresholds: {[key: string]: {entry_threshold: number, exit_threshold: number}} = {};
       data.forEach((item: any) => {
-        thresholdsMap[item.symbol] = {
+        thresholds[item.symbol] = {
           entry_threshold: item.entry_threshold,
           exit_threshold: item.exit_threshold
         };
       });
-
-      setStockThresholds(thresholdsMap);
+      setStockThresholds(thresholds);
     } catch (error) {
       console.error('Error fetching stock thresholds:', error);
       // Don't show error for thresholds, just log it
+      console.warn('Failed to fetch stock thresholds');
     }
-  }, [API_BASE_URL, getAccessToken]);
+  }, [API_BASE_URL, API_KEY]);
 
   const fetchLatestCryptoPrices = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
 
     try {
-      const queryParams = symbols.map(sym => `symbols=${encodeURIComponent(sym)}`).join('&');
-      const response = await fetch(`${API_BASE_URL}/latest_crypto_price?${queryParams}`, {
-        method: 'GET',
+      const response = await fetch(`${API_BASE_URL}/latest_crypto_price?${symbols.map(s => `symbols=${encodeURIComponent(s)}`).join('&')}`, {
         headers: {
-          'Authorization': `Bearer ${getAccessToken()}`,
-          'Content-Type': 'application/json',
-        },
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
@@ -749,34 +710,30 @@ const Bots: React.FC = () => {
       }
 
       const data = await response.json();
-
-      // Transform into a map keyed by baseCurrency
-      const pricesMap: {[key: string]: {close: number, return30d: number}} = {};
+      const prices: {[key: string]: {close: number, return30d: number}} = {};
       data.forEach((item: any) => {
-        pricesMap[item.baseCurrency] = {
+        prices[item.symbol.toLowerCase()] = {
           close: item.close,
-          return30d: item.return30d || 0
+          return30d: item.return30d
         };
       });
-
-      setCryptoPrices(pricesMap);
+      setCryptoPrices(prices);
     } catch (error) {
       console.error('Error fetching latest crypto prices:', error);
       // Don't show error for prices, just log it
+      console.warn('Failed to fetch latest crypto prices');
     }
-  }, [API_BASE_URL, getAccessToken]);
+  }, [API_BASE_URL, API_KEY]);
 
   const fetchLatestStockPrices = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
 
     try {
-      const queryParams = symbols.map(sym => `symbols=${encodeURIComponent(sym)}`).join('&');
-      const response = await fetch(`${API_BASE_URL}/latest_stock_price?${queryParams}`, {
-        method: 'GET',
+      const response = await fetch(`${API_BASE_URL}/latest_stock_price?${symbols.map(s => `symbols=${encodeURIComponent(s)}`).join('&')}`, {
         headers: {
-          'Authorization': `Bearer ${getAccessToken()}`,
-          'Content-Type': 'application/json',
-        },
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
@@ -784,22 +741,20 @@ const Bots: React.FC = () => {
       }
 
       const data = await response.json();
-
-      // Transform into a map keyed by symbol
-      const pricesMap: {[key: string]: {close: number, return30d: number}} = {};
+      const prices: {[key: string]: {close: number, return30d: number}} = {};
       data.forEach((item: any) => {
-        pricesMap[item.symbol] = {
+        prices[item.symbol] = {
           close: item.close,
-          return30d: item.return30d || 0
+          return30d: item.return30d
         };
       });
-
-      setStockPrices(pricesMap);
+      setStockPrices(prices);
     } catch (error) {
       console.error('Error fetching latest stock prices:', error);
       // Don't show error for prices, just log it
+      console.warn('Failed to fetch latest stock prices');
     }
-  }, [API_BASE_URL, getAccessToken]);
+  }, [API_BASE_URL, API_KEY]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -808,7 +763,7 @@ const Bots: React.FC = () => {
           <h1 className="text-3xl font-bold text-foreground">Trading Bots Config</h1>
           <Button
             onClick={refreshFromAPI}
-            disabled={!user || isLoading}
+            disabled={!isAuthenticated || isLoading}
             variant="outline"
             size="sm"
           >
@@ -970,7 +925,7 @@ const Bots: React.FC = () => {
               <Card className="border-yellow-500/20 bg-yellow-500/10">
                 <CardContent className="pt-6">
                   <p className="text-sm">
-                    {user
+                    {isAuthenticated
                       ? 'No trading symbols configured.'
                       : 'Please log in to view trading configuration.'
                     }
