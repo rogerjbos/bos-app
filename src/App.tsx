@@ -10,6 +10,7 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import PortfolioPage from './pages/PortfolioPage';
 import ReportsPage from './pages/ReportsPage';
+import SourdoughRecipes from './pages/SourdoughRecipes';
 import StakingPage from './pages/StakingPage';
 import WatchlistPage from './pages/WatchlistPage';
 
@@ -42,6 +43,7 @@ const App: React.FC = () => {
                 <Route path="/backtester" element={<ProtectedRoute element={<BacktesterPage />} />} />
                 <Route path="/ranks" element={<ProtectedRoute element={<Ranks />} />} />
                 <Route path="/counter" element={<Counter />} />
+                <Route path="/sourdough" element={<SourdoughRecipes />} />
               </Routes>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
-import React, { useContext, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useContext, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import pulseLogo from '../assets/pulse_logo.jpg';
 import { useAuth } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
@@ -9,6 +9,9 @@ import ConnectMetaMask from './ConnectMetaMask';
 const NavBar: React.FC = () => {
   const { theme, toggleTheme } = useContext(ThemeContext);
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const [clientOpen, setClientOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const toggleMenu = () => {
@@ -16,26 +19,53 @@ const NavBar: React.FC = () => {
   };
 
   // Navigation items based on authentication status
-  const getNavigationItems = () => {
-    const publicItems = [
-      { to: '/', label: 'Home' },
-      { to: '/counter', label: 'Counter' },
-    ];
+  const publicItems = [
+    { to: '/', label: 'Home' },
+    { to: '/counter', label: 'Counter' },
+    { to: '/sourdough', label: 'Personal' },
+  ];
 
-    const protectedItems = [
-      { to: '/reports', label: 'Reports' },
-      { to: '/staking', label: 'Staking' },
-      { to: '/watchlist', label: 'Watchlist' },
-      { to: '/portfolio', label: 'Portfolio' },
-      { to: '/bots', label: 'Bots' },
-      { to: '/backtester', label: 'Backtester' },
-      { to: '/ranks', label: 'Ranks' },
-    ];
+  const protectedItems = [
+    { to: '/reports', label: 'Reports' },
+    { to: '/staking', label: 'Staking' },
+    { to: '/watchlist', label: 'Watchlist' },
+    { to: '/portfolio', label: 'Portfolio' },
+    { to: '/bots', label: 'Bots' },
+    { to: '/backtester', label: 'Backtester' },
+    { to: '/ranks', label: 'Ranks' },
+  ];
 
-    return isAuthenticated ? [...publicItems, ...protectedItems] : publicItems;
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (clientOpen && dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setClientOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [clientOpen]);
+
+  const onClientClick = () => {
+    setClientOpen(o => !o);
   };
 
-  const navigationItems = getNavigationItems();
+  const renderProtectedLinks = () => (
+    <div className="py-1">
+      {protectedItems.map(item => (
+        <button
+          key={item.to}
+          onClick={() => {
+            navigate(item.to);
+            setClientOpen(false);
+          }}
+          className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
@@ -56,7 +86,7 @@ const NavBar: React.FC = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex md:items-center md:space-x-4">
-            {navigationItems.map((item) => (
+            {publicItems.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
@@ -65,6 +95,30 @@ const NavBar: React.FC = () => {
                 {item.label}
               </Link>
             ))}
+
+            {/* Client Dropdown */}
+            {isAuthenticated && (
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  type="button"
+                  onClick={onClientClick}
+                  className="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+                >
+                  Client
+                  <span className="text-xs">▾</span>
+                </button>
+                {clientOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-3 z-50">
+                    <div className="mb-3">
+                      <ConnectMetaMask />
+                    </div>
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-2">
+                      {renderProtectedLinks()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Wallet Connection */}
             <ConnectMetaMask />
@@ -102,7 +156,7 @@ const NavBar: React.FC = () => {
       {isMenuOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
-            {navigationItems.map((item) => (
+            {publicItems.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
@@ -112,6 +166,24 @@ const NavBar: React.FC = () => {
                 {item.label}
               </Link>
             ))}
+            {isAuthenticated && (
+              <div className="mt-2 bg-gray-50 dark:bg-gray-800 rounded-md p-2">
+                <div className="px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Client</div>
+                <div className="px-3 py-2"><ConnectMetaMask /></div>
+                <div className="mt-2 space-y-1">
+                  {protectedItems.map(item => (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={() => { toggleMenu(); }}
+                      className="block px-3 py-2 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Mobile Theme Toggle */}
             <button
