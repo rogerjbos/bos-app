@@ -3,7 +3,6 @@ import * as echarts from 'echarts';
 import React, { useEffect, useMemo, useState } from 'react';
 import { FaSync } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
-import { useWalletAuthContext } from '../providers/WalletAuthProvider';
 
 // Types for the decision data
 interface Decision {
@@ -28,11 +27,13 @@ interface StockReturns {
 }
 
 // API configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL = import.meta.env.DEV
+  ? (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:4000/api')
+  : (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:4000/api');
+const API_KEY = import.meta.env.VITE_API_KEY;
 
 const Backtester: React.FC = () => {
   const { user } = useAuth();
-  const { getAccessToken, refreshToken } = useWalletAuthContext();
   const [activeTab, setActiveTab] = useState<'stocks' | 'crypto'>('stocks');
 
   // Data states
@@ -56,30 +57,8 @@ const Backtester: React.FC = () => {
 
   // Helper function to get a valid access token (refresh if expired)
   const getValidAccessToken = async (): Promise<string | null> => {
-    const token = getAccessToken();
-    if (!token) return null;
-
-    try {
-      // Decode token to check expiration
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const currentTime = Date.now() / 1000;
-
-      // If token expires within 5 minutes, refresh it
-      if (payload.exp && payload.exp - currentTime < 300) {
-        const refreshedUser = await refreshToken();
-        if (refreshedUser) {
-          const newToken = getAccessToken();
-          return newToken;
-        } else {
-          return null;
-        }
-      }
-
-      return token;
-    } catch (error) {
-      console.error('Error checking token validity:', error);
-      return null;
-    }
+    // For API key authentication, we don't need tokens
+    return API_KEY;
   };
 
   // Get available datasets
@@ -87,28 +66,22 @@ const Backtester: React.FC = () => {
     setLoadingDatasets(true);
     setError('');
     try {
-      const accessToken = await getValidAccessToken();
-      if (!accessToken) {
-        throw new Error('No valid access token available');
-      }
-
       const response = await fetch(`${API_BASE_URL}/backtester_decisions/datasets`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
         },
       });
+
       if (!response.ok) {
-        throw new Error('Failed to fetch datasets');
+        throw new Error(`Failed to fetch datasets: ${response.status}`);
       }
+
       const data = await response.json();
       setDatasets(data);
-      // Auto-select first dataset if available
-      if (data.length > 0 && !selectedDataset) {
-        setSelectedDataset(data[0]);
-      }
     } catch (err) {
+      console.error('Error fetching datasets:', err);
       setError(`Failed to load datasets: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setLoadingDatasets(false);
@@ -122,28 +95,26 @@ const Backtester: React.FC = () => {
     setLoadingTickers(true);
     setError('');
     try {
-      const accessToken = await getValidAccessToken();
-      if (!accessToken) {
-        throw new Error('No valid access token available');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/backtester_decisions/${assetType}/tickers?dataset=${encodeURIComponent(dataset)}`, {
+      const response = await fetch(`${API_BASE_URL}/backtester_decisions/${assetType}/tickers?dataset=${dataset}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
         },
       });
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch ${assetType} tickers`);
+        throw new Error(`Failed to fetch ${assetType} tickers: ${response.status}`);
       }
+
       const data = await response.json();
       if (assetType === 'stocks') {
-        setStockTickers(data);
+        setStockTickers(Array.isArray(data) ? data : data.tickers || []);
       } else {
-        setCryptoTickers(data);
+        setCryptoTickers(Array.isArray(data) ? data : data.tickers || []);
       }
     } catch (err) {
+      console.error(`Error fetching ${assetType} tickers:`, err);
       setError(`Failed to load ${assetType} tickers: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setLoadingTickers(false);
@@ -157,29 +128,24 @@ const Backtester: React.FC = () => {
     setLoadingDecisions(true);
     setError('');
     try {
-      const accessToken = await getValidAccessToken();
-      if (!accessToken) {
-        throw new Error('No valid access token available');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/backtester_decisions/${assetType}/${ticker}?dataset=${encodeURIComponent(dataset)}`, {
+      const response = await fetch(`${API_BASE_URL}/backtester_decisions/${assetType}/${ticker}?dataset=${dataset}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
         },
       });
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ${assetType} decisions for ${ticker}`);
-      }
-      const data: Decision[] = await response.json();
-      setDecisions(data);
 
-      // Extract unique strategies
-      const uniqueStrategies = [...new Set(data.map(d => d.strategy))].sort();
-      setStrategies(uniqueStrategies);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${assetType} decisions: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setDecisions(data || []);
+      setStrategies([...new Set((data as Decision[]).map((d: Decision) => d.strategy))]); // Extract unique strategies from decisions
     } catch (err) {
-      setError(`Failed to load decisions: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      console.error(`Error fetching ${assetType} decisions:`, err);
+      setError(`Failed to load ${assetType} decisions: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setLoadingDecisions(false);
     }
@@ -189,42 +155,26 @@ const Backtester: React.FC = () => {
   const fetchReturnsData = async (assetType: 'stocks' | 'crypto', ticker: string) => {
     setLoadingReturns(true);
     try {
-      const accessToken = await getValidAccessToken();
-      if (!accessToken) {
-        throw new Error('No valid access token available');
-      }
+      const endpoint = assetType === 'stocks' ? '/stock_returns' : '/crypto_returns';
+      const symbolParam = assetType === 'stocks' ? 'symbols' : 'baseCurrencies';
 
-      const endpoint = assetType === 'stocks' ? 'stock_returns' : 'crypto_returns';
-      const paramName = assetType === 'stocks' ? 'symbols' : 'baseCurrencies';
-      const url = `${API_BASE_URL}/${endpoint}?${paramName}=${encodeURIComponent(ticker)}`;
-
-      // Get data for the entire period covered by the decision data
-      const endDate = new Date().toISOString().split('T')[0];
-      // Find the earliest date from the decision data
-      const minDecisionDate = decisions.length > 0
-        ? decisions.reduce((min, decision) =>
-            new Date(decision.date + 'T00:00:00Z') < new Date(min + 'T00:00:00Z') ? decision.date : min,
-            decisions[0].date
-          )
-        : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // fallback to 1 year back
-      const startDate = minDecisionDate;
-      const fullUrl = `${url}&start_date=${startDate}&end_date=${endDate}`;
-
-      const response = await fetch(fullUrl, {
+      const response = await fetch(`${API_BASE_URL}${endpoint}?${symbolParam}=${ticker}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
         },
       });
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch returns data`);
+        throw new Error(`Failed to fetch ${assetType} returns data: ${response.status}`);
       }
+
       const data = await response.json();
       setReturnsData(data);
     } catch (err) {
-      console.warn(`Failed to load returns data: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      // Don't set error state for returns data as it's not critical
+      console.error(`Error fetching ${assetType} returns data:`, err);
+      // Don't set error for returns data as it's optional for display
     } finally {
       setLoadingReturns(false);
     }

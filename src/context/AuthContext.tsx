@@ -1,12 +1,28 @@
-import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import { useWalletAuthContext } from '../providers/WalletAuthProvider';
+import { useSIWS, useSIWSAuth, useWalletConnect } from '@shawncoe/siws-auth/react';
+import React, { createContext, ReactNode, useContext, useEffect } from 'react';
+import { useMetaMaskContext } from '../providers/MetaMaskProvider';
+
+// MetaMask hook type
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
 
 // List of authorized wallet addresses (case insensitive) - fallback for non-JWT auth
 const AUTHORIZED_WALLETS = import.meta.env.VITE_AUTHORIZED_WALLETS?.toLowerCase().split(',') || [];
+console.log('AUTHORIZED_WALLETS:', AUTHORIZED_WALLETS);
 
 interface WalletUser {
   address: string;
   name: string;
+  identity?: {
+    display?: string;
+    legal?: string;
+    email?: string;
+    web?: string;
+  };
+  verified?: boolean;
 }
 
 interface AuthContextType {
@@ -17,6 +33,8 @@ interface AuthContextType {
   isAuthorizedWallet: boolean;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
+  signIn: () => Promise<void>;
+  signOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -26,7 +44,9 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthorizedWallet: false,
   connectWallet: async () => {},
-  disconnectWallet: () => {}
+  disconnectWallet: () => {},
+  signIn: async () => {},
+  signOut: () => {}
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -36,50 +56,108 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [loading, setLoading] = useState(true);
+  const { user: siwsUser, isAuthenticated: siwsAuthenticated, isLoading: siwsLoading, signOut: siwsSignOut } = useSIWS();
+  const { signIn: siwsSignIn } = useSIWSAuth();
+  const { accounts } = useWalletConnect();
+  console.log('AuthContext useWalletConnect accounts:', accounts);
 
-  // Use the JWT wallet authentication context
-  const { user: jwtUser, isAuthenticated: jwtAuthenticated, isLoading: jwtLoading } = useWalletAuthContext();
+  // Use MetaMask context instead of direct detection
+  const { accounts: metaMaskAccounts, connected: metaMaskConnected, disconnect: metaMaskDisconnect } = useMetaMaskContext();
 
-  // For backward compatibility, also check MetaMask connection (but prioritize JWT auth)
-  const walletAddress = jwtUser?.address || null;
-  const isAuthorizedWallet = walletAddress ? AUTHORIZED_WALLETS.includes(walletAddress.toLowerCase()) : false;
+  // Get current wallet address - prefer SIWS user address, then SIWS accounts, then MetaMask
+  const currentWalletAddress = siwsUser?.address || accounts[0]?.address || metaMaskAccounts[0] || null;  // Convert SIWS user to our WalletUser format
+  const siwsWalletAddress = siwsUser?.address || null;
 
-  // Use JWT authentication as primary, fall back to authorized wallet list
-  const isAuthenticated = jwtAuthenticated || isAuthorizedWallet;
+  // Check if the currently connected wallet is authorized
+  const isAuthorizedWallet = currentWalletAddress ? AUTHORIZED_WALLETS.includes(currentWalletAddress.toLowerCase()) : false;
+  console.log('Checking authorization:', currentWalletAddress?.toLowerCase(), 'in', AUTHORIZED_WALLETS, '=', isAuthorizedWallet);
 
-  const user: WalletUser | null = jwtUser ? {
-    address: jwtUser.address,
-    name: jwtUser.address ? `${jwtUser.address.slice(0, 6)}...${jwtUser.address.slice(-4)}` : 'Unknown'
+  // Check if current wallet matches authenticated SIWS wallet
+  const walletMatchesAuth = !siwsAuthenticated || (siwsWalletAddress === currentWalletAddress);
+
+  // Determine if this is a MetaMask connection
+  const isMetaMaskConnection = metaMaskConnected && metaMaskAccounts.length > 0 && currentWalletAddress === metaMaskAccounts[0];
+
+  // Use SIWS authentication only if wallet matches AND wallet is authorized AND it's not a MetaMask connection
+  // For authorized wallets (including MetaMask), allow access without SIWS
+  const isAuthenticated = (siwsAuthenticated && walletMatchesAuth && AUTHORIZED_WALLETS.includes(siwsWalletAddress?.toLowerCase() || '')) ||
+                         isAuthorizedWallet;  // Debug logging for wallet address changes
+  useEffect(() => {
+    console.log('AuthContext - Current wallet:', currentWalletAddress);
+    console.log('AuthContext - SIWS authenticated:', siwsAuthenticated, 'address:', siwsWalletAddress);
+    console.log('AuthContext - MetaMask connected:', metaMaskConnected, 'accounts:', metaMaskAccounts);
+    console.log('AuthContext - SIWS accounts:', accounts);
+    console.log('AuthContext - Is MetaMask connection:', isMetaMaskConnection);
+    console.log('AuthContext - Wallet matches auth:', walletMatchesAuth);
+    console.log('AuthContext - Is authorized wallet:', isAuthorizedWallet);
+    console.log('AuthContext - Final isAuthenticated:', isAuthenticated);
+    console.log('AuthContext - Authentication logic: SIWS auth =', (siwsAuthenticated && walletMatchesAuth && AUTHORIZED_WALLETS.includes(siwsWalletAddress?.toLowerCase() || '')), 'OR authorized wallet =', isAuthorizedWallet);
+  }, [currentWalletAddress, siwsAuthenticated, siwsWalletAddress, metaMaskConnected, metaMaskAccounts, accounts, isMetaMaskConnection, walletMatchesAuth, isAuthorizedWallet, isAuthenticated]);
+
+  const user: WalletUser | null = siwsUser ? {
+    address: siwsUser.address,
+    name: siwsUser.identity?.display || `${siwsUser.address.slice(0, 6)}...${siwsUser.address.slice(-4)}`,
+    identity: siwsUser.identity,
+    verified: siwsUser.verified
   } : null;
 
-  useEffect(() => {
-    // Set loading to false once JWT auth context is ready
-    if (!jwtLoading) {
-      setLoading(false);
-    }
-  }, [jwtLoading]);
-
-  // These methods are kept for backward compatibility but JWT auth handles the actual authentication
+  // Connect wallet (for SIWS, this is handled by signIn)
   const connectWallet = async () => {
-    // JWT authentication is handled by the ConnectMetaMask component
-    // This is just a placeholder for backward compatibility
+    await siwsSignIn();
   };
 
-  const disconnectWallet = () => {
-    // JWT logout is handled by the ConnectMetaMask component
-    // This is just a placeholder for backward compatibility
+  // Disconnect wallet - properly clear both SIWS and MetaMask state
+  const disconnectWallet = async () => {
+    await signOut();
+  };
+
+  // Sign in method
+  const signIn = async () => {
+    await siwsSignIn();
+  };
+
+  // Sign out method - properly clear both SIWS and MetaMask state
+  const signOut = async () => {
+    try {
+      console.log('Signing out from all wallets...');
+
+      // Sign out from SIWS if available
+      if (siwsSignOut) {
+        await siwsSignOut();
+        console.log('SIWS sign out completed');
+      }
+
+      // Disconnect MetaMask if connected
+      if (metaMaskDisconnect) {
+        metaMaskDisconnect();
+        console.log('MetaMask disconnect completed');
+      }
+
+      // Clear local storage that might contain auth state
+      localStorage.clear();
+      sessionStorage.clear();
+
+      console.log('Sign out completed, reloading page...');
+      // Reload to ensure clean state
+      window.location.reload();
+    } catch (error) {
+      console.error('Error during sign out:', error);
+      // Fallback to reload
+      window.location.reload();
+    }
   };
 
   return (
     <AuthContext.Provider value={{
       isAuthenticated,
-      loading,
-      walletAddress,
+      loading: siwsLoading,
+      walletAddress: currentWalletAddress,
       user,
       isAuthorizedWallet,
       connectWallet,
-      disconnectWallet
+      disconnectWallet,
+      signIn,
+      signOut
     }}>
       {children}
     </AuthContext.Provider>

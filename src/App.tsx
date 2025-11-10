@@ -14,42 +14,54 @@ import SourdoughRecipes from './pages/SourdoughRecipes';
 import StakingPage from './pages/StakingPage';
 import WatchlistPage from './pages/WatchlistPage';
 
+import { SIWSProvider } from '@shawncoe/siws-auth/react';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { MetaMaskProvider } from './providers/MetaMaskProvider';
 
 import './index.css';
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <Router
-          future={{
-            v7_relativeSplatPath: true,
-            v7_startTransition: true
-          }}
-        >
-          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-            <NavBar />
-            <div className="pt-16"> {/* Add padding-top to account for fixed navbar */}
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/reports" element={<ProtectedRoute element={<ReportsPage />} />} />
-                <Route path="/staking" element={<ProtectedRoute element={<StakingPage />} />} />
-                <Route path="/watchlist" element={<ProtectedRoute element={<WatchlistPage />} />} />
-                <Route path="/portfolio" element={<ProtectedRoute element={<PortfolioPage />} />} />
-                <Route path="/bots" element={<ProtectedRoute element={<BotsPage />} />} />
-                <Route path="/backtester" element={<ProtectedRoute element={<BacktesterPage />} />} />
-                <Route path="/ranks" element={<ProtectedRoute element={<Ranks />} />} />
-                <Route path="/counter" element={<Counter />} />
-                <Route path="/sourdough" element={<SourdoughRecipes />} />
-              </Routes>
-            </div>
-          </div>
-        </Router>
-      </ThemeProvider>
-    </AuthProvider>
+    <SIWSProvider
+      config={{
+        defaultNetwork: "polkadot",
+        autoFetchIdentity: true,
+      }}
+      autoConnect={false}
+    >
+      <MetaMaskProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <Router
+              future={{
+                v7_relativeSplatPath: true,
+                v7_startTransition: true
+              }}
+            >
+              <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+                <NavBar />
+                <div className="pt-16"> {/* Add padding-top to account for fixed navbar */}
+                  <Routes>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/reports" element={<ProtectedRoute element={<ReportsPage />} authorizedOnly={true} />} />
+                    <Route path="/staking" element={<ProtectedRoute element={<StakingPage />} authorizedOnly={true} />} />
+                    <Route path="/watchlist" element={<ProtectedRoute element={<WatchlistPage />} />} />
+                    <Route path="/portfolio" element={<ProtectedRoute element={<PortfolioPage />} />} />
+                    <Route path="/bots" element={<ProtectedRoute element={<BotsPage />} authorizedOnly={true} />} />
+                    <Route path="/backtester" element={<ProtectedRoute element={<BacktesterPage />} authorizedOnly={true} />} />
+                    <Route path="/ranks" element={<ProtectedRoute element={<Ranks />} authorizedOnly={true} />} />
+                    <Route path="/counter" element={<Counter />} />
+                    <Route path="/sourdough" element={<SourdoughRecipes />} />
+                  </Routes>
+                </div>
+              </div>
+            </Router>
+          </ThemeProvider>
+        </AuthProvider>
+      </MetaMaskProvider>
+    </SIWSProvider>
   );
 };
 

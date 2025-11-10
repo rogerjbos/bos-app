@@ -1,7 +1,6 @@
 import { ChevronDown, ChevronUp, Plus, RefreshCw, Save, Settings, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useWalletAuthContext } from '../providers/WalletAuthProvider';
 import { abbreviateSectorIndustry } from '../lib/financialUtils';
 import { TableRowSkeleton } from './LoadingSkeleton';
 import { Badge } from './ui/badge';
@@ -14,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 
 // API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_KEY = import.meta.env.VITE_API_KEY;
 
 // Interfaces
 interface Watchlist {
@@ -104,7 +104,6 @@ interface CryptoRankData {
 
 const Watchlist: React.FC = () => {
   const { user } = useAuth();
-  const { getAccessToken } = useWalletAuthContext();
 
   const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
   const [activeWatchlistId, setActiveWatchlistId] = useState<string>('');
@@ -488,23 +487,15 @@ const Watchlist: React.FC = () => {
   const loadWatchlists = async () => {
     if (!user?.name) return;
 
+    setIsInitialLoading(true);
+    setError(null);
     try {
-      setIsInitialLoading(true);
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-
-      const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-      }
-
-      const response = await fetch(`${baseUrl}/watchlists?username=${encodeURIComponent(user.address)}`, {
+      const response = await fetch(`${API_BASE_URL}/watchlists?username=${encodeURIComponent(user.name)}`, {
         method: 'GET',
-        headers,
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
       });
 
       if (!response.ok) {
@@ -512,70 +503,22 @@ const Watchlist: React.FC = () => {
       }
 
       const data = await response.json();
-
-      if (data.length > 0) {
-        setWatchlists(data);
-        if (!activeWatchlistId) {
-          setActiveWatchlistId(data[0].id);
-        }
-      } else {
-        // Create default watchlist if none exist
-        await createDefaultWatchlist();
-      }
-    } catch (error) {
-      console.error('Error loading watchlists:', error);
-      showStatus('Failed to load watchlists', 'error');
-      // Create default watchlist as fallback
-      await createDefaultWatchlist();
+      setWatchlists(data.watchlists || []);
+    } catch (err) {
+      console.error('Error loading watchlists:', err);
+      setError(`Failed to load watchlists: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setIsInitialLoading(false);
     }
   };
 
-  // Create default watchlist
+  // Create default watchlist - SIWS offline mode
   const createDefaultWatchlist = async () => {
     if (!user?.name) return;
 
-    try {
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-
-      const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-      }
-
-      const response = await fetch(`${baseUrl}/watchlists`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          name: 'My Watchlist',
-          type: 'crypto',
-          symbols: ['BTC', 'ETH', 'DOT'],
-          username: user.address
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to create default watchlist: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const newWatchlist = data.watchlist;
-
-      setWatchlists([newWatchlist]);
-      setActiveWatchlistId(newWatchlist.id);
-      showStatus('Created default watchlist');
-    } catch (error) {
-      console.error('Error creating default watchlist:', error);
-      showStatus('Failed to create default watchlist', 'error');
-    } finally {
-      setIsInitialLoading(false);
-    }
+    // For SIWS client-side only, show offline mode message
+    showStatus('SIWS mode - Creating watchlists requires server authentication and is not available in offline mode', 'error');
+    setIsInitialLoading(false);
   };
 
   // Save watchlists - removed as we now save directly via API
@@ -589,56 +532,28 @@ const Watchlist: React.FC = () => {
   const fetchCryptoData = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
 
+    setIsLoading(true);
     try {
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-
-      const url = new URL(`${baseUrl}/crypto_xdays`);
-      symbols.forEach(symbol => {
-        url.searchParams.append('baseCurrencies', symbol.toLowerCase());
-      });
-
-      const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-      }
-
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers,
+      const response = await fetch(`${API_BASE_URL}/crypto/prices`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ symbols }),
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch crypto data: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to fetch crypto data: ${response.status}`);
       }
 
       const data = await response.json();
-      setCryptoData(data);
-      showStatus(`Updated crypto data for ${symbols.length} symbols`);
-
-      // Also fetch latest prices and calculate returns
-      await fetchLatestPrices(symbols, data);
-    } catch (error) {
-      console.error('Error fetching crypto data:', error);
-      // Use mock data as fallback
-      const mockData = symbols.map(symbol => ({
-        baseCurrency: symbol.toUpperCase(),
-        close_1d: 100000 + Math.random() * 10000,
-        close_7d: 95000 + Math.random() * 10000,
-        close_30d: 90000 + Math.random() * 10000,
-        close_60d: 85000 + Math.random() * 10000,
-        close_90d: 80000 + Math.random() * 10000,
-        close_120d: 75000 + Math.random() * 10000,
-      }));
-      setCryptoData(mockData);
-      showStatus(`Using mock data (API unavailable)`);
-
-      // Also use mock latest prices
-      await fetchLatestPrices(symbols, mockData);
+      setCryptoData(data.prices || []);
+    } catch (err) {
+      console.error('Error fetching crypto data:', err);
+      showStatus(`Failed to load crypto data: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -647,69 +562,24 @@ const Watchlist: React.FC = () => {
     if (symbols.length === 0) return;
 
     try {
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-
-      const url = new URL(`${baseUrl}/latest_tiingo_prices`);
-      symbols.forEach(symbol => {
-        url.searchParams.append('symbols', symbol);
-      });
-
-      // Pass historical data as JSON string for return calculations
-      if (historicalData.length > 0) {
-        url.searchParams.append('historical_data', JSON.stringify(historicalData));
-      }
-
-      const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-      }
-
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers,
+      const response = await fetch(`${API_BASE_URL}/prices/latest`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ symbols }),
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch latest prices: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to fetch latest prices: ${response.status}`);
       }
 
       const data = await response.json();
-
-      // Process the data to match our interface
-      const latestPriceData: LatestPriceData[] = data.map((item: any) => ({
-        symbol: item.symbol,
-        latestPrice: item.latestPrice,
-        returns: item.returns
-      }));
-
-      setLatestPrices(latestPriceData);
-    } catch (error) {
-      console.error('Error fetching latest prices:', error);
-      // Use mock data as fallback
-      const mockLatestPrices: LatestPriceData[] = symbols.map(symbol => {
-        const basePrice = 105000 + Math.random() * 10000;
-        const hist = historicalData.find(h => h.baseCurrency === symbol.toUpperCase());
-        return {
-          symbol: symbol.toUpperCase(),
-          latestPrice: basePrice,
-          returns: hist ? {
-            '1d': hist.close_1d ? ((basePrice - hist.close_1d) / hist.close_1d) * 100 : 0,
-            '7d': hist.close_7d ? ((basePrice - hist.close_7d) / hist.close_7d) * 100 : 0,
-            '30d': hist.close_30d ? ((basePrice - hist.close_30d) / hist.close_30d) * 100 : 0,
-            '60d': hist.close_60d ? ((basePrice - hist.close_60d) / hist.close_60d) * 100 : 0,
-            '90d': hist.close_90d ? ((basePrice - hist.close_90d) / hist.close_90d) * 100 : 0,
-            '120d': hist.close_120d ? ((basePrice - hist.close_120d) / hist.close_120d) * 100 : 0,
-          } : {
-            '1d': 0, '7d': 0, '30d': 0, '60d': 0, '90d': 0, '120d': 0
-          }
-        };
-      });
-      setLatestPrices(mockLatestPrices);
+      setLatestPrices(data.prices || []);
+    } catch (err) {
+      console.error('Error fetching latest prices:', err);
+      showStatus(`Failed to load latest prices: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
   }, []);
 
@@ -717,88 +587,28 @@ const Watchlist: React.FC = () => {
   const fetchStockData = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
 
+    setIsLoading(true);
     try {
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-
-      const url = new URL(`${baseUrl}/stock_xdays`);
-      symbols.forEach(symbol => {
-        url.searchParams.append('symbols', symbol.toUpperCase());
-      });
-
-      const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-      }
-
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers,
+      const response = await fetch(`${API_BASE_URL}/stocks/prices`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ symbols }),
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch stock data: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to fetch stock data: ${response.status}`);
       }
 
       const data = await response.json();
-      setStockData(data);
-
-      // Calculate returns and set latest prices for stocks
-      const latestPricesData: LatestPriceData[] = data.map((item: StockXDaysData) => {
-        const latestPrice = item.close_1d || 0;
-
-        return {
-          symbol: item.symbol,
-          latestPrice,
-          returns: {
-            '1d': item.close_1d && item.close_1d ? ((latestPrice - item.close_1d) / item.close_1d) * 100 : null,
-            '7d': item.close_7d ? ((latestPrice - item.close_7d) / item.close_7d) * 100 : null,
-            '30d': item.close_30d ? ((latestPrice - item.close_30d) / item.close_30d) * 100 : null,
-            '60d': item.close_60d ? ((latestPrice - item.close_60d) / item.close_60d) * 100 : null,
-            '90d': item.close_90d ? ((latestPrice - item.close_90d) / item.close_90d) * 100 : null,
-            '120d': item.close_120d ? ((latestPrice - item.close_120d) / item.close_120d) * 100 : null,
-          }
-        };
-      });
-
-      setLatestPrices(latestPricesData);
-      showStatus(`Updated stock data for ${symbols.length} symbols`);
-    } catch (error) {
-      console.error('Error fetching stock data:', error);
-      // Use mock data as fallback
-      const mockData: StockXDaysData[] = symbols.map(symbol => ({
-        symbol,
-        close_1d: 100 + Math.random() * 200,
-        close_7d: 95 + Math.random() * 200,
-        close_30d: 90 + Math.random() * 200,
-        close_60d: 85 + Math.random() * 200,
-        close_90d: 80 + Math.random() * 200,
-        close_120d: 75 + Math.random() * 200,
-      }));
-      setStockData(mockData);
-
-      // Set mock latest prices
-      const mockLatestPrices: LatestPriceData[] = mockData.map(item => {
-        const latestPrice = item.close_1d || 0;
-        return {
-          symbol: item.symbol,
-          latestPrice,
-          returns: {
-            '1d': item.close_1d ? ((latestPrice - item.close_1d) / item.close_1d) * 100 : null,
-            '7d': item.close_7d ? ((latestPrice - item.close_7d) / item.close_7d) * 100 : null,
-            '30d': item.close_30d ? ((latestPrice - item.close_30d) / item.close_30d) * 100 : null,
-            '60d': item.close_60d ? ((latestPrice - item.close_60d) / item.close_60d) * 100 : null,
-            '90d': item.close_90d ? ((latestPrice - item.close_90d) / item.close_90d) * 100 : null,
-            '120d': item.close_120d ? ((latestPrice - item.close_120d) / item.close_120d) * 100 : null,
-          }
-        };
-      });
-      setLatestPrices(mockLatestPrices);
-      showStatus(`Using mock data (API unavailable)`);
+      setStockData(data.prices || []);
+    } catch (err) {
+      console.error('Error fetching stock data:', err);
+      showStatus(`Failed to load stock data: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -807,49 +617,24 @@ const Watchlist: React.FC = () => {
     if (symbols.length === 0) return;
 
     try {
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-
-      const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-      }
-
-      // Fetch ranks data for each symbol
-      const ranksPromises = symbols.map(async (symbol) => {
-        const url = `${baseUrl}/ranks?ticker=${symbol.toLowerCase()}`;
-
-        try {
-          const response = await fetch(url, {
-            method: 'GET',
-            headers,
-          });
-
-          if (!response.ok) {
-            console.warn(`Failed to fetch ranks for ${symbol}: ${response.status}`);
-            return null;
-          }
-
-          const data = await response.json();
-          // Return the first item if it's an array, or the data itself
-          return Array.isArray(data) ? data[0] : data;
-        } catch (error) {
-          console.warn(`Error fetching ranks for ${symbol}:`, error);
-          return null;
-        }
+      const response = await fetch(`${API_BASE_URL}/stocks/ranks`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ symbols }),
       });
 
-      const ranksResults = await Promise.all(ranksPromises);
-      const validRanksData = ranksResults.filter(item => item !== null) as RanksData[];
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ranks data: ${response.status}`);
+      }
 
-      setRanksData(validRanksData);
-    } catch (error) {
-      console.error('Error fetching ranks data:', error);
-      setRanksData([]);
+      const data = await response.json();
+      setRanksData(data.ranks || []);
+    } catch (err) {
+      console.error('Error fetching ranks data:', err);
+      showStatus(`Failed to load stock ranks: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
   }, []);
 
@@ -858,49 +643,24 @@ const Watchlist: React.FC = () => {
     if (symbols.length === 0) return;
 
     try {
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-
-      // Fetch crypto ranks data for each symbol
-      const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-      }
-
-      const cryptoRanksPromises = symbols.map(async (symbol) => {
-        const url = `${baseUrl}/crypto_ranks?baseCurrency=${symbol.toLowerCase()}`;
-
-        try {
-          const response = await fetch(url, {
-            method: 'GET',
-            headers,
-          });
-
-          if (!response.ok) {
-            console.warn(`Failed to fetch crypto ranks for ${symbol}: ${response.status}`);
-            return null;
-          }
-
-          const data = await response.json();
-          // Return the first item if it's an array, or the data itself
-          return Array.isArray(data) ? data[0] : data;
-        } catch (error) {
-          console.warn(`Error fetching crypto ranks for ${symbol}:`, error);
-          return null;
-        }
+      const response = await fetch(`${API_BASE_URL}/crypto/ranks`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ symbols }),
       });
 
-      const cryptoRanksResults = await Promise.all(cryptoRanksPromises);
-      const validCryptoRanksData = cryptoRanksResults.filter(item => item !== null) as CryptoRankData[];
+      if (!response.ok) {
+        throw new Error(`Failed to fetch crypto ranks data: ${response.status}`);
+      }
 
-      setCryptoRanksData(validCryptoRanksData);
-    } catch (error) {
-      console.error('Error fetching crypto ranks data:', error);
-      setCryptoRanksData([]);
+      const data = await response.json();
+      setCryptoRanksData(data.ranks || []);
+    } catch (err) {
+      console.error('Error fetching crypto ranks data:', err);
+      showStatus(`Failed to load crypto ranks: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
   }, []);
 
@@ -943,26 +703,16 @@ const Watchlist: React.FC = () => {
     }
 
     try {
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-
-      const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-      }
-
-      const response = await fetch(`${baseUrl}/watchlists`, {
+      const response = await fetch(`${API_BASE_URL}/watchlists`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           name: newWatchlistName.trim(),
           type: newWatchlistType,
-          symbols: [],
-          username: user.address
+          symbols: []
         }),
       });
 
@@ -970,20 +720,15 @@ const Watchlist: React.FC = () => {
         throw new Error(`Failed to create watchlist: ${response.status}`);
       }
 
-      const data = await response.json();
-      const newWatchlist = data.watchlist;
-
-      const updatedWatchlists = [...watchlists, newWatchlist];
-      setWatchlists(updatedWatchlists);
-      setActiveWatchlistId(newWatchlist.id);
-
+      const newWatchlist = await response.json();
+      setWatchlists(prev => [...prev, newWatchlist]);
+      setShowNewWatchlistForm(false);
       setNewWatchlistName('');
       setNewWatchlistType('crypto');
-      setShowNewWatchlistForm(false);
-      showStatus(`Created watchlist "${newWatchlist.name}"`);
-    } catch (error) {
-      console.error('Error creating watchlist:', error);
-      showStatus('Failed to create watchlist', 'error');
+      showStatus('Watchlist created successfully', 'success');
+    } catch (err) {
+      console.error('Error creating watchlist:', err);
+      showStatus(`Failed to create watchlist: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
   };
 
@@ -1002,38 +747,26 @@ const Watchlist: React.FC = () => {
     }
 
     try {
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-
-      const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-      }
-
-      const response = await fetch(`${baseUrl}/watchlists/${watchlistId}?username=${encodeURIComponent(user.address)}`, {
+      const response = await fetch(`${API_BASE_URL}/watchlists/${watchlistId}`, {
         method: 'DELETE',
-        headers,
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
       });
 
       if (!response.ok) {
         throw new Error(`Failed to delete watchlist: ${response.status}`);
       }
 
-      const updatedWatchlists = watchlists.filter(w => w.id !== watchlistId);
-      setWatchlists(updatedWatchlists);
-
-      if (activeWatchlistId === watchlistId && updatedWatchlists.length > 0) {
-        setActiveWatchlistId(updatedWatchlists[0].id);
+      setWatchlists(prev => prev.filter(w => w.id !== watchlistId));
+      if (activeWatchlistId === watchlistId) {
+        setActiveWatchlistId(watchlists.find(w => w.id !== watchlistId)?.id || '');
       }
-
-      showStatus(`Deleted watchlist "${watchlist.name}"`);
-    } catch (error) {
-      console.error('Error deleting watchlist:', error);
-      showStatus('Failed to delete watchlist', 'error');
+      showStatus('Watchlist deleted successfully', 'success');
+    } catch (err) {
+      console.error('Error deleting watchlist:', err);
+      showStatus(`Failed to delete watchlist: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
   };
 
@@ -1064,91 +797,28 @@ const Watchlist: React.FC = () => {
       return;
     }
 
-    // Check for duplicates in the input
-    const uniqueSymbols = [...new Set(symbols)];
-    if (uniqueSymbols.length < symbols.length) {
-      showStatus('Removing duplicate symbols from input', 'error');
-    }
-
-    // Filter out symbols that already exist in the watchlist
-    const existingSymbols: string[] = [];
-    const newSymbolsToAdd = uniqueSymbols.filter(symbol => {
-      if (activeWatchlist.symbols.includes(symbol)) {
-        existingSymbols.push(symbol);
-        return false;
-      }
-      return true;
-    });
-
-    if (newSymbolsToAdd.length === 0) {
-      showStatus(`All symbols already exist in this watchlist: ${existingSymbols.join(', ')}`, 'error');
-      return;
-    }
-
     try {
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
+      const response = await fetch(`${API_BASE_URL}/watchlists/${activeWatchlistId}/symbols`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ symbols }),
+      });
 
-      let currentWatchlist = activeWatchlist;
-      const addedSymbols: string[] = [];
-      const failedSymbols: string[] = [];
-
-      const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
+      if (!response.ok) {
+        throw new Error(`Failed to add symbols: ${response.status}`);
       }
 
-      // Add each symbol sequentially
-      for (const symbol of newSymbolsToAdd) {
-        try {
-          const response = await fetch(`${baseUrl}/watchlists/${activeWatchlistId}/symbols?username=${encodeURIComponent(user.address)}&symbol=${symbol}`, {
-            method: 'POST',
-            headers,
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to add ${symbol}: ${response.status}`);
-          }
-
-          const data = await response.json();
-          currentWatchlist = data.watchlist;
-          addedSymbols.push(symbol);
-        } catch (error) {
-          console.error(`Error adding symbol ${symbol}:`, error);
-          failedSymbols.push(symbol);
-        }
-      }
-
-      // Update the watchlist state with the final result
-      const updatedWatchlists = watchlists.map(w =>
-        w.id === activeWatchlistId ? currentWatchlist : w
-      );
-
-      setWatchlists(updatedWatchlists);
-      setNewSymbol('');
+      const updatedWatchlist = await response.json();
+      setWatchlists(prev => prev.map(w => w.id === activeWatchlistId ? updatedWatchlist : w));
       setShowAddSymbolForm(false);
-
-      // Show appropriate status message
-      if (addedSymbols.length > 0 && failedSymbols.length === 0) {
-        showStatus(`Added ${addedSymbols.length} symbol${addedSymbols.length > 1 ? 's' : ''} to ${activeWatchlist.name}: ${addedSymbols.join(', ')}`);
-      } else if (addedSymbols.length > 0 && failedSymbols.length > 0) {
-        showStatus(`Added ${addedSymbols.join(', ')}. Failed: ${failedSymbols.join(', ')}`, 'error');
-      } else {
-        showStatus(`Failed to add symbols: ${failedSymbols.join(', ')}`, 'error');
-      }
-
-      if (existingSymbols.length > 0) {
-        setTimeout(() => {
-          showStatus(`Skipped existing symbols: ${existingSymbols.join(', ')}`);
-        }, 3000);
-      }
-    } catch (error) {
-      console.error('Error adding symbols:', error);
-      showStatus('Failed to add symbols', 'error');
+      setNewSymbol('');
+      showStatus(`Added ${symbols.length} symbol(s) to ${activeWatchlist.name}`, 'success');
+    } catch (err) {
+      console.error('Error adding symbols:', err);
+      showStatus(`Failed to add symbols: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
   };
 
@@ -1167,39 +837,24 @@ const Watchlist: React.FC = () => {
     }
 
     try {
-      const baseUrl = API_BASE_URL.startsWith('http')
-        ? API_BASE_URL
-        : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-
-      const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-      }
-
-      const response = await fetch(`${baseUrl}/watchlists/${activeWatchlistId}/symbols/${symbol}?username=${encodeURIComponent(user.address)}`, {
+      const response = await fetch(`${API_BASE_URL}/watchlists/${activeWatchlistId}/symbols/${symbol}`, {
         method: 'DELETE',
-        headers,
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
       });
 
       if (!response.ok) {
         throw new Error(`Failed to remove symbol: ${response.status}`);
       }
 
-      const data = await response.json();
-      const updatedWatchlist = data.watchlist;
-
-      const updatedWatchlists = watchlists.map(w =>
-        w.id === activeWatchlistId ? updatedWatchlist : w
-      );
-
-      setWatchlists(updatedWatchlists);
-      showStatus(`Removed ${symbol} from ${activeWatchlist.name}`);
-    } catch (error) {
-      console.error('Error removing symbol:', error);
-      showStatus('Failed to remove symbol', 'error');
+      const updatedWatchlist = await response.json();
+      setWatchlists(prev => prev.map(w => w.id === activeWatchlistId ? updatedWatchlist : w));
+      showStatus(`Removed ${symbol} from ${activeWatchlist.name}`, 'success');
+    } catch (err) {
+      console.error('Error removing symbol:', err);
+      showStatus(`Failed to remove symbol: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
   };
 

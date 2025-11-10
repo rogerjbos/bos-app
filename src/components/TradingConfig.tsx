@@ -49,8 +49,8 @@ const sanitizeSchwabBotSymbol = (item: any): SchwabBotSymbol => {
 };
 
 const Bots: React.FC = () => {
-  // Get the authenticated user (used for write operations). We still load public config even when not logged in.
-  const { user } = useAuth();
+  // Get the authenticated user and authentication status
+  const { user, isAuthenticated, walletAddress } = useAuth();
   const { getAccessToken } = useWalletAuthContext();
 
   const [tradingSymbols, setTradingSymbols] = useState<KrakenBotSymbolsConfig>([]);
@@ -120,6 +120,7 @@ const Bots: React.FC = () => {
 
   useEffect(() => {
     const loadInitialData = async () => {
+      console.log('TradingConfig loadInitialData called:', { isAuthenticated, user: !!user, walletAddress });
       setIsLoading(true);
       try {
         // Load public trading config and schwab symbols even when user is not logged in.
@@ -137,6 +138,7 @@ const Bots: React.FC = () => {
         await fetchStockThresholds(stockSymbols);
         await fetchLatestCryptoPrices(baseCurrencies);
         await fetchLatestStockPrices(stockSymbols);
+        console.log('TradingConfig loadInitialData completed:', { tradingSymbolsLength: symbols.length, schwabSymbolsLength: schwabSymbolsList.length });
       } catch (e) {
         console.error("Error in loadInitialData:", e);
         const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
@@ -148,7 +150,7 @@ const Bots: React.FC = () => {
 
     loadInitialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, isAuthenticated, walletAddress]);
 
   const fetchTradingConfig = useCallback(async (): Promise<KrakenBotSymbolsConfig> => {
     // This endpoint is public for reads; don't require user to be logged in to fetch config.
@@ -189,10 +191,11 @@ const Bots: React.FC = () => {
       console.error('Error fetching trading config from API:', error);
       throw error;
     }
-  }, [user?.name, API_BASE_URL, getAccessToken]);
+  }, [user?.name, walletAddress, API_BASE_URL, getAccessToken]);
 
   const saveTradingConfigToAPI = useCallback(async (data: KrakenBotSymbolsConfig) => {
-    if (!user?.name) {
+    const identifier = user?.name || walletAddress;
+    if (!identifier) {
       return false;
     }
 
@@ -205,7 +208,7 @@ const Bots: React.FC = () => {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          username: user.name,
+          username: identifier,
           data: data
         }),
       });
@@ -219,7 +222,7 @@ const Bots: React.FC = () => {
       console.error('Error saving to API:', error);
       throw error;
     }
-  }, [user?.name, API_BASE_URL, getAccessToken]);
+  }, [user?.name, walletAddress, API_BASE_URL, getAccessToken]);
 
   const fetchSchwabConfig = useCallback(async () => {
     // Public read; don't require user to fetch. Only include Authorization when token present.
@@ -258,10 +261,11 @@ const Bots: React.FC = () => {
       console.error('Error fetching schwab config from API:', error);
       throw error;
     }
-  }, [user?.name, API_BASE_URL, getAccessToken]);
+  }, [user?.name, walletAddress, API_BASE_URL, getAccessToken]);
 
   const saveSchwabConfigToAPI = useCallback(async (data: SchwabBotSymbolsConfig) => {
-    if (!user?.name) {
+    const identifier = user?.name || walletAddress;
+    if (!identifier) {
       return false;
     }
 
@@ -274,7 +278,7 @@ const Bots: React.FC = () => {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          username: user.name,
+          username: identifier,
           data: data
         }),
       });
@@ -309,7 +313,7 @@ const Bots: React.FC = () => {
       console.error('Error saving schwab config to API:', error);
       throw error;
     }
-  }, [user?.name, API_BASE_URL, getAccessToken]);
+  }, [user?.name, walletAddress, API_BASE_URL, getAccessToken]);
 
   // Auto-save when tradingSymbols changes
   useEffect(() => {
@@ -813,7 +817,7 @@ const Bots: React.FC = () => {
           <h1 className="text-3xl font-bold text-foreground">Bots</h1>
           <Button
             onClick={refreshFromAPI}
-            disabled={!user || isLoading}
+            disabled={!isAuthenticated || isLoading}
             variant="outline"
             size="sm"
           >
@@ -942,7 +946,7 @@ const Bots: React.FC = () => {
                   <div className="text-center">
                     <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
                     <p className="text-muted-foreground">
-                      {user ? 'Loading trading configuration...' : 'Loading configuration...'}
+                      {user ? `Loading trading configuration for ${user.name}...` : walletAddress ? `Loading trading configuration for ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}...` : 'Loading configuration...'}
                     </p>
                   </div>
                 </CardContent>
@@ -951,10 +955,12 @@ const Bots: React.FC = () => {
               <Card className="border-yellow-500/20 bg-yellow-500/10">
                 <CardContent className="pt-6">
                   <p className="text-sm">
-                    {user
-                      ? 'No trading symbols configured.'
-                      : 'Please log in to view trading configuration.'
-                    }
+                    {(() => {
+                      console.log('TradingConfig render check:', { isAuthenticated, tradingSymbolsLength: tradingSymbols.length, user: !!user, walletAddress });
+                      return isAuthenticated
+                        ? 'No trading symbols configured.'
+                        : 'Please log in to view trading configuration.';
+                    })()}
                   </p>
                 </CardContent>
               </Card>

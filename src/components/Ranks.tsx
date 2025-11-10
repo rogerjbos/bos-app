@@ -1,7 +1,6 @@
 import * as echarts from 'echarts';
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { FaSort, FaSortUp, FaSortDown, FaInfoCircle } from 'react-icons/fa';
-import { useWalletAuthContext } from '../providers/WalletAuthProvider';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ThemeContext } from '../context/ThemeContext';
 import { abbreviateSectorIndustry } from '../lib/financialUtils';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
@@ -9,7 +8,6 @@ import { Input } from './ui/Input';
 import { Label } from './ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
-import { ThemeContext } from '../context/ThemeContext';
 
 interface RankData {
   date?: string;
@@ -181,7 +179,7 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, symbol, rankD
   const getThemeColors = useCallback(() => {
     const root = document.documentElement;
     const computedStyle = getComputedStyle(root);
-    
+
     if (theme === 'dark') {
       return {
         textColor: '#ffffff', // white text for dark mode
@@ -872,66 +870,37 @@ const Ranks: React.FC = () => {
   const [stockError, setStockError] = useState<string | null>(null);
   const [cryptoError, setCryptoError] = useState<string | null>(null);
 
-  // Get wallet auth token
-  const { getAccessToken } = useWalletAuthContext();
+  // Get wallet auth token - REMOVED for SIWS migration
+  // const { getAccessToken } = useWalletAuthContext();
 
   // API configuration (similar to Staking.tsx)
   const API_BASE_URL = import.meta.env.DEV
     ? '/api'
     : (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:4000/api');
+  const API_KEY = import.meta.env.VITE_API_KEY;
 
   const fetchRankData = async (selectedTicker: string) => {
     setIsLoadingStocks(true);
     setStockError(null);
-
-    const fullUrl = `${API_BASE_URL}/ranks?ticker=${selectedTicker}`;
-
     try {
-      const response = await fetch(fullUrl, {
+      const response = await fetch(`${API_BASE_URL}/ranks?ticker=${encodeURIComponent(selectedTicker)}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${getAccessToken()}`,
+          'Authorization': `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
         },
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`Failed to fetch stock rank data: ${response.status}`);
       }
 
       const data = await response.json();
-
-      // Handle the response based on your API structure
-      let rankData: RankData[] = [];
-      if (Array.isArray(data)) {
-        rankData = data;
-      } else if (data.data && Array.isArray(data.data)) {
-        rankData = data.data;
-      } else {
-        // If single object, wrap in array
-        rankData = [data];
-      }
-
-      setStockData(rankData);
-
-      // Extract OHLC data from rank data for candlestick chart
-      const ohlcvData: OHLCVData[] = rankData
-        .filter(item => item.open !== null && item.high !== null && item.low !== null && item.close !== null && item.volume !== null)
-        .map(item => ({
-          date: item.date || '',
-          open: item.open!,
-          high: item.high!,
-          low: item.low!,
-          close: item.close!,
-          volume: item.volume!
-        }))
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-      setStockOHLCVData(ohlcvData);
-
+      setStockData(data || []);
+      setStockOHLCVData([]); // OHLC data is included in the main data array
     } catch (err) {
-      console.error('Error fetching rank data:', err);
-      setStockError(err instanceof Error ? err.message : 'An unknown error occurred');
+      console.error('Error fetching stock rank data:', err);
+      setStockError(`Failed to load stock rank data: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setStockData([]);
       setStockOHLCVData([]);
     } finally {
@@ -942,59 +911,25 @@ const Ranks: React.FC = () => {
   const fetchCryptoRankData = async (selectedBaseCurrency: string) => {
     setIsLoadingCrypto(true);
     setCryptoError(null);
-
-    // Calculate date range (last 360 days)
-    const endDate = new Date().toISOString().split('T')[0];
-    const startDate = new Date(Date.now() - 360 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-    const fullUrl = `${API_BASE_URL}/crypto_ranks?baseCurrency=${selectedBaseCurrency}&start_date=${startDate}&end_date=${endDate}`;
-
     try {
-      const response = await fetch(fullUrl, {
+      const response = await fetch(`${API_BASE_URL}/crypto_ranks?baseCurrency=${encodeURIComponent(selectedBaseCurrency)}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${getAccessToken()}`,
+          'Authorization': `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
         },
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`Failed to fetch crypto rank data: ${response.status}`);
       }
 
       const data = await response.json();
-
-      // Handle the response based on your API structure
-      let cryptoRankData: CryptoRankData[] = [];
-      if (Array.isArray(data)) {
-        cryptoRankData = data;
-      } else if (data.data && Array.isArray(data.data)) {
-        cryptoRankData = data.data;
-      } else {
-        // If single object, wrap in array
-        cryptoRankData = [data];
-      }
-
-      setCryptoData(cryptoRankData);
-
-      // Extract OHLC data from crypto rank data for candlestick chart
-      const ohlcvData: OHLCVData[] = cryptoRankData
-        .filter(item => item.open !== null && item.high !== null && item.low !== null && item.close !== null && item.volume !== null)
-        .map(item => ({
-          date: item.date,
-          open: item.open!,
-          high: item.high!,
-          low: item.low!,
-          close: item.close!,
-          volume: item.volume!
-        }))
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-      setCryptoOHLCVData(ohlcvData);
-
+      setCryptoData(data || []);
+      setCryptoOHLCVData([]); // OHLC data is included in the main data array
     } catch (err) {
       console.error('Error fetching crypto rank data:', err);
-      setCryptoError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setCryptoError(`Failed to load crypto rank data: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setCryptoData([]);
       setCryptoOHLCVData([]);
     } finally {
