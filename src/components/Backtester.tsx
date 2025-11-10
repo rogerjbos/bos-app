@@ -42,11 +42,14 @@ const Backtester: React.FC = () => {
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [returnsData, setReturnsData] = useState<CryptoReturns[] | StockReturns[]>([]);
   const [strategies, setStrategies] = useState<string[]>([]);
+  const [datasets, setDatasets] = useState<string[]>([]);
+  const [selectedDataset, setSelectedDataset] = useState<string>('');
 
   // Loading states
   const [loadingTickers, setLoadingTickers] = useState(false);
   const [loadingDecisions, setLoadingDecisions] = useState(false);
   const [loadingReturns, setLoadingReturns] = useState(false);
+  const [loadingDatasets, setLoadingDatasets] = useState(false);
 
   // Error states
   const [error, setError] = useState<string>('');
@@ -79,8 +82,43 @@ const Backtester: React.FC = () => {
     }
   };
 
+  // Get available datasets
+  const fetchDatasets = async () => {
+    setLoadingDatasets(true);
+    setError('');
+    try {
+      const accessToken = await getValidAccessToken();
+      if (!accessToken) {
+        throw new Error('No valid access token available');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/backtester_decisions/datasets`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch datasets');
+      }
+      const data = await response.json();
+      setDatasets(data);
+      // Auto-select first dataset if available
+      if (data.length > 0 && !selectedDataset) {
+        setSelectedDataset(data[0]);
+      }
+    } catch (err) {
+      setError(`Failed to load datasets: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setLoadingDatasets(false);
+    }
+  };
+
   // Get available tickers
-  const fetchTickers = async (assetType: 'stocks' | 'crypto') => {
+  const fetchTickers = async (assetType: 'stocks' | 'crypto', dataset: string) => {
+    if (!dataset) return;
+
     setLoadingTickers(true);
     setError('');
     try {
@@ -89,7 +127,7 @@ const Backtester: React.FC = () => {
         throw new Error('No valid access token available');
       }
 
-      const response = await fetch(`${API_BASE_URL}/backtester_decisions/${assetType}/tickers`, {
+      const response = await fetch(`${API_BASE_URL}/backtester_decisions/${assetType}/tickers?dataset=${encodeURIComponent(dataset)}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -113,7 +151,9 @@ const Backtester: React.FC = () => {
   };
 
   // Get decision data for a ticker
-  const fetchDecisions = async (assetType: 'stocks' | 'crypto', ticker: string) => {
+  const fetchDecisions = async (assetType: 'stocks' | 'crypto', ticker: string, dataset: string) => {
+    if (!dataset) return;
+
     setLoadingDecisions(true);
     setError('');
     try {
@@ -122,7 +162,7 @@ const Backtester: React.FC = () => {
         throw new Error('No valid access token available');
       }
 
-      const response = await fetch(`${API_BASE_URL}/backtester_decisions/${assetType}/${ticker}`, {
+      const response = await fetch(`${API_BASE_URL}/backtester_decisions/${assetType}/${ticker}?dataset=${encodeURIComponent(dataset)}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -192,16 +232,23 @@ const Backtester: React.FC = () => {
 
   // Initialize data when component mounts
   useEffect(() => {
-    fetchTickers('stocks');
-    fetchTickers('crypto');
+    fetchDatasets();
   }, []);
+
+  // Load tickers when dataset changes
+  useEffect(() => {
+    if (selectedDataset) {
+      fetchTickers('stocks', selectedDataset);
+      fetchTickers('crypto', selectedDataset);
+    }
+  }, [selectedDataset]);
 
   // Load decisions when ticker changes
   useEffect(() => {
-    if (selectedTicker) {
-      fetchDecisions(activeTab, selectedTicker);
+    if (selectedTicker && selectedDataset) {
+      fetchDecisions(activeTab, selectedTicker, selectedDataset);
     }
-  }, [selectedTicker, activeTab]);
+  }, [selectedTicker, activeTab, selectedDataset]);
 
   // Load returns data after decisions are loaded
   useEffect(() => {
@@ -1014,13 +1061,15 @@ const Backtester: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Backtester Analysis</h1>
           <button
             onClick={() => {
-              fetchTickers(activeTab);
-              if (selectedTicker) {
-                fetchDecisions(activeTab, selectedTicker);
-                fetchReturnsData(activeTab, selectedTicker);
+              if (selectedDataset) {
+                fetchTickers(activeTab, selectedDataset);
+                if (selectedTicker) {
+                  fetchDecisions(activeTab, selectedTicker, selectedDataset);
+                  fetchReturnsData(activeTab, selectedTicker);
+                }
               }
             }}
-            disabled={loadingTickers || loadingDecisions || loadingReturns}
+            disabled={loadingTickers || loadingDecisions || loadingReturns || !selectedDataset}
             className="inline-flex items-center px-4 py-2 border border-blue-300 dark:border-blue-600 text-sm font-medium rounded-md text-blue-700 dark:text-blue-400 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FaSync className={`mr-2 ${loadingTickers || loadingDecisions ? 'animate-spin' : ''}`} />
@@ -1033,6 +1082,30 @@ const Backtester: React.FC = () => {
             {error}
           </div>
         )}
+
+        {/* Dataset Selection */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Select Dataset
+          </label>
+          <select
+            value={selectedDataset}
+            onChange={(e) => {
+              setSelectedDataset(e.target.value);
+              setSelectedTicker('');
+              setDecisions([]);
+              setStrategies([]);
+            }}
+            className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={loadingDatasets}
+          >
+            <option value="">Select a dataset...</option>
+            {datasets.map(dataset => (
+              <option key={dataset} value={dataset}>{dataset}</option>
+            ))}
+          </select>
+          {loadingDatasets && <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading datasets...</span>}
+        </div>
 
         {/* Asset Type Selection */}
         <div className="mb-6">
@@ -1057,7 +1130,7 @@ const Backtester: React.FC = () => {
                     value={selectedTicker}
                     onChange={(e) => setSelectedTicker(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={loadingTickers}
+                    disabled={loadingTickers || !selectedDataset}
                   >
                     <option value="">Select a ticker...</option>
                     {stockTickers.map(ticker => (
@@ -1088,7 +1161,7 @@ const Backtester: React.FC = () => {
                     value={selectedTicker}
                     onChange={(e) => setSelectedTicker(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={loadingTickers}
+                    disabled={loadingTickers || !selectedDataset}
                   >
                     <option value="">Select a ticker...</option>
                     {cryptoTickers.map(ticker => (
