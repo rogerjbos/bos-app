@@ -11,7 +11,6 @@ declare global {
 
 // List of authorized wallet addresses (case insensitive) - fallback for non-JWT auth
 const AUTHORIZED_WALLETS = import.meta.env.VITE_AUTHORIZED_WALLETS?.toLowerCase().split(',') || [];
-console.log('AUTHORIZED_WALLETS:', AUTHORIZED_WALLETS);
 
 interface WalletUser {
   address: string;
@@ -59,7 +58,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const { user: siwsUser, isAuthenticated: siwsAuthenticated, isLoading: siwsLoading, signOut: siwsSignOut } = useSIWS();
   const { signIn: siwsSignIn } = useSIWSAuth();
   const { accounts } = useWalletConnect();
-  console.log('AuthContext useWalletConnect accounts:', accounts);
 
   // Use MetaMask context instead of direct detection
   const { accounts: metaMaskAccounts, connected: metaMaskConnected, disconnect: metaMaskDisconnect } = useMetaMaskContext();
@@ -70,7 +68,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Check if the currently connected wallet is authorized
   const isAuthorizedWallet = currentWalletAddress ? AUTHORIZED_WALLETS.includes(currentWalletAddress.toLowerCase()) : false;
-  console.log('Checking authorization:', currentWalletAddress?.toLowerCase(), 'in', AUTHORIZED_WALLETS, '=', isAuthorizedWallet);
 
   // Check if current wallet matches authenticated SIWS wallet
   const walletMatchesAuth = !siwsAuthenticated || (siwsWalletAddress === currentWalletAddress);
@@ -83,15 +80,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const isAuthenticated = (siwsAuthenticated && walletMatchesAuth && AUTHORIZED_WALLETS.includes(siwsWalletAddress?.toLowerCase() || '')) ||
                          isAuthorizedWallet;  // Debug logging for wallet address changes
   useEffect(() => {
-    console.log('AuthContext - Current wallet:', currentWalletAddress);
-    console.log('AuthContext - SIWS authenticated:', siwsAuthenticated, 'address:', siwsWalletAddress);
-    console.log('AuthContext - MetaMask connected:', metaMaskConnected, 'accounts:', metaMaskAccounts);
-    console.log('AuthContext - SIWS accounts:', accounts);
-    console.log('AuthContext - Is MetaMask connection:', isMetaMaskConnection);
-    console.log('AuthContext - Wallet matches auth:', walletMatchesAuth);
-    console.log('AuthContext - Is authorized wallet:', isAuthorizedWallet);
-    console.log('AuthContext - Final isAuthenticated:', isAuthenticated);
-    console.log('AuthContext - Authentication logic: SIWS auth =', (siwsAuthenticated && walletMatchesAuth && AUTHORIZED_WALLETS.includes(siwsWalletAddress?.toLowerCase() || '')), 'OR authorized wallet =', isAuthorizedWallet);
   }, [currentWalletAddress, siwsAuthenticated, siwsWalletAddress, metaMaskConnected, metaMaskAccounts, accounts, isMetaMaskConnection, walletMatchesAuth, isAuthorizedWallet, isAuthenticated]);
 
   const user: WalletUser | null = siwsUser ? {
@@ -119,25 +107,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Sign out method - properly clear both SIWS and MetaMask state
   const signOut = async () => {
     try {
-      console.log('Signing out from all wallets...');
 
       // Sign out from SIWS if available
       if (siwsSignOut) {
         await siwsSignOut();
-        console.log('SIWS sign out completed');
       }
 
       // Disconnect MetaMask if connected
       if (metaMaskDisconnect) {
         metaMaskDisconnect();
-        console.log('MetaMask disconnect completed');
       }
 
       // Clear local storage that might contain auth state
       localStorage.clear();
       sessionStorage.clear();
 
-      console.log('Sign out completed, reloading page...');
       // Reload to ensure clean state
       window.location.reload();
     } catch (error) {

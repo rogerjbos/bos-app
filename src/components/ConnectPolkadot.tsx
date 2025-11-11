@@ -16,7 +16,7 @@ export default function ConnectPolkadot() {
       // Log addresses after connection
       setTimeout(() => {
         if (accounts.length > 0) {
-          console.log(`Polkadot connection: Found ${accounts.length} address(es)`, accounts.map(acc => acc.address));
+          // Connection successful
         }
       }, 100);
     } catch (err) {
@@ -26,15 +26,13 @@ export default function ConnectPolkadot() {
 
   const handleSwitchAccount = async () => {
     try {
-      console.log('Attempting to switch Polkadot account...');
       await connect(); // Re-connect will allow account selection
       // Log addresses after account switch
       setTimeout(() => {
         if (accounts.length > 0) {
-          console.log(`Polkadot account switch: Found ${accounts.length} address(es)`, accounts.map(acc => acc.address));
+          // Account switch successful
         }
       }, 100);
-      console.log('Polkadot account switch completed');
       setShowAccountMenu(false);
     } catch (err) {
       console.error('Account switching failed:', err);
@@ -48,15 +46,13 @@ export default function ConnectPolkadot() {
 
   const handleRefreshAccounts = async () => {
     try {
-      console.log('Refreshing Polkadot accounts...');
       await connect(); // Re-connect to refresh accounts
       // Log addresses after refresh
       setTimeout(() => {
         if (accounts.length > 0) {
-          console.log(`Polkadot accounts refresh: Found ${accounts.length} address(es)`, accounts.map(acc => acc.address));
+          // Refresh successful
         }
       }, 100);
-      console.log('Polkadot accounts refreshed');
       setShowAccountMenu(false);
     } catch (err) {
       console.error('Failed to refresh accounts:', err);
