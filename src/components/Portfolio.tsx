@@ -817,10 +817,6 @@ const Portfolio: React.FC = () => {
 
           if (response.ok) {
             const data = await response.json();
-            console.log('[Portfolio] crypto_ranks response', symbolUpper, {
-              count: Array.isArray(data) ? data.length : 'not-array',
-              sample: Array.isArray(data) && data.length > 0 ? data[0] : null,
-            });
             const mergedEntry = mergeCryptoRankEntries(data, symbolUpper);
             if (mergedEntry) {
               aggregatedEntries.set(mergedEntry.baseCurrency, mergedEntry);

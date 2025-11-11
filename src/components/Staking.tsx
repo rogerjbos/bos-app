@@ -122,13 +122,13 @@ const StakingTableContent: React.FC<{
                   )}
                 </td>
                 <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{renderEditableCell('ticker', item, idx)}</td>
-                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('stakedQuantity', item, idx, true, true)}</td>
-                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{renderEditableCell('unclaimedQuantity', item, idx, true, true)}</td>
-                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(totalQuantity, 4)}</td>
-                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white text-right">{renderEditableCell('stakedQuantity', item, idx, true, true)}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white text-right">{renderEditableCell('unclaimedQuantity', item, idx, true, true)}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white text-right">{hideValues ? '***' : formatNumber(totalQuantity, 2)}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white text-right">
                   {renderEditableCell('price', item, idx, true)}
                 </td>
-                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white text-right">
                   {(() => {
                     const returnValue = (() => {
                       switch (selectedReturnPeriod) {
@@ -149,8 +149,8 @@ const StakingTableContent: React.FC<{
                     );
                   })()}
                 </td>
-                <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{hideValues ? '***' : `$${formatNumber(itemValue)}`}</td>
-                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{formatNumber(percentOfTotal, 1)}%</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white text-right">{hideValues ? '***' : `$${formatNumber(itemValue)}`}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white text-right">{formatNumber(percentOfTotal, 1)}%</td>
                 <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
                   {editIndex === idx && editItem ? (
                     <input
@@ -395,11 +395,11 @@ const DeletedStakingTableContent: React.FC<{
                   </button>
                 </td>
                 <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{item.ticker}</td>
-                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(parseFloat(item.stakedQuantity || '0'), 4)}</td>
-                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(parseFloat(item.unclaimedQuantity || '0'), 4)}</td>
-                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : formatNumber(totalQuantity, 4)}</td>
-                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{hideValues ? '***' : `$${formatNumber(parseFloat(item.price || '0'))}`}</td>
-                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white text-right">{hideValues ? '***' : formatNumber(parseFloat(item.stakedQuantity || '0'), 2)}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white text-right">{hideValues ? '***' : formatNumber(parseFloat(item.unclaimedQuantity || '0'), 2)}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white text-right">{hideValues ? '***' : formatNumber(totalQuantity, 2)}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white text-right">{hideValues ? '***' : `$${formatNumber(parseFloat(item.price || '0'), 2)}`}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white text-right">
                   {(() => {
                     const returnValue = (() => {
                       switch (selectedReturnPeriod) {
@@ -420,8 +420,8 @@ const DeletedStakingTableContent: React.FC<{
                     );
                   })()}
                 </td>
-                <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white">{hideValues ? '***' : `$${formatNumber(itemValue)}`}</td>
-                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{formatNumber(percentOfTotal, 1)}%</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-white text-right">{hideValues ? '***' : `$${formatNumber(itemValue)}`}</td>
+                <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white text-right">{formatNumber(percentOfTotal, 1)}%</td>
                 <td className="px-2 py-2 whitespace-nowrap text-xs text-gray-900 dark:text-white">{item.account}</td>
               </tr>
             );
@@ -627,7 +627,6 @@ const Staking: React.FC = () => {
         // Wait for user to be available before fetching data
         if (user) {
           // For SIWS, we work with local storage only
-          console.log('SIWS authenticated user:', user.address);
         }
 
         // Always load prices (if API available)
@@ -868,7 +867,18 @@ const Staking: React.FC = () => {
       );
     } else {
       const value = item[field];
-      const displayValue = hideWhenPrivate && hideValues ? '***' : (value || 'N/A');
+      let displayValue: string;
+      if (hideWhenPrivate && hideValues) {
+        displayValue = '***';
+      } else if (value) {
+        if (isNumeric && (field === 'stakedQuantity' || field === 'unclaimedQuantity' || field === 'price')) {
+          displayValue = field === 'price' ? `$${formatNumber(parseFloat(value), 2)}` : formatNumber(parseFloat(value), 2);
+        } else {
+          displayValue = value;
+        }
+      } else {
+        displayValue = 'N/A';
+      }
       return (
         <div
           onClick={() => startEditing(index)}

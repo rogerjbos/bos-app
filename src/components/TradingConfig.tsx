@@ -120,7 +120,6 @@ const Bots: React.FC = () => {
 
   useEffect(() => {
     const loadInitialData = async () => {
-      console.log('TradingConfig loadInitialData called:', { isAuthenticated, user: !!user, walletAddress });
       setIsLoading(true);
       try {
         // Load public trading config and schwab symbols even when user is not logged in.
@@ -138,7 +137,6 @@ const Bots: React.FC = () => {
         await fetchStockThresholds(stockSymbols);
         await fetchLatestCryptoPrices(baseCurrencies);
         await fetchLatestStockPrices(stockSymbols);
-        console.log('TradingConfig loadInitialData completed:', { tradingSymbolsLength: symbols.length, schwabSymbolsLength: schwabSymbolsList.length });
       } catch (e) {
         console.error("Error in loadInitialData:", e);
         const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
@@ -956,7 +954,6 @@ const Bots: React.FC = () => {
                 <CardContent className="pt-6">
                   <p className="text-sm">
                     {(() => {
-                      console.log('TradingConfig render check:', { isAuthenticated, tradingSymbolsLength: tradingSymbols.length, user: !!user, walletAddress });
                       return isAuthenticated
                         ? 'No trading symbols configured.'
                         : 'Please log in to view trading configuration.';

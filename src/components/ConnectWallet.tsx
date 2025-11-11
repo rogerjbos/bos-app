@@ -6,11 +6,11 @@ import { useAuth } from '../context/AuthContext';
 import ConnectMetaMask from "./ConnectMetaMask";
 import { Button } from "./ui/Button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from "./ui/Dialog";
 
 type View = "wallets" | "accounts";
@@ -35,9 +35,7 @@ export default function ConnectWallet() {
 
   const handleConnectWallet = async (extensionName: string) => {
     try {
-      console.log(`Attempting to connect to ${extensionName} via SIWS...`);
       await siwsConnect();
-      console.log('SIWS connect completed');
 
       // Use SIWS accounts directly
       const polkadotAccounts = siwsAccounts.map(acc => ({
@@ -45,8 +43,6 @@ export default function ConnectWallet() {
         name: `Account ${acc.address.slice(0, 8)}...${acc.address.slice(-4)}`,
         source: extensionName,
       }));
-
-      console.log(`SIWS: Found ${siwsAccounts.length} address(es)`, siwsAccounts.map(acc => acc.address));
 
       setPolkadotAccounts(polkadotAccounts);
       setView("accounts");
@@ -58,7 +54,6 @@ export default function ConnectWallet() {
   const handleSelectAccount = async (account: PolkadotAccount) => {
     setAuthenticating(true);
     try {
-      console.log(`Authenticating with Polkadot account: ${account.address}`);
 
       // Authenticate with SIWS
       await siwsSignIn({
@@ -67,7 +62,6 @@ export default function ConnectWallet() {
         statement: "Sign in to Bos App with your Polkadot account"
       });
 
-      console.log('SIWS authentication completed');
       setOpen(false);
       setView("wallets");
     } catch (error) {
@@ -81,9 +75,7 @@ export default function ConnectWallet() {
   const handleSwitchAccount = async (walletId: string) => {
     setSwitchingAccount(true);
     try {
-      console.log(`Attempting to switch account for wallet: ${walletId}`);
       await siwsConnect(); // Re-connect will allow account selection
-      console.log('Account switch completed');
     } catch (error) {
       console.error('Failed to switch account:', error);
       alert('Failed to switch accounts. Please try again or check your wallet extension.');
@@ -94,9 +86,7 @@ export default function ConnectWallet() {
 
   const handleDisconnect = async () => {
     try {
-      console.log('Disconnecting all wallets...');
       await signOut();
-      console.log('Disconnection completed');
     } catch (error) {
       console.error('Error during disconnection:', error);
       // Fallback to reload if signOut fails

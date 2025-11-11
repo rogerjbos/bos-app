@@ -24,9 +24,7 @@ export default function ConnectMetaMask() {
     // For MetaMask, account switching must be done through the extension
     // We'll try to trigger account selection, but it may not always work
     try {
-      console.log('Attempting to switch MetaMask account...');
       await switchAccount();
-      console.log('MetaMask account switch completed');
       setShowAccountMenu(false);
     } catch (error) {
       console.warn("Failed to switch MetaMask accounts:", error);
@@ -38,9 +36,7 @@ export default function ConnectMetaMask() {
 
   const handleRefreshAccounts = async () => {
     try {
-      console.log('Refreshing MetaMask accounts...');
       await refreshAccounts();
-      console.log('MetaMask accounts refreshed');
       setShowAccountMenu(false);
     } catch (error) {
       console.warn("Failed to refresh MetaMask accounts:", error);

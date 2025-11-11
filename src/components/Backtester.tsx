@@ -217,9 +217,6 @@ const Backtester: React.FC = () => {
       grouped[decision.strategy].push(decision);
     });
 
-    console.log('All decisions:', decisions);
-    console.log('Decisions by strategy:', grouped);
-
     return grouped;
   }, [decisions]);
 
@@ -565,13 +562,6 @@ const Backtester: React.FC = () => {
           buyAndHoldReturn
         }
       };
-
-      // Debug logging
-      console.log(`Strategy: ${strategyName}`);
-      console.log(`Decisions:`, sortedDecisions);
-      console.log(`Trade Returns:`, returns);
-      console.log(`Held Cumulative Return: ${heldCumulativeReturn}`);
-      console.log(`Buy & Hold Return: ${buyAndHoldReturn}`);
     });
 
     return data;

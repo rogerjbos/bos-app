@@ -48,6 +48,7 @@
     "@react-oauth/google": "^0.12.2",
     "@shawncoe/siws-auth": "file:/Users/rogerbos/node_home/siwp/packages/siws-auth",
     "@tanstack/react-query": "^5.90.2",
+    "buffer": "^6.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dedot": "^0.18.3",
