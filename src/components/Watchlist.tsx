@@ -249,7 +249,9 @@ const mergeCryptoRankEntries = (entries: any[], fallbackSymbol: string): CryptoR
 };
 
 const Watchlist: React.FC = () => {
-  const { user, isAuthenticated, walletAddress } = useAuth();
+  const { user, walletAddress } = useAuth();
+
+  console.log('Watchlist component rendering with:', { user, walletAddress });
 
   const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
   const [activeWatchlistId, setActiveWatchlistId] = useState<string>('');
@@ -624,20 +626,24 @@ const Watchlist: React.FC = () => {
 
   // Load watchlists from backend API
   useEffect(() => {
-    if (isAuthenticated) {
+    if (walletAddress) {
       loadWatchlists();
     }
-  }, [isAuthenticated]);
+  }, [walletAddress]);
 
   // Load watchlists from API
   const loadWatchlists = async () => {
-    if (!isAuthenticated) return;
+    if (!walletAddress) return;
 
     setIsInitialLoading(true);
     setError(null);
     try {
-      const username = user?.name || walletAddress || '';
-      const response = await fetch(`${API_BASE_URL}/watchlists?username=${encodeURIComponent(username)}`, {
+      const username = walletAddress || '';
+      console.log('loadWatchlists: Starting with walletAddress:', walletAddress, 'user:', user);
+      console.log('loadWatchlists: Using username:', username);
+      const apiUrl = `${API_BASE_URL}/watchlists?username=${encodeURIComponent(username)}`;
+      console.log('loadWatchlists: API URL:', apiUrl);
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
@@ -645,11 +651,13 @@ const Watchlist: React.FC = () => {
         },
       });
 
+      console.log('loadWatchlists: Response status:', response.status, 'ok:', response.ok);
       if (!response.ok) {
         throw new Error(`Failed to load watchlists: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('loadWatchlists: Received data:', data);
       setWatchlists(data || []);
 
       // Automatically select the first watchlist if none is selected
@@ -899,13 +907,13 @@ const Watchlist: React.FC = () => {
       return;
     }
 
-    if (!isAuthenticated) {
-      showStatus('User not authenticated', 'error');
+    if (!walletAddress) {
+      showStatus('Please connect your wallet', 'error');
       return;
     }
 
     try {
-      const username = user?.name || walletAddress || '';
+      const username = walletAddress || '';
       const response = await fetch(`${API_BASE_URL}/watchlists`, {
         method: 'POST',
         headers: {
@@ -924,7 +932,7 @@ const Watchlist: React.FC = () => {
         throw new Error(`Failed to create watchlist: ${response.status}`);
       }
 
-      const newWatchlist = await response.json();
+      const newWatchlist = (await response.json()).watchlist;
       setWatchlists(prev => [...prev, newWatchlist]);
       setShowNewWatchlistForm(false);
       setNewWatchlistName('');
@@ -945,13 +953,13 @@ const Watchlist: React.FC = () => {
       return;
     }
 
-    if (!isAuthenticated) {
-      showStatus('User not authenticated', 'error');
+    if (!walletAddress) {
+      showStatus('Please connect your wallet', 'error');
       return;
     }
 
     try {
-      const username = user?.name || walletAddress || '';
+      const username = walletAddress || '';
       const response = await fetch(`${API_BASE_URL}/watchlists/${watchlistId}?username=${encodeURIComponent(username)}`, {
         method: 'DELETE',
         headers: {
@@ -985,8 +993,8 @@ const Watchlist: React.FC = () => {
     const activeWatchlist = watchlists.find(w => w.id === activeWatchlistId);
     if (!activeWatchlist) return;
 
-    if (!isAuthenticated) {
-      showStatus('User not authenticated', 'error');
+    if (!walletAddress) {
+      showStatus('Please connect your wallet', 'error');
       return;
     }
 
@@ -1003,7 +1011,7 @@ const Watchlist: React.FC = () => {
     }
 
     try {
-      const username = user?.name || walletAddress || '';
+      const username = walletAddress || '';
 
       // Add each symbol individually
       for (const symbol of symbols) {
@@ -1052,13 +1060,13 @@ const Watchlist: React.FC = () => {
       return;
     }
 
-    if (!isAuthenticated) {
-      showStatus('User not authenticated', 'error');
+    if (!walletAddress) {
+      showStatus('Please connect your wallet', 'error');
       return;
     }
 
     try {
-      const username = user?.name || walletAddress || '';
+      const username = walletAddress || '';
       const response = await fetch(`${API_BASE_URL}/watchlists/${activeWatchlistId}/symbols/${symbol}?username=${encodeURIComponent(username)}`, {
         method: 'DELETE',
         headers: {
