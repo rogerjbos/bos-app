@@ -267,7 +267,7 @@ interface PortfolioAggregatePosition {
 }
 
 const Portfolio: React.FC = () => {
-  const { user, isAuthenticated, walletAddress } = useAuth();
+  const { user, walletAddress } = useAuth();
   // REMOVED for SIWS migration: const { getAccessToken } = useWalletAuthContext();
 
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
@@ -596,20 +596,29 @@ const Portfolio: React.FC = () => {
 
   // Load portfolios from backend API
   useEffect(() => {
-    if (isAuthenticated) {
+    if (walletAddress) {
       loadPortfolios();
     }
-  }, [isAuthenticated]);
+  }, [walletAddress]);
 
   // Load portfolios from API
   const loadPortfolios = async () => {
-    if (!isAuthenticated) return;
+    if (!walletAddress) {
+      console.log('loadPortfolios: No walletAddress, skipping');
+      return;
+    }
 
+    console.log('loadPortfolios: Starting with walletAddress:', walletAddress, 'user:', user);
     setIsInitialLoading(true);
     setError(null);
     try {
-      const username = user?.name || walletAddress || '';
-      const response = await fetch(`${API_BASE_URL}/portfolios?username=${encodeURIComponent(username)}`, {
+      const username = walletAddress || '';
+      console.log('loadPortfolios: Using username:', username);
+
+      const url = `${API_BASE_URL}/portfolios?username=${encodeURIComponent(username)}`;
+      console.log('loadPortfolios: Fetching from URL:', url);
+
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
@@ -617,11 +626,14 @@ const Portfolio: React.FC = () => {
         },
       });
 
+      console.log('loadPortfolios: Response status:', response.status, 'ok:', response.ok);
+
       if (!response.ok) {
         throw new Error(`Failed to load portfolios: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('loadPortfolios: Received data:', data);
       setPortfolios(data || []);
 
       // Automatically select the first portfolio if none is selected
@@ -867,9 +879,9 @@ const Portfolio: React.FC = () => {
   // Load aggregated positions for current portfolio
   const loadAggregates = useCallback(async (symbols: string[]) => {
     const activePortfolio = portfolios.find(w => w.id === activePortfolioId);
-    if (!activePortfolio || !isAuthenticated || symbols.length === 0) return;
+    if (!activePortfolio || !walletAddress || symbols.length === 0) return;
 
-    const username = user?.name || walletAddress || '';
+    const username = walletAddress || '';
     if (!username) {
       showStatus('Unable to load aggregates: missing username', 'error');
       return;
@@ -908,14 +920,14 @@ const Portfolio: React.FC = () => {
       console.error('Error loading aggregates:', err);
       showStatus(`Failed to load portfolio aggregates: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
-  }, [activePortfolioId, portfolios, isAuthenticated, user, walletAddress, showStatus]);
+  }, [activePortfolioId, portfolios, walletAddress, user, showStatus]);
 
   // Open transactions modal for a symbol
   const openTransactionsModal = async (symbol: string) => {
     setTxSymbol(symbol);
     setShowTxModal(true);
 
-    if (!isAuthenticated) return;
+    if (!walletAddress) return;
 
     try {
       const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/transactions/${symbol}`, {
@@ -956,16 +968,21 @@ const Portfolio: React.FC = () => {
   };
 
   const saveTransactions = async () => {
-    if (!isAuthenticated || !txSymbol) return;
+    if (!walletAddress || !txSymbol) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/transactions/${txSymbol}`, {
-        method: 'PUT',
+      const username = walletAddress || '';
+      const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/transactions`, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ transactions: txRows }),
+        body: JSON.stringify({
+          username: username,
+          symbol: txSymbol,
+          transactions: txRows
+        }),
       });
 
       if (!response.ok) {
@@ -989,13 +1006,13 @@ const Portfolio: React.FC = () => {
       return;
     }
 
-    if (!isAuthenticated) {
-      showStatus('User not authenticated', 'error');
+    if (!walletAddress) {
+      showStatus('Please connect your wallet', 'error');
       return;
     }
 
     try {
-      const username = user?.name || walletAddress || '';
+      const username = walletAddress || '';
       const response = await fetch(`${API_BASE_URL}/portfolios`, {
         method: 'POST',
         headers: {
@@ -1005,7 +1022,8 @@ const Portfolio: React.FC = () => {
         body: JSON.stringify({
           name: newPortfolioName.trim(),
           type: newPortfolioType,
-          symbols: []
+          symbols: [],
+          username: username
         }),
       });
 
@@ -1013,7 +1031,7 @@ const Portfolio: React.FC = () => {
         throw new Error(`Failed to create portfolio: ${response.status}`);
       }
 
-      const newPortfolio = await response.json();
+      const newPortfolio = (await response.json()).portfolio;
       setPortfolios(prev => [...prev, newPortfolio]);
       setShowNewPortfolioForm(false);
       setNewPortfolioName('');
@@ -1034,14 +1052,14 @@ const Portfolio: React.FC = () => {
       return;
     }
 
-    if (!isAuthenticated) {
-      showStatus('User not authenticated', 'error');
+    if (!walletAddress) {
+      showStatus('Please connect your wallet', 'error');
       return;
     }
 
     try {
-      const username = user?.name || walletAddress || '';
-      const response = await fetch(`${API_BASE_URL}/portfolios/${portfolioId}`, {
+      const username = walletAddress || '';
+      const response = await fetch(`${API_BASE_URL}/portfolios/${portfolioId}?username=${encodeURIComponent(username)}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
@@ -1074,8 +1092,8 @@ const Portfolio: React.FC = () => {
     const activePortfolio = portfolios.find(w => w.id === activePortfolioId);
     if (!activePortfolio) return;
 
-    if (!isAuthenticated) {
-      showStatus('User not authenticated', 'error');
+    if (!walletAddress) {
+      showStatus('Please connect your wallet', 'error');
       return;
     }
 
@@ -1092,21 +1110,37 @@ const Portfolio: React.FC = () => {
     }
 
     try {
-      const username = user?.name || walletAddress || '';
-      const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/symbols`, {
-        method: 'POST',
+      const username = walletAddress || '';
+
+      // Add symbols one by one since the API only accepts one symbol at a time
+      for (const symbol of symbols) {
+        const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/symbols?username=${encodeURIComponent(username)}&symbol=${encodeURIComponent(symbol)}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to add symbol ${symbol}: ${response.status}`);
+        }
+      }
+
+      // Get updated portfolio after adding all symbols
+      const updatedPortfolioResponse = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}?username=${encodeURIComponent(username)}`, {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ symbols }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to add symbols: ${response.status}`);
+      if (!updatedPortfolioResponse.ok) {
+        throw new Error(`Failed to get updated portfolio: ${updatedPortfolioResponse.status}`);
       }
 
-      const updatedPortfolio = await response.json();
+      const updatedPortfolio = await updatedPortfolioResponse.json();
       setPortfolios(prev => prev.map(w => w.id === activePortfolioId ? updatedPortfolio : w));
       setShowAddSymbolForm(false);
       setNewSymbol('');
@@ -1126,14 +1160,14 @@ const Portfolio: React.FC = () => {
       return;
     }
 
-    if (!isAuthenticated) {
-      showStatus('User not authenticated', 'error');
+    if (!walletAddress) {
+      showStatus('Please connect your wallet', 'error');
       return;
     }
 
     try {
-      const username = user?.name || walletAddress || '';
-      const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/symbols/${symbol}`, {
+      const username = walletAddress || '';
+      const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/symbols/${symbol}?username=${encodeURIComponent(username)}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,

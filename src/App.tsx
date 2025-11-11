@@ -1,5 +1,5 @@
 import React from 'react';
-import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { Route, BrowserRouter as Router, Routes, useLocation } from 'react-router-dom';
 import NavBar from './components/NavBar';
 import ProtectedRoute from './components/ProtectedRoute';
 import Ranks from './components/Ranks';
@@ -21,6 +21,11 @@ import { MetaMaskProvider } from './providers/MetaMaskProvider';
 
 import './index.css';
 
+const RouteLogger: React.FC = () => {
+  const location = useLocation();
+  return null;
+};
+
 const App: React.FC = () => {
   return (
     <SIWSProvider
@@ -39,6 +44,7 @@ const App: React.FC = () => {
                 v7_startTransition: true
               }}
             >
+              <RouteLogger />
               <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
                 <NavBar />
                 <div className="pt-16"> {/* Add padding-top to account for fixed navbar */}
@@ -46,9 +52,9 @@ const App: React.FC = () => {
                     <Route path="/" element={<HomePage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/reports" element={<ProtectedRoute element={<ReportsPage />} authorizedOnly={true} />} />
-                    <Route path="/staking" element={<ProtectedRoute element={<StakingPage />} authorizedOnly={true} />} />
-                    <Route path="/watchlist" element={<ProtectedRoute element={<WatchlistPage />} />} />
-                    <Route path="/portfolio" element={<ProtectedRoute element={<PortfolioPage />} />} />
+                    <Route path="/staking" element={<ProtectedRoute element={<StakingPage />} walletOnly={true} />} />
+                    <Route path="/watchlist" element={<ProtectedRoute element={<WatchlistPage />} walletOnly={true} />} />
+                    <Route path="/portfolio" element={<ProtectedRoute element={<PortfolioPage />} walletOnly={true} />} />
                     <Route path="/bots" element={<ProtectedRoute element={<BotsPage />} authorizedOnly={true} />} />
                     <Route path="/backtester" element={<ProtectedRoute element={<BacktesterPage />} authorizedOnly={true} />} />
                     <Route path="/ranks" element={<ProtectedRoute element={<Ranks />} authorizedOnly={true} />} />

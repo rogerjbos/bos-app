@@ -41,7 +41,8 @@ pnpm run dev
 pnpm run dev
 ```
 
-### Production
+### Production Deployment
+
 ```bash
 ~/scripts/manage_node_server.sh restart
 ~/scripts/run_data_api_server.sh restart
@@ -49,60 +50,52 @@ pnpm run dev
 
 ## Wallet Authentication
 
-The app integrates wallet-based SSO authentication supporting:
+The app supports two authentication systems working together:
 
-- **MetaMask**: Ethereum wallet authentication
-- **Polkadot**: Substrate-based wallet authentication
+### SIWS Authentication (Primary for Wallets)
+- **Library**: @shawncoe/siws-auth for Substrate-based wallets
+- **Wallets**: Polkadot.js extension
+- **Usage**: Wallet connection and user identity
+- **Features**: Sign-In With Substrate protocol, persistent sessions
+
+### JWT Authentication (API Access)
+- **Backend**: Python FastAPI server with JWT tokens
+- **Usage**: API authentication for TradingConfig and other components
+- **Features**: Challenge-response authentication, automatic token refresh
+- **Storage**: JWT tokens in localStorage (`accessToken`, `refreshToken`)
 
 ### How Authentication Works
 
-1. **Connect Wallet**: Connect your MetaMask or Polkadot wallet
-2. **Generate Challenge**: Click "Auth" to request an authentication challenge
-3. **Sign Message**: Sign the challenge message in your wallet
-4. **Verify & Authenticate**: Receive JWT tokens for API access
+1. **Connect Wallet**: Connect your Polkadot wallet (SIWS) or MetaMask (placeholder)
+2. **SIWS Auth**: Polkadot wallets authenticate via Sign-In With Substrate
+3. **Auto-Refresh**: JWT tokens are automatically refreshed when expired
 
-### Testing Authentication
+### Current Implementation Status
 
-1. Start the API server with authentication:
-   ```bash
-   ~/scripts/run_data_api_server.sh restart
-   ```
-
-2. Start the frontend:
-   ```bash
-   pnpm run dev
-   ```
-
-3. Open browser to `https://localhost:5173`
-
-4. Connect your MetaMask wallet
-
-5. Click the "Auth" button next to the connected wallet
-
-6. Sign the authentication message in MetaMask
-
-7. You should see "Authenticated" status with your wallet info
+- ✅ **Polkadot SIWS**: Fully implemented in ConnectWallet component
+- ✅ **API JWT**: Active in TradingConfig, Portfolio, and other components
+- ✅ **Token Management**: Automatic refresh and localStorage persistence
 
 ### API Endpoints
 
-Authentication endpoints are now integrated into the Python API server:
+Authentication endpoints are integrated into the Python API server:
 
 - `GET /auth/health` - Authentication service health check
-- `POST /auth/challenge` - Generate authentication challenge
-- `POST /auth/verify` - Verify wallet signature and authenticate
-- `POST /auth/refresh` - Refresh access token
 
-### Environment Variables
+### Components Using Authentication
 
-Create a `.env` file for custom configuration:
+- **ConnectWallet**: SIWS authentication for Polkadot wallets
+- **AuthStatus**: JWT-based user status display
+- **TradingConfig**: JWT tokens for API calls
+- **Portfolio**: JWT tokens for API calls
+- **Ranks**: Static API key authentication
 
-```env
-JWT_SECRET=your-super-secret-jwt-key
-JWT_ISSUER=http://localhost:3001
-JWT_AUDIENCE=bos-app
-SESSION_SECRET=your-session-secret
-VITE_API_TOKEN=your-backend-api-token
-```
+### Token Management
+
+- **Storage**: JWT tokens stored in localStorage (`accessToken`, `refreshToken`)
+- **Expiration**: Access tokens expire in 1 hour, refresh tokens last longer
+- **Auto-refresh**: Automatic token refresh on API calls
+- **Security**: Tokens are validated on both client and server
 
 ## Project Structure
 
@@ -110,15 +103,19 @@ VITE_API_TOKEN=your-backend-api-token
 bos-app/
 ├── src/
 │   ├── components/
-│   │   ├── ConnectMetaMask.tsx    # MetaMask connection + auth
-│   │   ├── ConnectWallet.tsx      # Polkadot wallet connection
-│   │   ├── AuthStatus.tsx         # Authentication status display
+│   │   ├── ConnectMetaMask.tsx    # MetaMask wallet connection (placeholder auth)
+│   │   ├── ConnectWallet.tsx      # Polkadot wallet connection + SIWS auth
+│   │   ├── AuthStatus.tsx         # JWT-based authentication status display
+│   │   └── ...
+│   ├── context/
+│   │   ├── AuthContext.tsx        # SIWS authentication context (Polkadot)
 │   │   └── ...
 │   ├── hooks/
-│   │   ├── useWalletAuth.ts       # Authentication logic
+│   │   ├── useWalletAuth.ts       # JWT-based authentication logic
 │   │   └── ...
 │   ├── providers/
-│   │   ├── WalletAuthProvider.tsx # Auth context provider
+│   │   ├── WalletAuthProvider.tsx # JWT auth context provider
+│   │   ├── MetaMaskProvider.tsx   # MetaMask wallet provider
 │   │   └── ...
 │   └── ...
 ├── server.cjs                     # Production Express server
@@ -126,13 +123,27 @@ bos-app/
 └── package.json
 ```
 
-**Note**: Wallet authentication is now handled by the Python API server at `/python_home/data-api-server` rather than the Express server.
+**Note**: The app uses dual authentication systems:
+- **SIWS**: For Polkadot wallet authentication and identity
+- **JWT**: For API access tokens in TradingConfig, Portfolio, and other components
 
 ## Backend Services
 
 - **Frontend**: Vite dev server (port 5173)
-- **API Backend**: Python FastAPI server with integrated wallet authentication (port 4000)
-- **Production**: Full stack server (port 3000)
+- **API Backend**: Python FastAPI server with JWT authentication (port 4000)
+- **Authentication**: Dual system - SIWS for wallets, JWT for API access
+
+### Authentication Architecture
+
+**SIWS System (Wallet Authentication)**:
+- Sign-In With Substrate protocol
+- Polkadot.js extension integration
+- Used for wallet connection and user identity
+
+**JWT System (API Access)**:
+- Challenge-response authentication
+- Stateless JWT tokens with automatic refresh
+- Used by TradingConfig, Portfolio, and other components for API calls
 
 #### Notes
 cd ~/node_home/bos-app

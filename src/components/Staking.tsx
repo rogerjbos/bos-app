@@ -443,8 +443,10 @@ const DeletedStakingTableContent: React.FC<{
 );
 
 const Staking: React.FC = () => {
-  // Get the authenticated user and authentication status
-  const { user, isAuthenticated, walletAddress } = useAuth();
+  // Get the authenticated user and wallet address
+  const { user, walletAddress } = useAuth();
+
+  console.log('Staking component rendering with:', { user, walletAddress });
 
   // Define the storage helper BEFORE any useState that uses it
   const storage = {
@@ -660,8 +662,8 @@ const Staking: React.FC = () => {
   }, []);
 
   const fetchPriceData = useCallback(async () => {
-    if (!isAuthenticated) {
-      setPriceUpdateError('User not authenticated');
+    if (!walletAddress) {
+      setPriceUpdateError('Wallet not connected');
       setPricesLoaded(true);
       return;
     }
@@ -677,8 +679,12 @@ const Staking: React.FC = () => {
       }
 
       // Fetch price and return data from API
-      const username = user?.name || walletAddress || '';
-      const response = await fetch(`${API_BASE_URL}/prices`, {
+      const username = walletAddress || '';
+      console.log('fetchPriceData: Starting with walletAddress:', walletAddress, 'user:', user);
+      console.log('fetchPriceData: Using username:', username);
+      const apiUrl = `${API_BASE_URL}/prices`;
+      console.log('fetchPriceData: API URL:', apiUrl);
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
@@ -686,11 +692,13 @@ const Staking: React.FC = () => {
         },
       });
 
+      console.log('fetchPriceData: Response status:', response.status, 'ok:', response.ok);
       if (!response.ok) {
         throw new Error(`Failed to fetch staking data: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('fetchPriceData: Received data:', data);
 
       // Update staking items with the fetched data
       if (data.prices && data.returns) {
@@ -722,7 +730,7 @@ const Staking: React.FC = () => {
     } finally {
       setPricesLoaded(true);
     }
-  }, [isAuthenticated, user?.name, walletAddress, stakingItems, showStatus]);
+  }, [walletAddress, user?.name, stakingItems, showStatus]);
 
   // Update staking items with latest prices and returns
   const updateStakingPrices = (prices: PriceData, returns: ReturnData, date: string) => {
@@ -773,7 +781,7 @@ const Staking: React.FC = () => {
 
     const itemToAdd: StakingItem = {
       ...newItem,
-      username: user?.name || '',
+      username: walletAddress || '',
       price: newItem.price || '0',
       return7d: newItem.return7d || '0',
       return30d: newItem.return30d || '0',
@@ -837,7 +845,7 @@ const Staking: React.FC = () => {
   const saveEdit = () => {
     if (editIndex !== null && editItem) {
       const updatedItems = [...stakingItems];
-      updatedItems[editIndex] = { ...editItem, username: user?.name || '' };
+      updatedItems[editIndex] = { ...editItem, username: walletAddress || '' };
       setStakingItems(updatedItems);
       storage.save('stakingData', updatedItems);
       setEditIndex(null);
@@ -900,7 +908,7 @@ const Staking: React.FC = () => {
   const updateAllItemsWithUsername = () => {
     const updatedItems = stakingItems.map(item => ({
       ...item,
-      username: user?.name || ''
+      username: walletAddress || ''
     }));
     setStakingItems(updatedItems);
     storage.save('stakingData', updatedItems);
@@ -1003,7 +1011,7 @@ const Staking: React.FC = () => {
                   id="username"
                   type="text"
                   name="username"
-                  value={user?.name || 'Not logged in'}
+                  value={user?.name || walletAddress || 'Not logged in'}
                   disabled
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                 />
@@ -1113,9 +1121,9 @@ const Staking: React.FC = () => {
         </div>
       ) : stakingItems.length === 0 ? (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400 px-4 py-3 rounded">
-          {isAuthenticated
+          {walletAddress
             ? `No staking assets found${user ? ` for ${user.name}` : walletAddress ? ` for ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : ''}. ${Object.keys(priceData).length} prices loaded.`
-            : 'Please log in to view staking data.'
+            : 'Please connect your wallet to view staking data.'
           }
         </div>
       ) : (
