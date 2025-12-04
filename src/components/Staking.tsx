@@ -450,9 +450,19 @@ const Staking: React.FC = () => {
 
   // Define the storage helper BEFORE any useState that uses it
   const storage = {
+    getKey: (baseKey: string) => {
+      // Make storage user-specific by including wallet address in the key
+      // But keep appVersion global
+      if (baseKey === 'appVersion') {
+        return baseKey;
+      }
+      const userIdentifier = walletAddress || 'anonymous';
+      return `${baseKey}_${userIdentifier}`;
+    },
     save: (key: string, data: any) => {
       try {
-        localStorage.setItem(key, JSON.stringify(data));
+        const fullKey = storage.getKey(key);
+        localStorage.setItem(fullKey, JSON.stringify(data));
         return true;
       } catch (e) {
         console.error(`Failed to save ${key} to storage:`, e);
@@ -461,7 +471,8 @@ const Staking: React.FC = () => {
     },
     load: (key: string) => {
       try {
-        const data = localStorage.getItem(key);
+        const fullKey = storage.getKey(key);
+        const data = localStorage.getItem(fullKey);
         if (!data) return null;
         return JSON.parse(data);
       } catch (e) {
@@ -471,7 +482,8 @@ const Staking: React.FC = () => {
     },
     clear: (key: string) => {
       try {
-        localStorage.removeItem(key);
+        const fullKey = storage.getKey(key);
+        localStorage.removeItem(fullKey);
         return true;
       } catch (e) {
         return false;
@@ -492,6 +504,62 @@ const Staking: React.FC = () => {
     const saved = storage.load('stakingData');
     if (saved && Array.isArray(saved) && saved.length > 0) {
       return saved;
+    }
+
+    // Migration logic: check for data stored under old keys
+    if (walletAddress) {
+      // Check for data stored under the old global key
+      const oldGlobalData = localStorage.getItem('stakingData');
+      if (oldGlobalData) {
+        try {
+          const parsedData = JSON.parse(oldGlobalData);
+          if (Array.isArray(parsedData) && parsedData.length > 0) {
+            // Migrate the data to the new user-specific key
+            const migratedItems = parsedData.map((item: StakingItem) => ({
+              ...item,
+              username: walletAddress // Update username to full address
+            }));
+
+            // Save under new key and remove old key
+            storage.save('stakingData', migratedItems);
+            localStorage.removeItem('stakingData');
+
+            console.log(`Migrated ${migratedItems.length} staking items from global storage to user-specific storage`);
+            return migratedItems;
+          }
+        } catch (e) {
+          console.error('Error parsing old global staking data:', e);
+        }
+      }
+
+      // Check for data stored under truncated username (legacy migration)
+      if (walletAddress.length > 12) {
+        const truncatedUsername = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
+        const oldTruncatedKey = `stakingData_${truncatedUsername}`;
+        const migratedData = localStorage.getItem(oldTruncatedKey);
+
+        if (migratedData) {
+          try {
+            const parsedData = JSON.parse(migratedData);
+            if (Array.isArray(parsedData) && parsedData.length > 0) {
+              // Migrate the data to the new username format
+              const migratedItems = parsedData.map((item: StakingItem) => ({
+                ...item,
+                username: walletAddress // Update username to full address
+              }));
+
+              // Save under new key and remove old key
+              storage.save('stakingData', migratedItems);
+              localStorage.removeItem(oldTruncatedKey);
+
+              console.log(`Migrated ${migratedItems.length} staking items from truncated username to full address`);
+              return migratedItems;
+            }
+          } catch (e) {
+            console.error('Error parsing old truncated username staking data:', e);
+          }
+        }
+      }
     }
 
     return []; // Default to empty array
@@ -625,16 +693,15 @@ const Staking: React.FC = () => {
     const loadInitialData = async () => {
       setIsLoading(true);
       setPricesLoaded(false);
-      try {
-        // Wait for user to be available before fetching data
-        if (user) {
-          // For SIWS, we work with local storage only
-        }
+    try {
+      // Wait for wallet address to be available before fetching data
+      if (walletAddress) {
+        // Fetch staking data from API first
+        await fetchStakingData();
+      }
 
-        // Always load prices (if API available)
-        await fetchPriceData();
-
-      } catch (e) {
+      // Always load prices (if API available)
+      await fetchPriceData();      } catch (e) {
         console.error("Error in loadInitialData:", e);
       } finally {
         setIsLoading(false);
@@ -643,7 +710,7 @@ const Staking: React.FC = () => {
 
     loadInitialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]); // Intentionally excluding other dependencies to prevent infinite loops
+  }, [user, walletAddress]); // Include walletAddress in dependencies
 
   // ADD EFFECT TO SAVE HIDE VALUES PREFERENCE
   useEffect(() => {
@@ -660,6 +727,60 @@ const Staking: React.FC = () => {
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
+
+  const fetchStakingData = useCallback(async () => {
+    if (!walletAddress) {
+      console.log('fetchStakingData: No wallet address available');
+      return;
+    }
+
+    try {
+      console.log('fetchStakingData: Fetching staking data for wallet:', walletAddress);
+      const apiUrl = `${API_BASE_URL}/staking?username=${encodeURIComponent(walletAddress)}`;
+      console.log('fetchStakingData: API URL:', apiUrl);
+      console.log('fetchStakingData: Username being sent to API:', walletAddress);
+
+      const fetchOptions = {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      };
+      console.log('fetchStakingData: Making API call:', {
+        url: apiUrl,
+        method: fetchOptions.method,
+        headers: fetchOptions.headers
+      });
+
+      const response = await fetch(apiUrl, fetchOptions);
+
+      console.log('fetchStakingData: Response status:', response.status, 'ok:', response.ok);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch staking data: ${response.status}`);
+      }
+
+      const stakingData = await response.json();
+      console.log('fetchStakingData: Received staking data:', stakingData);
+
+      if (Array.isArray(stakingData) && stakingData.length > 0) {
+        // Update staking items with API data
+        setStakingItems(stakingData);
+        storage.save('stakingData', stakingData);
+        console.log(`fetchStakingData: Loaded ${stakingData.length} staking items from API`);
+        showStatus(`Loaded ${stakingData.length} staking items from API`, 'success');
+      } else {
+        console.log('fetchStakingData: No staking data found in API response');
+        // If no API data, keep local storage data
+        showStatus('No staking data found in API, using local data', 'success');
+      }
+    } catch (err) {
+      console.error('Error fetching staking data from API:', err);
+      showStatus('Failed to load staking data from API, using local data', 'error');
+      // Don't throw error - fall back to local storage
+    }
+  }, [walletAddress, showStatus]);
 
   const fetchPriceData = useCallback(async () => {
     if (!walletAddress) {
@@ -899,9 +1020,23 @@ const Staking: React.FC = () => {
     }
   };
 
-  // Refresh from API (placeholder for SIWS)
-  const refreshFromAPI = () => {
-    showStatus('SIWS mode - no API sync available', 'success');
+  // Refresh from API
+  const refreshFromAPI = async () => {
+    if (!walletAddress) {
+      showStatus('No wallet connected', 'error');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      await fetchStakingData();
+      await fetchPriceData();
+      showStatus('Data refreshed from API', 'success');
+    } catch (err) {
+      showStatus('Failed to refresh data from API', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Update all items with username
@@ -920,7 +1055,19 @@ const Staking: React.FC = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Staking Value</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              {stakingItems.length > 0 && stakingItems[0].username
+                ? <>Staking:  <span className="text-lg font-normal">{stakingItems[0].username}</span></>
+                : 'Staking Value'
+              }
+            </h1>
+            {stakingItems.length > 0 && stakingItems[0].username && (
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                {stakingItems.length} staking asset{stakingItems.length !== 1 ? 's' : ''} • Total value: {hideValues ? '***' : `$${formatNumber(totalValue)}`}
+              </p>
+            )}
+          </div>
         <div className="flex gap-2 flex-wrap">
           {/* Return period selector */}
           <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">

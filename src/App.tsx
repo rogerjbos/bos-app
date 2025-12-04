@@ -2,7 +2,6 @@ import React from 'react';
 import { Route, BrowserRouter as Router, Routes, useLocation } from 'react-router-dom';
 import NavBar from './components/NavBar';
 import ProtectedRoute from './components/ProtectedRoute';
-import Ranks from './components/Ranks';
 import BacktesterPage from './pages/BacktesterPage';
 import BotsPage from './pages/BotsPage';
 import Counter from './pages/Counter';
@@ -12,12 +11,14 @@ import PortfolioPage from './pages/PortfolioPage';
 import ReportsPage from './pages/ReportsPage';
 import SourdoughRecipes from './pages/SourdoughRecipes';
 import StakingPage from './pages/StakingPage';
+import ThermostatPage from './pages/ThermostatPage';
 import WatchlistPage from './pages/WatchlistPage';
 
 import { SIWSProvider } from '@shawncoe/siws-auth/react';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { MetaMaskProvider } from './providers/MetaMaskProvider';
+import { WalletAuthProvider } from './providers/WalletAuthProvider';
 
 import './index.css';
 
@@ -36,8 +37,9 @@ const App: React.FC = () => {
       autoConnect={false}
     >
       <MetaMaskProvider>
-        <AuthProvider>
-          <ThemeProvider>
+        <WalletAuthProvider>
+          <AuthProvider>
+            <ThemeProvider>
             <Router
               future={{
                 v7_relativeSplatPath: true,
@@ -57,7 +59,7 @@ const App: React.FC = () => {
                     <Route path="/portfolio" element={<ProtectedRoute element={<PortfolioPage />} walletOnly={true} />} />
                     <Route path="/bots" element={<ProtectedRoute element={<BotsPage />} authorizedOnly={true} />} />
                     <Route path="/backtester" element={<ProtectedRoute element={<BacktesterPage />} authorizedOnly={true} />} />
-                    <Route path="/ranks" element={<ProtectedRoute element={<Ranks />} authorizedOnly={true} />} />
+                    <Route path="/thermostat" element={<ProtectedRoute element={<ThermostatPage />} authorizedOnly={true} />} />
                     <Route path="/counter" element={<Counter />} />
                     <Route path="/sourdough" element={<SourdoughRecipes />} />
                   </Routes>
@@ -66,8 +68,9 @@ const App: React.FC = () => {
             </Router>
           </ThemeProvider>
         </AuthProvider>
-      </MetaMaskProvider>
-    </SIWSProvider>
+      </WalletAuthProvider>
+    </MetaMaskProvider>
+  </SIWSProvider>
   );
 };
 

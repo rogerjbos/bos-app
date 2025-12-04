@@ -41,6 +41,7 @@ const NavBarComponent: React.FC = () => {
     { to: '/bots', label: 'Bots' },
     { to: '/backtester', label: 'Backtester' },
     { to: '/ranks', label: 'Ranks' },
+    { to: '/thermostat', label: 'Thermostat' },
   ], []);
 
   // Close dropdown on outside click
