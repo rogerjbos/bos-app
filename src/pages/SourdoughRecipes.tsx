@@ -21,17 +21,17 @@ const SourdoughRecipes: React.FC = () => {
       title: "Sourdough pancakes",
       description: "Fluffy sourdough pancakes with tangy flavor",
       ingredients: [
-        "1 cup (240ml) active sourdough starter (fed and bubbly)",
-        "1 cup (120g) all-purpose flour",
-        "1 tablespoon (15ml) sugar",
-        "1 teaspoon (5g) baking powder",
-        "1/2 teaspoon (2.5g) baking soda",
-        "1/2 teaspoon (2.5g) salt",
+        "1 cup active sourdough starter (fed and bubbly)",
+        "1 cup bread flour",
+        "1 tablespoon sugar",
+        "1 teaspoon baking powder",
+        "1/2 teaspoon baking soda",
+        "1/2 teaspoon salt",
         "1 large egg",
-        "1 1/2 cups (360ml) buttermilk (or 1 1/2 cups milk mixed with 1 1/2 tablespoons lemon juice or vinegar, left to sit for 5 minutes)",
-        "2 tablespoons (30ml) melted butter, plus extra for cooking"
+        "1 1/2 cups buttermilk (or 1 1/2 cups milk mixed with 1 1/2 tablespoons lemon juice or vinegar, left to sit for 5 minutes)",
+        "2 tablespoons melted butter"
       ],
-      instructions: "In a large bowl, whisk together the flour, sugar, baking powder, baking soda, and salt.<br>In a separate bowl, mix the sourdough starter, egg, and buttermilk. Add the melted butter and mix well.<br>Pour the wet ingredients into the dry ingredients and stir until just combined. Some small lumps are okay. Let the batter rest for 10 minutes.<br>Heat a lightly oiled griddle or frying pan over medium heat. For each pancake, pour 1/4 cup of batter onto the griddle. Cook until bubbles form on the surface, about 2-3 minutes.<br>Flip the pancakes and cook until golden brown on the other side, about 1-2 minutes more.<br>Serve hot with your favorite toppings, such as maple syrup, fresh fruit, or whipped cream."
+      instructions: "In a large bowl, whisk together the flour, sugar, baking powder, baking soda, and salt.<br>In a separate bowl, mix the sourdough starter, egg, and buttermilk. Add the melted butter and mix well.<br>Pour the wet ingredients into the dry ingredients and stir until just combined. Some small lumps are okay. Let the batter rest for 10 minutes.<br>Heat a lightly oiled griddle or frying pan over medium heat. For each pancake, pour 1/4 cup of batter onto the griddle. Cook until bubbles form on the surface, about 2-3 minutes.<br>Flip the pancakes and cook until golden brown on the other side, about 1-2 minutes more."
     },
     {
       id: 3,
