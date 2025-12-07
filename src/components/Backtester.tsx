@@ -1,59 +1,69 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
-import * as echarts from 'echarts';
-import React, { useEffect, useMemo, useState } from 'react';
-import { FaSync } from 'react-icons/fa';
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
+import React, { useEffect, useState } from 'react';
+import { FaSort, FaSortDown, FaSortUp, FaSync } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 
-// Types for the decision data
-interface Decision {
+// API configuration
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_KEY = import.meta.env.VITE_API_KEY;
+
+// Types for the file data
+interface FileInfo {
+  name: string;
+  type: 'decisions' | 'performance';
+  asset_type: 'stocks' | 'crypto';
+  level: 'summary' | 'symbol' | 'strategy';
+  symbol?: string;
+  strategy?: string;
+}
+
+interface DecisionData {
+  date: string;
   ticker: string;
   strategy: string;
-  date: string;
-  action: string;
+  decision: string;
+  confidence: number;
+  price: number;
+  [key: string]: any;
 }
 
-// // Types for returns data
-interface CryptoReturns {
+interface PerformanceData {
   date: string;
-  baseCurrency: string;
-  quoteCurrency: string;
-  daily_return?: number;
+  strategy: string;
+  cumulative_return: number;
+  daily_return: number;
+  [key: string]: any;
 }
 
-interface StockReturns {
-  date: string;
-  symbol: string;
-  daily_return?: number;
-}
-
-// API configuration
-const API_BASE_URL = import.meta.env.DEV
-  ? (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:4000/api')
-  : (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:4000/api');
-const API_KEY = import.meta.env.VITE_API_KEY;
+type SortDirection = 'asc' | 'desc' | null;
+type ViewMode = 'overview' | 'symbols' | 'strategies';
 
 const Backtester: React.FC = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'stocks' | 'crypto'>('stocks');
+  const [viewMode, setViewMode] = useState<ViewMode>('overview');
+  const [selectedSymbol, setSelectedSymbol] = useState<string>('');
+  const [cameFromStrategies, setCameFromStrategies] = useState<boolean>(false);
+  const [previousSymbol, setPreviousSymbol] = useState<string>('');
 
   // Data states
-  const [stockTickers, setStockTickers] = useState<string[]>([]);
-  const [cryptoTickers, setCryptoTickers] = useState<string[]>([]);
-  const [selectedTicker, setSelectedTicker] = useState<string>('');
-  const [decisions, setDecisions] = useState<Decision[]>([]);
-  const [returnsData, setReturnsData] = useState<CryptoReturns[] | StockReturns[]>([]);
-  const [strategies, setStrategies] = useState<string[]>([]);
-  const [datasets, setDatasets] = useState<string[]>([]);
-  const [selectedDataset, setSelectedDataset] = useState<string>('');
+  const [models, setModels] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [files, setFiles] = useState<FileInfo[]>([]);
+  const [selectedFile, setSelectedFile] = useState<string>('');
+  const [fileContent, setFileContent] = useState<DecisionData[] | PerformanceData[]>([]);
 
   // Loading states
-  const [loadingTickers, setLoadingTickers] = useState(false);
-  const [loadingDecisions, setLoadingDecisions] = useState(false);
-  const [loadingReturns, setLoadingReturns] = useState(false);
-  const [loadingDatasets, setLoadingDatasets] = useState(false);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [loadingFiles, setLoadingFiles] = useState(false);
+  const [loadingContent, setLoadingContent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Error states
-  const [error, setError] = useState<string>('');
+  // Sorting states
+  const [filesSortColumn, setFilesSortColumn] = useState<string>('name');
+  const [filesSortDirection, setFilesSortDirection] = useState<SortDirection>('asc');
+  const [contentSortColumn, setContentSortColumn] = useState<string>('date');
+  const [contentSortDirection, setContentSortDirection] = useState<SortDirection>('desc');
 
   // Helper function to get a valid access token (refresh if expired)
   const getValidAccessToken = async (): Promise<string | null> => {
@@ -61,12 +71,12 @@ const Backtester: React.FC = () => {
     return API_KEY;
   };
 
-  // Get available datasets
-  const fetchDatasets = async () => {
-    setLoadingDatasets(true);
-    setError('');
+  // Get available models
+  const fetchModels = async () => {
+    setLoadingModels(true);
+    setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/backtester_decisions/datasets`, {
+      const response = await fetch(`${API_BASE_URL}/backtester/models`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
@@ -75,27 +85,27 @@ const Backtester: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch datasets: ${response.status}`);
+        throw new Error(`Failed to fetch models: ${response.status}`);
       }
 
       const data = await response.json();
-      setDatasets(data);
+      setModels(data);
     } catch (err) {
-      console.error('Error fetching datasets:', err);
-      setError(`Failed to load datasets: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      console.error('Error fetching models:', err);
+      setError(`Failed to load models: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
-      setLoadingDatasets(false);
+      setLoadingModels(false);
     }
   };
 
-  // Get available tickers
-  const fetchTickers = async (assetType: 'stocks' | 'crypto', dataset: string) => {
-    if (!dataset) return;
+  // Get available files for a model
+  const fetchFiles = async (model: string) => {
+    if (!model) return;
 
-    setLoadingTickers(true);
-    setError('');
+    setLoadingFiles(true);
+    setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/backtester_decisions/${assetType}/tickers?dataset=${dataset}`, {
+      const response = await fetch(`${API_BASE_URL}/backtester/${model}/files`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
@@ -104,915 +114,197 @@ const Backtester: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch ${assetType} tickers: ${response.status}`);
+        throw new Error(`Failed to fetch files: ${response.status}`);
+      }
+
+      const data: FileInfo[] = await response.json();
+      // Filter by active tab and categorize files
+      const categorizedFiles = data
+        .filter(file => file.asset_type === activeTab)
+        .map(file => {
+          let level: 'summary' | 'symbol' | 'strategy' = 'strategy';
+          let symbol: string | undefined;
+          let strategy: string | undefined;
+
+          // Check if it's a summary file (level 1)
+          if (file.name === `${activeTab}_testing.csv`) {
+            level = 'summary';
+          }
+          // Check if it's a symbol file (level 2) - just symbol name, no "decision"
+          else if (!file.name.includes('_') && file.name.endsWith('.csv') && !file.name.includes('decision')) {
+            level = 'symbol';
+            symbol = file.name.replace('.csv', '');
+          }
+          // Check if it's a decision file (level 3)
+          else if (file.name.includes('decision')) {
+            level = 'strategy';
+            // Extract symbol and strategy from filename like "uni_adx_indicator_decisions.csv"
+            const parts = file.name.replace('_decisions.csv', '').split('_');
+            if (parts.length >= 2) {
+              symbol = parts[0];
+              strategy = parts.slice(1).join('_');
+            }
+          }
+
+          return {
+            ...file,
+            level,
+            symbol,
+            strategy
+          };
+        });
+
+      setFiles(categorizedFiles);
+    } catch (err) {
+      console.error('Error fetching files:', err);
+      setError(`Failed to load files: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setLoadingFiles(false);
+    }
+  };
+
+  // Get file content
+  const fetchFileContent = async (model: string, filename: string) => {
+    if (!model || !filename) return;
+
+    setLoadingContent(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/backtester/${model}/files/${filename}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file content: ${response.status}`);
       }
 
       const data = await response.json();
-      if (assetType === 'stocks') {
-        setStockTickers(Array.isArray(data) ? data : data.tickers || []);
+      setFileContent(data);
+    } catch (err) {
+      console.error('Error fetching file content:', err);
+      setError(`Failed to load file content: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setLoadingContent(false);
+    }
+  };
+
+  // Sorting functions
+  const sortData = <T,>(data: T[], column: string, direction: SortDirection): T[] => {
+    if (!direction) return data;
+
+    return [...data].sort((a, b) => {
+      const aVal = (a as any)[column];
+      const bVal = (b as any)[column];
+
+      if (aVal === null || aVal === undefined) return direction === 'asc' ? -1 : 1;
+      if (bVal === null || bVal === undefined) return direction === 'asc' ? 1 : -1;
+
+      // Try to parse as numbers if they look like numbers
+      let aNum = typeof aVal === 'number' ? aVal : parseFloat(String(aVal));
+      let bNum = typeof bVal === 'number' ? bVal : parseFloat(String(bVal));
+
+      if (!isNaN(aNum) && !isNaN(bNum) && isFinite(aNum) && isFinite(bNum)) {
+        return direction === 'asc' ? aNum - bNum : bNum - aNum;
+      }
+
+      const aStr = String(aVal).toLowerCase();
+      const bStr = String(bVal).toLowerCase();
+
+      if (direction === 'asc') {
+        return aStr.localeCompare(bStr);
       } else {
-        setCryptoTickers(Array.isArray(data) ? data : data.tickers || []);
+        return bStr.localeCompare(aStr);
       }
-    } catch (err) {
-      console.error(`Error fetching ${assetType} tickers:`, err);
-      setError(`Failed to load ${assetType} tickers: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      setLoadingTickers(false);
-    }
+    });
   };
 
-  // Get decision data for a ticker
-  const fetchDecisions = async (assetType: 'stocks' | 'crypto', ticker: string, dataset: string) => {
-    if (!dataset) return;
-
-    setLoadingDecisions(true);
-    setError('');
-    try {
-      const response = await fetch(`${API_BASE_URL}/backtester_decisions/${assetType}/${ticker}?dataset=${dataset}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ${assetType} decisions: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setDecisions(data || []);
-      setStrategies([...new Set((data as Decision[]).map((d: Decision) => d.strategy))]); // Extract unique strategies from decisions
-    } catch (err) {
-      console.error(`Error fetching ${assetType} decisions:`, err);
-      setError(`Failed to load ${assetType} decisions: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      setLoadingDecisions(false);
-    }
+  const handleFilesSort = (column: string) => {
+    const newDirection = filesSortColumn === column && filesSortDirection === 'asc' ? 'desc' : 'asc';
+    setFilesSortColumn(column);
+    setFilesSortDirection(newDirection);
   };
 
-  // Get returns data for analysis
-  const fetchReturnsData = async (assetType: 'stocks' | 'crypto', ticker: string) => {
-    setLoadingReturns(true);
-    try {
-      const endpoint = assetType === 'stocks' ? '/stock_returns' : '/crypto_returns';
-      const symbolParam = assetType === 'stocks' ? 'symbols' : 'baseCurrencies';
-
-      const response = await fetch(`${API_BASE_URL}${endpoint}?${symbolParam}=${ticker}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ${assetType} returns data: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setReturnsData(data);
-    } catch (err) {
-      console.error(`Error fetching ${assetType} returns data:`, err);
-      // Don't set error for returns data as it's optional for display
-    } finally {
-      setLoadingReturns(false);
-    }
+  const handleContentSort = (column: string) => {
+    const newDirection = contentSortColumn === column && contentSortDirection === 'asc' ? 'desc' : 'asc';
+    setContentSortColumn(column);
+    setContentSortDirection(newDirection);
   };
 
   // Initialize data when component mounts
   useEffect(() => {
-    fetchDatasets();
+    fetchModels();
   }, []);
 
-  // Load tickers when dataset changes
+  // Load files when model or tab changes
   useEffect(() => {
-    if (selectedDataset) {
-      fetchTickers('stocks', selectedDataset);
-      fetchTickers('crypto', selectedDataset);
+    if (selectedModel) {
+      fetchFiles(selectedModel);
+      setSelectedFile('');
+      setFileContent([]);
     }
-  }, [selectedDataset]);
+  }, [selectedModel, activeTab]);
 
-  // Load decisions when ticker changes
+  // Auto-select summary file when files are loaded (only for overview mode)
   useEffect(() => {
-    if (selectedTicker && selectedDataset) {
-      fetchDecisions(activeTab, selectedTicker, selectedDataset);
+    if (files.length > 0 && !selectedFile && viewMode === 'overview') {
+      const summaryFile = files.find(f => f.level === 'summary');
+      if (summaryFile) {
+        setSelectedFile(summaryFile.name);
+      }
     }
-  }, [selectedTicker, activeTab, selectedDataset]);
+  }, [files, selectedFile, viewMode]);
 
-  // Load returns data after decisions are loaded
+  // Auto-load symbol file when symbol is selected in strategies mode
   useEffect(() => {
-    if (selectedTicker && decisions.length > 0) {
-      fetchReturnsData(activeTab, selectedTicker);
-    }
-  }, [selectedTicker, activeTab, decisions.length]);
-
-  // Group decisions by strategy
-  const decisionsByStrategy = useMemo(() => {
-    const grouped: Record<string, Decision[]> = {};
-    decisions.forEach(decision => {
-      if (!grouped[decision.strategy]) {
-        grouped[decision.strategy] = [];
-      }
-      grouped[decision.strategy].push(decision);
-    });
-
-    return grouped;
-  }, [decisions]);
-
-  // Calculate data for each strategy
-  const strategyData = useMemo(() => {
-    const data: Record<string, {
-      tradeReturns: Array<{
-        periodType: 'held' | 'not_held';
-        startDate: string;
-        endDate: string;
-        return: number;
-        duration: number;
-        periodLabel: string;
-      }>;
-      dailyReturns: Array<{
-        date: string;
-        dailyReturn: number;
-        periodType: 'held' | 'not_held';
-        timestamp: number;
-      }>;
-      overallStats: {
-        heldCumulativeReturn: number;
-        buyAndHoldReturn: number;
-      };
-    }> = {};
-
-    Object.entries(decisionsByStrategy).forEach(([strategyName, strategyDecisions]) => {
-      // Calculate trade returns for this strategy
-      const returns: Array<{
-        periodType: 'held' | 'not_held';
-        startDate: string;
-        endDate: string;
-        return: number;
-        duration: number;
-        periodLabel: string;
-      }> = [];
-
-      if (strategyDecisions.length === 0) {
-        data[strategyName] = { tradeReturns: returns, dailyReturns: [], overallStats: { heldCumulativeReturn: 0, buyAndHoldReturn: 0 } };
-        return;
-      }
-
-      // Sort decisions by date
-      const sortedDecisions = [...strategyDecisions].sort((a, b) => {
-        const dateA = new Date(a.date + 'T00:00:00Z').getTime();
-        const dateB = new Date(b.date + 'T00:00:00Z').getTime();
-        return dateA - dateB;
-      });
-
-      const currentAssetType = activeTab;
-      const ticker = sortedDecisions[0].ticker;
-
-      // Helper function to calculate cumulative return for a date range
-      const calculateCumulativeReturn = (startDate: Date, endDate: Date) => {
-        let cumulativeReturn = 0;
-
-        if (currentAssetType === 'stocks') {
-          const stockReturns = returnsData as StockReturns[];
-          const periodReturns = stockReturns
-            .filter(r => {
-              const rDate = new Date(r.date + 'T00:00:00Z');
-              return r.symbol === ticker &&
-                     rDate >= startDate &&
-                     rDate <= endDate &&
-                     r.daily_return !== null &&
-                     r.daily_return !== undefined;
-            })
-            .sort((a, b) => {
-              const dateA = new Date(a.date + 'T00:00:00Z').getTime();
-              const dateB = new Date(b.date + 'T00:00:00Z').getTime();
-              return dateA - dateB;
-            });
-
-          if (periodReturns.length > 0) {
-            const logReturns = periodReturns.map(r => Math.log(1 + (r.daily_return || 0) / 100));
-            const sumLogReturns = logReturns.reduce((sum, val) => sum + val, 0);
-            cumulativeReturn = (Math.exp(sumLogReturns) - 1) * 100;
-          }
-        } else {
-          const cryptoReturns = returnsData as CryptoReturns[];
-          const periodReturns = cryptoReturns
-            .filter(r => {
-              const rDate = new Date(r.date + 'T00:00:00Z');
-              return r.baseCurrency === ticker &&
-                     rDate >= startDate &&
-                     rDate <= endDate &&
-                     r.daily_return !== null &&
-                     r.daily_return !== undefined;
-            })
-            .sort((a, b) => {
-              const dateA = new Date(a.date + 'T00:00:00Z').getTime();
-              const dateB = new Date(b.date + 'T00:00:00Z').getTime();
-              return dateA - dateB;
-            });
-
-          if (periodReturns.length > 0) {
-            const logReturns = periodReturns.map(r => Math.log(1 + (r.daily_return || 0) / 100));
-            const sumLogReturns = logReturns.reduce((sum, val) => sum + val, 0);
-            cumulativeReturn = (Math.exp(sumLogReturns) - 1) * 100;
-          }
-        }
-
-        return cumulativeReturn;
-      };
-
-      // Calculate periods for this strategy
-      const firstDecisionDate = new Date(sortedDecisions[0].date + 'T00:00:00Z');
-      const dataStartDate = new Date(Math.min(...sortedDecisions.map(d => new Date(d.date + 'T00:00:00Z').getTime())));
-
-      if (firstDecisionDate > dataStartDate) {
-        const returnValue = calculateCumulativeReturn(dataStartDate, firstDecisionDate);
-        const duration = Math.ceil((firstDecisionDate.getTime() - dataStartDate.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (duration > 0) {
-          returns.push({
-            periodType: 'not_held',
-            startDate: dataStartDate.toISOString().split('T')[0],
-            endDate: sortedDecisions[0].date,
-            return: returnValue,
-            duration,
-            periodLabel: `Not Held ${returns.filter(r => r.periodType === 'not_held').length + 1}`
-          });
-        }
-      }
-
-      let positionHeld = false;
-      let lastPositionChange = firstDecisionDate;
-
-      for (let i = 0; i < sortedDecisions.length; i++) {
-        const decision = sortedDecisions[i];
-        const decisionDate = new Date(decision.date + 'T00:00:00Z');
-
-        if (positionHeld && decisionDate > lastPositionChange) {
-          const returnValue = calculateCumulativeReturn(lastPositionChange, decisionDate);
-          const duration = Math.ceil((decisionDate.getTime() - lastPositionChange.getTime()) / (1000 * 60 * 60 * 24));
-
-          if (duration > 0) {
-            returns.push({
-              periodType: 'held',
-              startDate: lastPositionChange.toISOString().split('T')[0],
-              endDate: decision.date,
-              return: returnValue,
-              duration,
-              periodLabel: `Held ${returns.filter(r => r.periodType === 'held').length + 1}`
-            });
-          }
-        }
-
-        if (!positionHeld && decisionDate > lastPositionChange) {
-          const returnValue = calculateCumulativeReturn(lastPositionChange, decisionDate);
-          const duration = Math.ceil((decisionDate.getTime() - lastPositionChange.getTime()) / (1000 * 60 * 60 * 24));
-
-          if (duration > 0) {
-            returns.push({
-              periodType: 'not_held',
-              startDate: lastPositionChange.toISOString().split('T')[0],
-              endDate: decision.date,
-              return: returnValue,
-              duration,
-              periodLabel: `Not Held ${returns.filter(r => r.periodType === 'not_held').length + 1}`
-            });
-          }
-        }
-
-        if (decision.action.toLowerCase() === 'buy') {
-          positionHeld = true;
-        } else if (decision.action.toLowerCase() === 'sell') {
-          positionHeld = false;
-        }
-
-        lastPositionChange = decisionDate;
-      }
-
-      // Handle final period
-      const lastDecision = sortedDecisions[sortedDecisions.length - 1];
-      const lastDecisionDate = new Date(lastDecision.date + 'T00:00:00Z');
-      const endDate = new Date();
-
-      if (positionHeld && endDate > lastDecisionDate) {
-        const returnValue = calculateCumulativeReturn(lastDecisionDate, endDate);
-        const duration = Math.ceil((endDate.getTime() - lastDecisionDate.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (duration > 0) {
-          returns.push({
-            periodType: 'held',
-            startDate: lastDecision.date,
-            endDate: endDate.toISOString().split('T')[0],
-            return: returnValue,
-            duration,
-            periodLabel: `Held ${returns.filter(r => r.periodType === 'held').length + 1}`
-          });
-        }
-      }
-
-      // Calculate daily returns for this strategy
-      const dailyData: Array<{
-        date: string;
-        dailyReturn: number;
-        periodType: 'held' | 'not_held';
-        timestamp: number;
-      }> = [];
-
-      if (strategyDecisions.length > 0 && returnsData.length > 0) {
-        let allDailyReturns: Array<{date: string, daily_return: number}> = [];
-        if (currentAssetType === 'stocks') {
-          const stockReturns = returnsData as StockReturns[];
-          allDailyReturns = stockReturns
-            .filter(r => r.symbol === ticker && r.daily_return !== null && r.daily_return !== undefined)
-            .map(r => ({date: r.date, daily_return: r.daily_return!}))
-            .sort((a, b) => {
-              const dateA = new Date(a.date + 'T00:00:00Z').getTime();
-              const dateB = new Date(b.date + 'T00:00:00Z').getTime();
-              return dateA - dateB;
-            });
-        } else {
-          const cryptoReturns = returnsData as CryptoReturns[];
-          allDailyReturns = cryptoReturns
-            .filter(r => r.baseCurrency === ticker && r.daily_return !== null && r.daily_return !== undefined)
-            .map(r => ({date: r.date, daily_return: r.daily_return!}))
-            .sort((a, b) => {
-              const dateA = new Date(a.date + 'T00:00:00Z').getTime();
-              const dateB = new Date(b.date + 'T00:00:00Z').getTime();
-              return dateA - dateB;
-            });
-        }
-
-        if (allDailyReturns.length > 0) {
-          // Create periods based on decisions
-          const periods: Array<{
-            startDate: Date;
-            endDate: Date;
-            type: 'held' | 'not_held';
-          }> = [];
-
-          const firstDecisionDate = new Date(sortedDecisions[0].date + 'T00:00:00Z');
-          const dataStartDate = new Date(allDailyReturns[0].date + 'T00:00:00Z');
-
-          if (firstDecisionDate > dataStartDate) {
-            periods.push({
-              startDate: dataStartDate,
-              endDate: firstDecisionDate,
-              type: 'not_held'
-            });
-          }
-
-          let positionHeld = false;
-          let lastPositionChange = firstDecisionDate;
-
-          for (let i = 0; i < sortedDecisions.length; i++) {
-            const decision = sortedDecisions[i];
-            const decisionDate = new Date(decision.date + 'T00:00:00Z');
-
-            if (positionHeld && decisionDate > lastPositionChange) {
-              periods.push({
-                startDate: lastPositionChange,
-                endDate: decisionDate,
-                type: 'held'
-              });
-            }
-
-            if (!positionHeld && decisionDate > lastPositionChange) {
-              periods.push({
-                startDate: lastPositionChange,
-                endDate: decisionDate,
-                type: 'not_held'
-              });
-            }
-
-            if (decision.action.toLowerCase() === 'buy') {
-              positionHeld = true;
-            } else if (decision.action.toLowerCase() === 'sell') {
-              positionHeld = false;
-            }
-
-            lastPositionChange = decisionDate;
-          }
-
-          const lastDecision = sortedDecisions[sortedDecisions.length - 1];
-          const lastDecisionDate = new Date(lastDecision.date + 'T00:00:00Z');
-          const dataEndDate = new Date(allDailyReturns[allDailyReturns.length - 1].date + 'T00:00:00Z');
-
-          if (positionHeld && dataEndDate > lastDecisionDate) {
-            periods.push({
-              startDate: lastDecisionDate,
-              endDate: dataEndDate,
-              type: 'held'
-            });
-          }
-
-          // Classify each daily return
-          allDailyReturns.forEach(daily => {
-            const dailyDate = new Date(daily.date + 'T00:00:00Z');
-            const period = periods.find(p =>
-              dailyDate >= p.startDate && dailyDate <= p.endDate
-            );
-
-            if (period) {
-              dailyData.push({
-                date: daily.date,
-                dailyReturn: daily.daily_return,
-                periodType: period.type,
-                timestamp: dailyDate.getTime()
-              });
-            }
-          });
-        }
-      }
-
-      // Calculate overall stats for this strategy
-      const heldReturns = returns.filter(t => t.periodType === 'held');
-      const heldCumulativeReturn = heldReturns.reduce((sum, period) => sum + period.return, 0);
-
-      let buyAndHoldReturn = 0;
-      if (currentAssetType === 'stocks') {
-        const stockReturns = returnsData as StockReturns[];
-        const sortedStockReturns = stockReturns
-          .filter(r => r.symbol === ticker && r.daily_return !== null && r.daily_return !== undefined)
-          .sort((a, b) => new Date(a.date + 'T00:00:00Z').getTime() - new Date(b.date + 'T00:00:00Z').getTime());
-
-        if (sortedStockReturns.length > 1) {
-          const logReturns = sortedStockReturns.map(r => Math.log(1 + (r.daily_return || 0) / 100));
-          const sumLogReturns = logReturns.reduce((sum, val) => sum + val, 0);
-          buyAndHoldReturn = (Math.exp(sumLogReturns) - 1) * 100;
-        }
-      } else {
-        const cryptoReturns = returnsData as CryptoReturns[];
-        const sortedCryptoReturns = cryptoReturns
-          .filter(r => r.baseCurrency === ticker && r.daily_return !== null && r.daily_return !== undefined)
-          .sort((a, b) => new Date(a.date + 'T00:00:00Z').getTime() - new Date(b.date + 'T00:00:00Z').getTime());
-
-        if (sortedCryptoReturns.length > 1) {
-          const logReturns = sortedCryptoReturns.map(r => Math.log(1 + (r.daily_return || 0) / 100));
-          const sumLogReturns = logReturns.reduce((sum, val) => sum + val, 0);
-          buyAndHoldReturn = (Math.exp(sumLogReturns) - 1) * 100;
-        }
-      }
-
-      data[strategyName] = {
-        tradeReturns: returns,
-        dailyReturns: dailyData.sort((a, b) => a.timestamp - b.timestamp),
-        overallStats: {
-          heldCumulativeReturn,
-          buyAndHoldReturn
-        }
-      };
-    });
-
-    return data;
-  }, [decisionsByStrategy, returnsData, activeTab]);
-
-  // Create ECharts period returns bar chart
-  const createPeriodReturnsChart = (containerId: string, tradeReturns: any[]) => {
-    const chartDom = document.getElementById(containerId);
-    if (!chartDom) return;
-
-    const chart = echarts.init(chartDom);
-
-    // Calculate proportional bar widths based on duration
-    const durations = tradeReturns.map(trade => trade.duration);
-    const maxDuration = Math.max(...durations);
-
-    const returnsData = tradeReturns.map((trade) => {
-      // Calculate proportional bar width (minimum 20px, maximum 100px)
-      const minBarWidth = 20;
-      const maxBarWidth = 100;
-      const barWidth = maxDuration > 0
-        ? minBarWidth + ((trade.duration / maxDuration) * (maxBarWidth - minBarWidth))
-        : minBarWidth;
-
-      return {
-        name: trade.periodLabel,
-        value: trade.return,
-        barWidth: Math.round(barWidth),
-        itemStyle: {
-          color: trade.periodType === 'not_held'
-            ? '#9CA3AF' // grey for non-held periods
-            : trade.return >= 0
-              ? '#10B981' // green for positive held returns
-              : '#EF4444' // red for negative held returns
-        }
-      };
-    });
-
-    const option = {
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: {
-          type: 'shadow',
-          shadowStyle: {
-            color: 'rgba(99, 102, 241, 0.1)'
-          }
-        },
-        formatter: (params: any) => {
-          if (!params || params.length === 0) return '';
-          const trade = tradeReturns[params[0].dataIndex];
-          return `${trade.periodLabel}<br/>Return: ${params[0].value.toFixed(2)}%<br/>Start: ${trade.startDate}<br/>End: ${trade.endDate}<br/>Duration: ${trade.duration} days`;
-        }
-      },
-      grid: {
-        left: '5%',
-        right: '5%',
-        top: '10%',
-        bottom: '20%',
-        containLabel: true
-      },
-      xAxis: {
-        type: 'category',
-        data: returnsData.map(d => d.name),
-        axisLabel: {
-          rotate: 45,
-          interval: 0,
-          fontSize: 10
-        },
-        axisPointer: {
-          show: true,
-          type: 'shadow'
-        }
-      },
-      yAxis: {
-        type: 'value',
-        name: 'Return (%)',
-        nameLocation: 'middle',
-        nameGap: 50
-      },
-      series: [{
-        type: 'bar',
-        data: returnsData,
-        barCategoryGap: '30%',
-        itemStyle: {
-          borderRadius: [2, 2, 0, 0]
-        }
-      }]
-    };
-
-    chart.setOption(option);
-    return chart;
-  };
-
-  // Create ECharts daily returns chart with background shading for held periods
-  // Combined with cumulative returns line overlay
-  const createDailyReturnsWithShadingChart = (containerId: string, dailyReturns: any[], decisions: any[], tradeReturns: any[]) => {
-    const chartDom = document.getElementById(containerId);
-    if (!chartDom) return;
-
-    const chart = echarts.init(chartDom);
-
-    const chartData = dailyReturns.map((day) => ({
-      value: [day.timestamp, day.dailyReturn],
-      itemStyle: {
-        color: day.periodType === 'not_held'
-          ? '#9CA3AF' // grey for non-held periods
-          : day.dailyReturn >= 0
-            ? '#10B981' // green for positive held returns
-            : '#EF4444' // red for negative held returns
-      }
-    }));
-
-    // Calculate cumulative returns for line overlay
-    const sorted = [...dailyReturns].sort((a, b) => a.timestamp - b.timestamp);
-    const decisionsSorted = [...decisions].sort((a, b) => new Date(a.date + 'T00:00:00Z').getTime() - new Date(b.date + 'T00:00:00Z').getTime());
-
-    let decIndex = 0;
-    let state: 'held' | 'not_held' = 'not_held';
-    let cumulativeReturn = 0;
-
-    const cumulativeData = sorted.map((d) => {
-      const t = d.timestamp;
-
-      // advance decisions up to current timestamp
-      while (decIndex < decisionsSorted.length && new Date(decisionsSorted[decIndex].date + 'T00:00:00Z').getTime() <= t) {
-        const action = (decisionsSorted[decIndex].action || '').toString().toLowerCase();
-        if (action === 'buy') {
-          state = 'held';
-          cumulativeReturn = 0; // reset cumulative return at start of holding period
-        }
-        if (action === 'sell') {
-          state = 'not_held';
-          cumulativeReturn = 0; // reset for non-holding period
-        }
-        decIndex += 1;
-      }
-
-      // accumulate return during current period
-      if (state === 'held') {
-        cumulativeReturn += (d.dailyReturn ?? 0);
-      }
-
-      return {
-        value: [d.timestamp, state === 'held' ? cumulativeReturn : null],
-        itemStyle: {
-          color: cumulativeReturn >= 0 ? '#10B981' : '#EF4444'
-        }
-      };
-    });
-
-    // Create markLines for buy/sell decisions
-    const markLines = decisions.map((decision) => ({
-      xAxis: new Date(decision.date + 'T00:00:00Z').getTime(),
-      lineStyle: {
-        color: decision.action.toLowerCase() === 'buy' ? '#10B981' : '#EF4444',
-        width: 1,
-        type: 'solid',
-        opacity: 0.3
-      },
-      label: {
-        show: true,
-        position: 'top',
-        formatter: decision.action.toUpperCase(),
-        color: decision.action.toLowerCase() === 'buy' ? '#10B981' : '#EF4444',
-        fontSize: 12,
-        fontWeight: 'bold',
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        padding: [2, 4],
-        borderRadius: 3
-      }
-    }));
-
-    // Build validated markArea pairs for shading held/non-held periods.
-    // Each item is an array of two points: [{ xAxis: start, itemStyle: { color }}, { xAxis: end }]
-    const markAreas: any[] = [];
-    let currentPeriod: string | null = null;
-    let periodStart: number | null = null;
-    let periodStartIndex: number | null = null;
-
-    // Sort dailyReturns by timestamp to ensure proper ordering
-    const sortedDailyReturns = [...dailyReturns].sort((a, b) => a.timestamp - b.timestamp);
-
-    for (let i = 0; i < sortedDailyReturns.length; i++) {
-      const day = sortedDailyReturns[i];
-
-      if (currentPeriod === null) {
-        currentPeriod = day.periodType;
-        periodStart = Number(day.timestamp);
-        periodStartIndex = i;
-        continue;
-      }
-
-      if (day.periodType !== currentPeriod) {
-        const start = Number(periodStart);
-        const end = Number(day.timestamp);
-
-        // Validate timestamps
-        if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
-          // For held periods, decide green vs red by average daily return over the segment
-          let color = 'rgba(147,197,253,0.25)'; // light blue for non-held periods
-
-          if (currentPeriod === 'held') {
-            const segment = sortedDailyReturns.slice(periodStartIndex ?? 0, i);
-            const avg = segment.reduce((s, d) => s + (d.dailyReturn ?? 0), 0) / (segment.length || 1);
-            color = avg >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)';
-          }
-
-          markAreas.push([
-            { xAxis: start, itemStyle: { color } },
-            { xAxis: end }
-          ]);
-        }
-
-        // start new period
-        currentPeriod = day.periodType;
-        periodStart = Number(day.timestamp);
-        periodStartIndex = i;
+    if (viewMode === 'strategies' && selectedSymbol && files.length > 0) {
+      const symbolFile = files.find(f => f.level === 'symbol' && f.symbol === selectedSymbol);
+      if (symbolFile && symbolFile.name !== selectedFile) {
+        setSelectedFile(symbolFile.name);
       }
     }
+  }, [viewMode, selectedSymbol, files, selectedFile]);
 
-    // Close last period
-    if (currentPeriod !== null && periodStart !== null && sortedDailyReturns.length > 0) {
-      const lastDay = sortedDailyReturns[sortedDailyReturns.length - 1];
-      const start = Number(periodStart);
-      const end = Number(lastDay.timestamp);
-      if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
-  let color = 'rgba(147,197,253,0.25)'; // light blue for non-held periods
-        if (currentPeriod === 'held') {
-          const segment = sortedDailyReturns.slice(periodStartIndex ?? 0, sortedDailyReturns.length);
-          const avg = segment.reduce((s, d) => s + (d.dailyReturn ?? 0), 0) / (segment.length || 1);
-          color = avg >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)';
-        }
-
-        markAreas.push([
-          { xAxis: start, itemStyle: { color } },
-          { xAxis: end }
-        ]);
-      }
-    }
-
-    const option = {
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: {
-          type: 'line',
-          lineStyle: {
-            color: '#6366F1',
-            width: 2,
-            type: 'solid'
-          },
-          label: {
-            backgroundColor: '#6366F1'
-          }
-        },
-        formatter: (params: any) => {
-          if (!params || params.length === 0) return '';
-          const dataIndex = params[0].dataIndex;
-          const day = sorted[dataIndex];
-          const date = new Date(day.timestamp).toLocaleDateString();
-          const periodType = day.periodType === 'held' ? 'Held' : 'Not Held';
-
-          let tooltip = `${date}<br/>${periodType}<br/>`;
-          tooltip += `Daily Return: ${day.dailyReturn.toFixed(2)}%<br/>`;
-
-          // Add cumulative return if in held period
-          const cumulativeValue = cumulativeData[dataIndex].value[1];
-          if (cumulativeValue !== null) {
-            tooltip += `Cumulative Return: ${cumulativeValue.toFixed(2)}%`;
-          }
-
-          return tooltip;
-        }
-      },
-      axisPointer: {
-        link: [{ xAxisIndex: 'all' }],
-        label: {
-          backgroundColor: '#6366F1'
-        }
-      },
-      grid: {
-        left: '5%',
-        right: '8%',
-        top: '10%',
-        bottom: '15%',
-        containLabel: true
-      },
-      xAxis: {
-        type: 'time',
-        name: 'Date',
-        nameLocation: 'middle',
-        nameGap: 30,
-        axisPointer: {
-          show: true,
-          snap: true,
-          label: {
-            show: true,
-            formatter: (params: any) => {
-              return new Date(params.value).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-              });
-            }
-          }
-        },
-        axisLabel: {
-          formatter: (value: number) => {
-            return new Date(value).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: '2-digit'
-            });
-          }
-        }
-      },
-      yAxis: [
-        {
-          type: 'value',
-          name: 'Daily Return (%)',
-          nameLocation: 'middle',
-          nameGap: 50,
-          position: 'left'
-        },
-        {
-          type: 'value',
-          name: 'Cumulative Return (%)',
-          nameLocation: 'middle',
-          nameGap: 50,
-          position: 'right'
-        }
-      ],
-      dataZoom: [
-        { type: 'inside', xAxisIndex: [0], start: 0, end: 100 },
-        { type: 'slider', xAxisIndex: [0], start: 0, end: 100, height: 20, bottom: 6 }
-      ],
-      series: [
-        {
-          name: 'Daily Returns',
-          type: 'bar',
-          yAxisIndex: 0,
-          data: chartData,
-          barWidth: '80%',
-          itemStyle: {
-            borderRadius: [2, 2, 0, 0]
-          },
-          markLine: {
-            data: markLines
-          },
-          markArea: {
-            silent: true,
-            data: markAreas
-          }
-        },
-        {
-          name: 'Cumulative Returns (Held)',
-          type: 'line',
-          yAxisIndex: 1,
-          data: cumulativeData,
-          lineStyle: {
-            width: 3,
-            type: 'solid'
-          },
-          showSymbol: false,
-          connectNulls: false,
-          emphasis: {
-            lineStyle: {
-              width: 4
-            }
-          }
-        }
-      ]
-    };
-
-    chart.setOption(option);
-    return chart;
-  };
-
-  // Initialize charts when data changes
+  // Load file content when file is selected
   useEffect(() => {
-    if (Object.keys(strategyData).length > 0) {
-      const allCharts: any[] = [];
-
-      Object.entries(strategyData).forEach(([strategyName, data]) => {
-        const dailyChart = createDailyReturnsWithShadingChart(
-          `daily-returns-shading-chart-${strategyName}`,
-          data.dailyReturns,
-          decisionsByStrategy[strategyName] || [],
-          data.tradeReturns
-        );
-
-        const periodChart = createPeriodReturnsChart(
-          `period-returns-chart-${strategyName}`,
-          data.tradeReturns
-        );
-
-        if (dailyChart) allCharts.push(dailyChart);
-        if (periodChart) allCharts.push(periodChart);
-      });
-
-      // Group all charts for synchronization
-      try {
-        if (allCharts.length > 0) {
-          const groupName = 'backtesterGroup';
-          allCharts.forEach(chart => {
-            (chart as any).group = groupName;
-          });
-          echarts.connect(groupName);
-        }
-      } catch (e) {
-        // ignore if echarts.connect fails in some environments
-      }
-
-      return () => {
-        // Cleanup all charts
-        Object.keys(strategyData).forEach(strategyName => {
-          const dailyElement = document.getElementById(`daily-returns-shading-chart-${strategyName}`);
-          const periodElement = document.getElementById(`period-returns-chart-${strategyName}`);
-          if (dailyElement) {
-            const dailyChart = echarts.getInstanceByDom(dailyElement);
-            dailyChart?.dispose();
-          }
-          if (periodElement) {
-            const periodChart = echarts.getInstanceByDom(periodElement);
-            periodChart?.dispose();
-          }
-        });
-      };
+    if (selectedModel && selectedFile) {
+      fetchFileContent(selectedModel, selectedFile);
     }
-  }, [strategyData, decisionsByStrategy]);
+  }, [selectedFile]);
 
-  const currentTickers = activeTab === 'stocks' ? stockTickers : cryptoTickers;
+  // Reset cameFromStrategies and previousSymbol when view mode changes away from overview
+  useEffect(() => {
+    if (viewMode !== 'overview') {
+      setCameFromStrategies(false);
+      setPreviousSymbol('');
+    }
+  }, [viewMode]);
+
+  // Sorted data for tables
+  const sortedFiles = sortData(files, filesSortColumn, filesSortDirection);
+  const sortedFileContent = sortData(fileContent, contentSortColumn, contentSortDirection);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Backtester Analysis</h1>
           <button
             onClick={() => {
-              if (selectedDataset) {
-                fetchTickers(activeTab, selectedDataset);
-                if (selectedTicker) {
-                  fetchDecisions(activeTab, selectedTicker, selectedDataset);
-                  fetchReturnsData(activeTab, selectedTicker);
+              if (selectedModel) {
+                fetchFiles(selectedModel);
+                if (selectedFile) {
+                  fetchFileContent(selectedModel, selectedFile);
                 }
               }
             }}
-            disabled={loadingTickers || loadingDecisions || loadingReturns || !selectedDataset}
+            disabled={loadingFiles || loadingContent || !selectedModel}
             className="inline-flex items-center px-4 py-2 border border-blue-300 dark:border-blue-600 text-sm font-medium rounded-md text-blue-700 dark:text-blue-400 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <FaSync className={`mr-2 ${loadingTickers || loadingDecisions ? 'animate-spin' : ''}`} />
+            <FaSync className={`mr-2 ${loadingFiles || loadingContent ? 'animate-spin' : ''}`} />
             Refresh Data
           </button>
         </div>
@@ -1023,216 +315,476 @@ const Backtester: React.FC = () => {
           </div>
         )}
 
-        {/* Dataset Selection */}
+        {/* Model Selection */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Select Dataset
+            Select Model
           </label>
           <select
-            value={selectedDataset}
+            value={selectedModel}
             onChange={(e) => {
-              setSelectedDataset(e.target.value);
-              setSelectedTicker('');
-              setDecisions([]);
-              setStrategies([]);
+              setSelectedModel(e.target.value);
+              setSelectedFile('');
+              setFileContent([]);
             }}
             className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={loadingDatasets}
+            disabled={loadingModels}
           >
-            <option value="">Select a dataset...</option>
-            {datasets.map(dataset => (
-              <option key={dataset} value={dataset}>{dataset}</option>
+            <option value="">Select a model...</option>
+            {models.map(model => (
+              <option key={model} value={model}>{model}</option>
             ))}
           </select>
-          {loadingDatasets && <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading datasets...</span>}
+          {loadingModels && <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading models...</span>}
         </div>
 
         {/* Asset Type Selection */}
         <div className="mb-6">
           <Tabs value={activeTab} onValueChange={(value) => {
             setActiveTab(value as 'stocks' | 'crypto');
-            setSelectedTicker('');
-            setDecisions([]);
-            setStrategies([]);
+            setSelectedFile('');
+            setFileContent([]);
+            setViewMode('overview');
+            setSelectedSymbol('');
           }}>
             <TabsList className="mb-4">
               <TabsTrigger value="stocks">Stocks</TabsTrigger>
               <TabsTrigger value="crypto">Crypto</TabsTrigger>
             </TabsList>
-
-            <TabsContent value="stocks" className="mt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Select Stock Ticker
-                  </label>
-                  <select
-                    value={selectedTicker}
-                    onChange={(e) => setSelectedTicker(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={loadingTickers || !selectedDataset}
-                  >
-                    <option value="">Select a ticker...</option>
-                    {stockTickers.map(ticker => (
-                      <option key={ticker} value={ticker}>{ticker}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex items-end">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {loadingDecisions && <span>Loading decisions...</span>}
-                    {loadingReturns && <span>Loading returns data...</span>}
-                    {decisions.length > 0 && !loadingDecisions && !loadingReturns && (
-                      <span>{decisions.length} decisions loaded</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="crypto" className="mt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Select Crypto Ticker
-                  </label>
-                  <select
-                    value={selectedTicker}
-                    onChange={(e) => setSelectedTicker(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={loadingTickers || !selectedDataset}
-                  >
-                    <option value="">Select a ticker...</option>
-                    {cryptoTickers.map(ticker => (
-                      <option key={ticker} value={ticker}>{ticker}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex items-end">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {loadingDecisions && <span>Loading decisions...</span>}
-                    {loadingReturns && <span>Loading returns data...</span>}
-                    {decisions.length > 0 && !loadingDecisions && !loadingReturns && (
-                      <span>{decisions.length} decisions loaded</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
           </Tabs>
         </div>
 
-        {/* Charts Section */}
-        {Object.keys(strategyData).length > 0 && (
-          <div className="space-y-12">
-            {/* Mobile Strategy Navigation */}
-            <div className="lg:hidden">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Jump to Strategy</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {Object.keys(strategyData).map((strategyName) => (
-                    <button
-                      key={strategyName}
-                      onClick={() => {
-                        const element = document.getElementById(`strategy-section-${strategyName}`);
-                        element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }}
-                      className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors duration-200 truncate"
-                    >
-                      {strategyName}
-                    </button>
-                  ))}
-                </div>
+        {/* View Mode Selection */}
+        {selectedModel && (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              View Mode
+            </label>
+            <select
+              value={viewMode}
+              onChange={(e) => {
+                const newViewMode = e.target.value as 'overview' | 'symbols' | 'strategies';
+                setViewMode(newViewMode);
+                setSelectedFile(''); // Clear selected file for all view modes
+                setFileContent([]);
+                if (newViewMode !== 'strategies') {
+                  setSelectedSymbol('');
+                }
+              }}
+              className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="overview">Overview (Summary Files)</option>
+              <option value="symbols">By Symbol</option>
+              <option value="strategies">By Strategy</option>
+            </select>
+          </div>
+        )}
+
+        {/* Symbol Selection for Strategies View */}
+        {viewMode === 'strategies' && (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Select Symbol
+            </label>
+            <select
+              value={selectedSymbol}
+              onChange={(e) => {
+                setSelectedSymbol(e.target.value);
+                setSelectedFile('');
+                setFileContent([]);
+              }}
+              className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select a symbol...</option>
+              {Array.from(new Set(files.filter(f => f.level === 'strategy' && f.symbol).map(f => f.symbol!))).sort().map(symbol => (
+                <option key={symbol} value={symbol}>{symbol.toUpperCase()}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Files Table */}
+        {selectedModel && (!selectedFile || viewMode !== 'overview') && !(viewMode === 'strategies' && selectedSymbol) && viewMode !== 'symbols' && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              {activeTab === 'stocks' ? 'Stock' : 'Crypto'} Files - {selectedModel}
+              {viewMode === 'overview' && ' (Summary)'}
+              {viewMode === 'symbols' && ' (By Symbol)'}
+              {viewMode === 'strategies' && selectedSymbol && ` (Strategies for ${selectedSymbol.toUpperCase()})`}
+              {viewMode === 'strategies' && !selectedSymbol && ' (Select a Symbol)'}
+            </h2>
+            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                        onClick={() => handleFilesSort('name')}
+                      >
+                        <div className="flex items-center">
+                          File Name
+                          {filesSortColumn === 'name' && (
+                            filesSortDirection === 'asc' ? <FaSortUp className="ml-1" /> : <FaSortDown className="ml-1" />
+                          )}
+                          {filesSortColumn !== 'name' && <FaSort className="ml-1 opacity-50" />}
+                        </div>
+                      </th>
+                      {viewMode === 'strategies' && (
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          Strategy
+                        </th>
+                      )}
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                        onClick={() => handleFilesSort('type')}
+                      >
+                        <div className="flex items-center">
+                          Type
+                          {filesSortColumn === 'type' && (
+                            filesSortDirection === 'asc' ? <FaSortUp className="ml-1" /> : <FaSortDown className="ml-1" />
+                          )}
+                          {filesSortColumn !== 'type' && <FaSort className="ml-1 opacity-50" />}
+                        </div>
+                      </th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                        onClick={() => handleFilesSort('size')}
+                      >
+                        <div className="flex items-center">
+                          Size (KB)
+                          {filesSortColumn === 'size' && (
+                            filesSortDirection === 'asc' ? <FaSortUp className="ml-1" /> : <FaSortDown className="ml-1" />
+                          )}
+                          {filesSortColumn !== 'size' && <FaSort className="ml-1 opacity-50" />}
+                        </div>
+                      </th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                        onClick={() => handleFilesSort('modified')}
+                      >
+                        <div className="flex items-center">
+                          Modified
+                          {filesSortColumn === 'modified' && (
+                            filesSortDirection === 'asc' ? <FaSortUp className="ml-1" /> : <FaSortDown className="ml-1" />
+                          )}
+                          {filesSortColumn !== 'modified' && <FaSort className="ml-1 opacity-50" />}
+                        </div>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {loadingFiles ? (
+                      <tr>
+                        <td colSpan={viewMode === 'strategies' ? 6 : 5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                          Loading files...
+                        </td>
+                      </tr>
+                    ) : (() => {
+                      // Filter files based on view mode
+                      let displayFiles = sortedFiles;
+                      if (viewMode === 'overview') {
+                        displayFiles = sortedFiles.filter(f => f.level === 'summary');
+                      } else if (viewMode === 'symbols') {
+                        // For symbols mode, don't show files - we'll show a symbol list below
+                        displayFiles = [];
+                      } else if (viewMode === 'strategies' && selectedSymbol) {
+                        displayFiles = sortedFiles.filter(f => f.level === 'strategy' && f.symbol === selectedSymbol);
+                      } else if (viewMode === 'strategies' && !selectedSymbol) {
+                        displayFiles = []; // Show no files until symbol is selected
+                      }
+
+                      return displayFiles.length === 0 ? (
+                        <tr>
+                          <td colSpan={viewMode === 'strategies' ? 6 : 5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                            {viewMode === 'strategies' && !selectedSymbol ? 'Select a symbol to view strategies' : 'No files found'}
+                          </td>
+                        </tr>
+                      ) : (
+                        displayFiles.map((file) => (
+                          <tr
+                            key={file.name}
+                            className={`hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${
+                              selectedFile === file.name ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                            }`}
+                            onClick={() => setSelectedFile(file.name)}
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                              {file.name}
+                            </td>
+                            {viewMode === 'strategies' && (
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                {file.strategy || 'Unknown'}
+                              </td>
+                            )}
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                file.type === 'decisions'
+                                  ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400'
+                                  : 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400'
+                              }`}>
+                                {file.type}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              {(file.size / 1024).toFixed(2)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              {new Date(file.modified).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedFile(file.name);
+                                }}
+                                className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300"
+                              >
+                                View
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      );
+                    })()}
+                  </tbody>
+                </table>
               </div>
             </div>
-
-            <div className="flex">
-              {/* Desktop Strategy Navigation Sidebar */}
-              <div className="hidden lg:block flex-shrink-0 mr-4">
-                <div className="sticky top-8 bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 group hover:p-6 transition-all duration-300 w-12 hover:w-64 overflow-hidden">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
-                    Strategies
-                  </h3>
-                  <nav className="space-y-2">
-                    {Object.keys(strategyData).map((strategyName) => (
-                      <button
-                        key={strategyName}
-                        onClick={() => {
-                          const element = document.getElementById(`strategy-section-${strategyName}`);
-                          element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }}
-                        className="w-full text-left px-2 py-2 group-hover:px-3 text-xs group-hover:text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-all duration-200 truncate"
-                        title={strategyName}
-                      >
-                        <span className="inline group-hover:hidden">{strategyName.substring(0, 3)}...</span>
-                        <span className="hidden group-hover:inline">{strategyName}</span>
-                      </button>
-                    ))}
-                  </nav>
-                </div>
-              </div>
-
-              {/* Main Content */}
-              <div className="flex-1">
-            {Object.entries(strategyData).map(([strategyName, data]) => (
-              <div key={strategyName} id={`strategy-section-${strategyName}`} className="space-y-8">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-4">
-                  {selectedTicker} - {strategyName}
-                </h2>
-
-                {/* Combined Daily Returns Chart with Cumulative Overlay */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                  <div id={`daily-returns-shading-chart-${strategyName}`} className="w-full h-96"></div>
-                </div>
-
-                {/* Period Returns Chart */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                  <div id={`period-returns-chart-${strategyName}`} className="w-full h-80"></div>
-                </div>
-
-                {/* Strategy Statistics */}
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Days</h4>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.dailyReturns.length}</p>
-                  </div>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Held Days</h4>
-                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {data.dailyReturns.filter(d => d.periodType === 'held').length}
-                    </p>
-                  </div>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Periods</h4>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.tradeReturns.length}</p>
-                  </div>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Held Periods</h4>
-                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {data.tradeReturns.filter(t => t.periodType === 'held').length}
-                    </p>
-                  </div>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Held Return</h4>
-                    <p className={`text-2xl font-bold ${data.overallStats.heldCumulativeReturn >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                      {data.overallStats.heldCumulativeReturn.toFixed(2)}%
-                    </p>
-                  </div>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Buy & Hold</h4>
-                    <p className={`text-2xl font-bold ${data.overallStats.buyAndHoldReturn >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                      {data.overallStats.buyAndHoldReturn.toFixed(2)}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
-        </div>
-      </div>
-    )}
+        )}
+
+        {/* Symbols Table - shown in symbols mode */}
+        {viewMode === 'symbols' && selectedModel && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              {activeTab === 'stocks' ? 'Stock' : 'Crypto'} Symbols - {selectedModel}
+            </h2>
+            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Symbol
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Strategies
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {(() => {
+                      // Get unique symbols from strategy files
+                      const symbols = Array.from(new Set(
+                        files.filter(f => f.level === 'strategy' && f.symbol).map(f => f.symbol!)
+                      )).sort();
+
+                      return symbols.length === 0 ? (
+                        <tr>
+                          <td colSpan={3} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                            No symbols found
+                          </td>
+                        </tr>
+                      ) : (
+                        symbols.map((symbol) => {
+                          const symbolStrategies = files.filter(f => f.level === 'strategy' && f.symbol === symbol);
+                          return (
+                            <tr key={symbol} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                {symbol.toUpperCase()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                {symbolStrategies.length}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                <button
+                                  onClick={() => {
+                                    setSelectedSymbol(symbol);
+                                    setViewMode('strategies');
+                                  }}
+                                  className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300"
+                                >
+                                  View Strategies
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      );
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* File Content Table */}
+        {selectedFile && (
+          <div>
+            {cameFromStrategies && (
+              <div className="mb-4">
+                <button
+                  onClick={() => {
+                    setViewMode('strategies');
+                    setSelectedSymbol(previousSymbol); // Restore the previous symbol
+                    setCameFromStrategies(false);
+                    setSelectedFile('');
+                  }}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  ← Back to Strategy Overview
+                </button>
+              </div>
+            )}
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+              {viewMode === 'strategies' && selectedSymbol
+                ? `${selectedSymbol.toUpperCase()} Strategy Performance`
+                : `${selectedFile} Content`}
+            </h2>
+            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
+                    <tr>
+                      {Object.keys(sortedFileContent[0] || {}).map((column, colIndex) => (
+                        <th
+                          key={column}
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                          onClick={() => handleContentSort(column)}
+                        >
+                          <div className="flex items-center">
+                            {column.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            {contentSortColumn === column && (
+                              contentSortDirection === 'asc' ? <FaSortUp className="ml-1" /> : <FaSortDown className="ml-1" />
+                            )}
+                            {contentSortColumn !== column && <FaSort className="ml-1 opacity-50" />}
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {loadingContent ? (
+                      <tr>
+                        <td colSpan={Object.keys(sortedFileContent[0] || {}).length} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                          Loading content...
+                        </td>
+                      </tr>
+                    ) : sortedFileContent.length === 0 ? (
+                      <tr>
+                        <td colSpan={Object.keys(sortedFileContent[0] || {}).length} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                          No content found
+                        </td>
+                      </tr>
+                    ) : (
+                      sortedFileContent.map((row, index) => (
+                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                          {Object.entries(row).map(([column, value], cellIndex) => {
+                            let displayValue = value;
+
+                            // Try to parse as number if it's a string that looks like a number
+                            // Skip date columns to preserve their original format
+                            if (typeof value === 'string' && !column.toLowerCase().includes('date')) {
+                              const numValue = parseFloat(value);
+                              if (!isNaN(numValue) && isFinite(numValue)) {
+                                displayValue = numValue;
+                              }
+                            }
+
+                            // In strategies mode, make strategy-related columns clickable
+                            if (viewMode === 'strategies' &&
+                                (column.toLowerCase() === 'strategy' || column.toLowerCase() === 'ticker') &&
+                                selectedSymbol) {
+                              return (
+                                <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm">
+                                  <button
+                                    onClick={() => {
+                                      // Find the decisions file for this strategy
+                                      const strategyValue = String(value);
+                                      console.log('Looking for strategy:', strategyValue, 'for symbol:', selectedSymbol);
+                                      console.log('Available strategy files:', files.filter(f => f.level === 'strategy' && f.symbol === selectedSymbol));
+
+                                      // Try exact match first
+                                      let strategyFile = files.find(f =>
+                                        f.level === 'strategy' &&
+                                        f.symbol === selectedSymbol &&
+                                        f.strategy === strategyValue
+                                      );
+
+                                      // If no exact match, try partial match
+                                      if (!strategyFile) {
+                                        strategyFile = files.find(f =>
+                                          f.level === 'strategy' &&
+                                          f.symbol === selectedSymbol &&
+                                          f.strategy && f.strategy.includes(strategyValue)
+                                        );
+                                      }
+
+                                      // If still no match, try filename contains strategy
+                                      if (!strategyFile) {
+                                        strategyFile = files.find(f =>
+                                          f.level === 'strategy' &&
+                                          f.symbol === selectedSymbol &&
+                                          f.name.includes(strategyValue)
+                                        );
+                                      }
+
+                                      if (strategyFile) {
+                                        console.log('Found strategy file:', strategyFile.name);
+                                        // Change to overview mode and load the file
+                                        setViewMode('overview');
+                                        setSelectedFile(strategyFile.name);
+                                        setPreviousSymbol(selectedSymbol); // Remember the symbol for back navigation
+                                        setSelectedSymbol(''); // Clear symbol selection
+                                        setCameFromStrategies(true); // Track that we came from strategies mode
+                                      } else {
+                                        console.log('No strategy file found for:', strategyValue);
+                                        // Fallback: try to find any strategy file for this symbol
+                                        const anyStrategyFile = files.find(f =>
+                                          f.level === 'strategy' &&
+                                          f.symbol === selectedSymbol
+                                        );
+                                        if (anyStrategyFile) {
+                                          console.log('Using fallback strategy file:', anyStrategyFile.name);
+                                          setViewMode('overview');
+                                          setSelectedFile(anyStrategyFile.name);
+                                          setPreviousSymbol(selectedSymbol); // Remember the symbol for back navigation
+                                          setSelectedSymbol('');
+                                          setCameFromStrategies(true); // Track that we came from strategies mode
+                                        }
+                                      }
+                                    }}
+                                    className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 underline"
+                                  >
+                                    {String(displayValue)}
+                                  </button>
+                                </td>
+                              );
+                            }
+
+                            return (
+                              <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                {typeof displayValue === 'number' ? displayValue.toFixed(1) : String(displayValue)}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
