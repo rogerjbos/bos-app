@@ -24,6 +24,12 @@ interface ThermostatTime {
   minute: number;
 }
 
+interface ThermostatStatus {
+  temp: number;
+  t_heat: number;
+  time: ThermostatTime;
+}
+
 const defaultDownstairsSchedule: ThermostatSchedule = {
   program: {
     heat: {
@@ -70,8 +76,8 @@ const ThermostatPage = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string>('');
   const [thermostatTime, setThermostatTime] = useState<ThermostatTime | null>(null);
-  const [systemTime, setSystemTime] = useState<string>('');
   const [timeLoading, setTimeLoading] = useState(false);
+  const [thermostatStatus, setThermostatStatus] = useState<ThermostatStatus | null>(null);
 
   const updateSchedule = async (location: string, schedule: ThermostatSchedule) => {
     setLoading(true);
@@ -87,6 +93,7 @@ const ThermostatPage = () => {
       });
 
       if (response.ok) {
+        const responseData = await response.json();
         setMessage('Schedule updated successfully.');
       } else {
         setMessage(`Failed to update schedule. Status: ${response.status}`);
@@ -98,7 +105,25 @@ const ThermostatPage = () => {
     }
   };
 
-  const getThermostatTime = async (location: string): Promise<ThermostatTime | null> => {
+  const getThermostatProgram = async (location: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/thermostat/${location}/program`, {
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching thermostat program:', error);
+      return null;
+    }
+  };
+
+  const getThermostatTime = async (location: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/thermostat/${location}/time`, {
         headers: {
@@ -106,10 +131,33 @@ const ThermostatPage = () => {
         },
       });
       if (response.ok) {
-        return await response.json();
+        const data = await response.json();
+        return data;
       }
       return null;
     } catch (error) {
+      console.error('Error fetching thermostat time:', error);
+      return null;
+    }
+  };
+
+  const getThermostatStatus = async (location: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/thermostat/${location}/status`, {
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setThermostatStatus(data);
+        return data;
+      } else {
+        console.error(`Thermostat ${location} status request failed with status:`, response.status);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching thermostat status:', error);
       return null;
     }
   };
@@ -140,6 +188,7 @@ const ThermostatPage = () => {
       });
 
       if (response.ok) {
+        const responseData = await response.json();
         setThermostatTime(timeData);
         setMessage('Thermostat time synchronized successfully.');
         // Refresh the time display
@@ -158,6 +207,10 @@ const ThermostatPage = () => {
     const location = activeTab === 'downstairs' ? 'downstairs' : 'upstairs';
     const time = await getThermostatTime(location);
     setThermostatTime(time);
+    // Also fetch and log the program data
+    await getThermostatProgram(location);
+    // Also fetch the status data
+    await getThermostatStatus(location);
   };
 
   const formatTime = (time: ThermostatTime | null): string => {
@@ -167,20 +220,10 @@ const ThermostatPage = () => {
     return `${dayName} ${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`;
   };
 
-  // Update system time every second
-  useEffect(() => {
-    const updateSystemTime = () => {
-      const now = new Date();
-      setSystemTime(now.toLocaleString());
-    };
-
-    updateSystemTime();
-    const interval = setInterval(updateSystemTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   // Load thermostat time when tab changes
   useEffect(() => {
+    setThermostatStatus(null); // Clear status while loading new data
+    setThermostatTime(null); // Clear time while loading new data
     loadThermostatTime();
   }, [activeTab]);
 
@@ -216,21 +259,21 @@ const ThermostatPage = () => {
     const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-3">
         {days.map(day => (
-          <div key={day} className="border border-gray-200 dark:border-gray-600 rounded-md p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">{day.toUpperCase()}</h3>
+          <div key={day} className="border border-gray-200 dark:border-gray-600 rounded-md p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-base font-medium text-gray-900 dark:text-white">{day.toUpperCase()}</h3>
               {day === 'mon' && (
                 <button
                   onClick={() => copyMondayToAllDays(schedule, setSchedule)}
-                  className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors duration-200"
+                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors duration-200"
                 >
-                  Copy to All Days
+                  Copy to All
                 </button>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {schedule.program.heat[day].map((entry, index) => (
                 <div key={index} className="flex items-center space-x-2">
                   <input
@@ -251,7 +294,7 @@ const ThermostatPage = () => {
                         },
                       });
                     }}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                    className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                   />
                   <input
                     type="number"
@@ -271,7 +314,7 @@ const ThermostatPage = () => {
                         },
                       });
                     }}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 w-20 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                    className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 w-16 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
                     placeholder="Temp"
                   />
                   <button
@@ -288,10 +331,10 @@ const ThermostatPage = () => {
                         },
                       });
                     }}
-                    className="inline-flex items-center justify-center w-8 h-8 border border-transparent rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
+                    className="inline-flex items-center justify-center w-6 h-6 border border-transparent rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
                     title="Remove entry"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
@@ -312,10 +355,10 @@ const ThermostatPage = () => {
                     },
                   });
                 }}
-                className="inline-flex items-center justify-center w-8 h-8 border border-transparent rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
+                className="inline-flex items-center justify-center w-6 h-6 border border-transparent rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
                 title="Add entry"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
               </button>
@@ -334,19 +377,31 @@ const ThermostatPage = () => {
 
       {/* Time Display Section */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6 border border-gray-200 dark:border-gray-700">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Time Synchronization</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">System Time</h3>
-            <p className="text-lg font-mono text-gray-900 dark:text-white">{systemTime}</p>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Thermostat Status & Time</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-center">
+            <div className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Current</div>
+            <div className="text-xl font-bold text-blue-900 dark:text-blue-100">
+              {thermostatStatus ? `${thermostatStatus.temp}°F` : '--'}
+            </div>
           </div>
-          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-              {activeTab === 'downstairs' ? 'Downstairs' : 'Upstairs'} Thermostat Time
-            </h3>
-            <p className="text-lg font-mono text-gray-900 dark:text-white">
-              {thermostatTime ? formatTime(thermostatTime) : 'Loading...'}
-            </p>
+          <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg text-center">
+            <div className="text-xs font-medium text-green-600 dark:text-green-400 mb-1">Target</div>
+            <div className="text-xl font-bold text-green-900 dark:text-green-100">
+              {thermostatStatus ? `${thermostatStatus.t_heat}°F` : '--'}
+            </div>
+          </div>
+          <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg text-center">
+            <div className="text-xs font-medium text-purple-600 dark:text-purple-400 mb-1">Thermostat Time</div>
+            <div className="text-sm font-mono text-purple-900 dark:text-purple-100">
+              {thermostatTime ? formatTime(thermostatTime) : '--'}
+            </div>
+          </div>
+          <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded-lg text-center">
+            <div className="text-xs font-medium text-orange-600 dark:text-orange-400 mb-1">System Time</div>
+            <div className="text-sm font-mono text-orange-900 dark:text-orange-100">
+              {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+            </div>
           </div>
         </div>
         <div className="flex gap-3">
@@ -357,7 +412,7 @@ const ThermostatPage = () => {
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Refresh Time
+            Refresh Status
           </button>
           <button
             onClick={() => syncThermostatTime(activeTab)}
@@ -404,23 +459,23 @@ const ThermostatPage = () => {
       </div>
 
       {/* Content */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
         {activeTab === 'downstairs' && (
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Downstairs Thermostat</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Downstairs Thermostat</h2>
             {renderScheduleForm(downstairsSchedule, setDownstairsSchedule)}
             <button
               onClick={handleUpdateDownstairs}
               disabled={loading}
-              className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 shadow-sm"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 shadow-sm mt-3"
             >
               {loading ? (
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               ) : (
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
               )}
@@ -431,20 +486,20 @@ const ThermostatPage = () => {
 
         {activeTab === 'upstairs' && (
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Upstairs Thermostat</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Upstairs Thermostat</h2>
             {renderScheduleForm(upstairsSchedule, setUpstairsSchedule)}
             <button
               onClick={handleUpdateUpstairs}
               disabled={loading}
-              className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 shadow-sm"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 shadow-sm mt-3"
             >
               {loading ? (
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               ) : (
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
               )}
