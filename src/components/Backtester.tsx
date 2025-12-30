@@ -650,14 +650,17 @@ const Backtester: React.FC = () => {
                 : `${selectedFile} Content`}
             </h2>
             <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
                     <tr>
                       {Object.keys(sortedFileContent[0] || {}).map((column, colIndex) => (
                         <th
                           key={column}
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                          className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 ${
+                            colIndex < 2 ? 'sticky z-20 bg-gray-50 dark:bg-gray-700' : ''
+                          }`}
+                          style={colIndex < 2 ? { left: colIndex === 0 ? '0px' : '160px' } : {}}
                           onClick={() => handleContentSort(column)}
                         >
                           <div className="flex items-center">
@@ -704,7 +707,13 @@ const Backtester: React.FC = () => {
                                 (column.toLowerCase() === 'strategy' || column.toLowerCase() === 'ticker') &&
                                 selectedSymbol) {
                               return (
-                                <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm">
+                                <td
+                                  key={cellIndex}
+                                  className={`px-6 py-4 whitespace-nowrap text-sm ${
+                                    cellIndex < 2 ? 'sticky z-10 bg-white dark:bg-gray-800' : ''
+                                  }`}
+                                  style={cellIndex < 2 ? { left: cellIndex === 0 ? '0px' : '160px' } : {}}
+                                >
                                   <button
                                     onClick={() => {
                                       // Find the decisions file for this strategy
@@ -771,7 +780,13 @@ const Backtester: React.FC = () => {
                             }
 
                             return (
-                              <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              <td
+                                key={cellIndex}
+                                className={`px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 ${
+                                  cellIndex < 2 ? 'sticky z-10 bg-white dark:bg-gray-800' : ''
+                                }`}
+                                style={cellIndex < 2 ? { left: cellIndex === 0 ? '0px' : '160px' } : {}}
+                              >
                                 {typeof displayValue === 'number' ? displayValue.toFixed(1) : String(displayValue)}
                               </td>
                             );
