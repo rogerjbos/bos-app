@@ -3,13 +3,12 @@
   "version": "0.1.0",
   "type": "module",
   "packageManager": "pnpm@9.0.0",
-  "description": "Bos App - Ported from portfolio-app using polkadot-ui-template",
+  "description": "Bos App Website",
   "repository": {
     "type": "git",
     "url": "https://github.com/rogerjbos/bos-app.git"
   },
   "keywords": [
-    "polkadot",
     "react",
     "typescript",
     "web3",
@@ -17,7 +16,7 @@
     "portfolio",
     "charts"
   ],
-  "author": "Roger Bos",
+  "author": "Roger J. Bos, CFA",
   "license": "MIT",
   "scripts": {
     "dev": "vite",
@@ -54,7 +53,6 @@
     "dedot": "^0.18.3",
     "dotenv": "^17.2.3",
     "echarts": "^6",
-    "echarts-for-react": "^3.0.2",
     "ethers": "^6.15.0",
     "framer-motion": "^11.18.2",
     "http-proxy-middleware": "^3.0.5",
@@ -79,6 +77,7 @@
     "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.21",
+    "echarts-for-react": "^3.0.5",
     "eslint": "8.54.0",
     "eslint-plugin-react": "7.32.2",
     "postcss": "^8.5.6",

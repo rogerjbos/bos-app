@@ -1,7 +1,8 @@
-import { ChevronDown, ChevronUp, Plus, RefreshCw, Save, Settings, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, RefreshCw, Save, Settings, Sparkles, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { abbreviateSectorIndustry } from '../lib/financialUtils';
+import { AnalysisModal } from './AnalysisModal';
 import { TableRowSkeleton } from './LoadingSkeleton';
 import { Badge } from './ui/badge';
 import { Button } from './ui/Button';
@@ -69,6 +70,9 @@ interface RanksData {
   ivol?: number;
   predicted_beta?: number;
   risk_contribution?: number;
+  ai_sentiment?: number;
+  ai_decision?: number;
+  ai_age?: string;
 }
 
 interface StockXDaysData {
@@ -101,9 +105,32 @@ interface CryptoRankData {
   ivol?: number | null;
   predicted_beta?: number | null;
   risk_contribution?: number | null;
+  ai_sentiment?: number;
+  ai_decision?: number;
+  ai_age?: string;
 }
 
 const hasValue = (value: unknown): boolean => value !== null && value !== undefined;
+
+// Helper function to match crypto symbols with different formats
+// e.g., 'BTC' matches 'btcusd', 'BTCUSDT', 'btc', etc.
+const matchesCryptoSymbol = (symbol: string, targetSymbol: string): boolean => {
+  const normalizedSymbol = symbol.toUpperCase();
+  const normalizedTarget = targetSymbol.toUpperCase();
+
+  // Exact match
+  if (normalizedSymbol === normalizedTarget) return true;
+
+  // Check if target starts with symbol (e.g., 'BTC' matches 'BTCUSD')
+  if (normalizedTarget.startsWith(normalizedSymbol)) {
+    // Check if the remainder is a known quote currency suffix
+    const remainder = normalizedTarget.slice(normalizedSymbol.length);
+    const quoteCurrencies = ['USD', 'USDT', 'USDC', 'BTC', 'ETH'];
+    return quoteCurrencies.includes(remainder);
+  }
+
+  return false;
+};
 
 const parseNullableNumber = (value: unknown): number | null => {
   if (!hasValue(value)) {
@@ -163,6 +190,9 @@ const mergeCryptoRankEntries = (entries: any[], fallbackSymbol: string): CryptoR
     ivol: null,
     predicted_beta: null,
     risk_contribution: null,
+    ai_sentiment: undefined,
+    ai_decision: undefined,
+    ai_age: undefined,
   };
 
   sortedEntries.forEach((entry) => {
@@ -243,6 +273,29 @@ const mergeCryptoRankEntries = (entries: any[], fallbackSymbol: string): CryptoR
     if (hasValue(entry.risk_contribution) && merged.risk_contribution == null) {
       merged.risk_contribution = parseNullableNumber(entry.risk_contribution);
     }
+
+    // AI fields - map from database column names to display names
+    // Database has: decision, sentiment, age (possibly with date prefix)
+    if (merged.ai_sentiment == null) {
+      const sentimentValue = entry.sentiment ?? entry.ai_sentiment;
+      if (hasValue(sentimentValue)) {
+        merged.ai_sentiment = parseNullableNumber(sentimentValue);
+      }
+    }
+
+    if (merged.ai_decision == null) {
+      const decisionValue = entry.decision ?? entry.ai_decision;
+      if (hasValue(decisionValue)) {
+        merged.ai_decision = parseNullableNumber(decisionValue);
+      }
+    }
+
+    if (merged.ai_age == null) {
+      const ageValue = entry.age ?? entry.ai_age;
+      if (hasValue(ageValue)) {
+        merged.ai_age = parseNullableString(ageValue) || undefined;
+      }
+    }
   });
 
   return merged;
@@ -276,6 +329,12 @@ const Watchlist: React.FC = () => {
   // Status message
   const [statusMessage, setStatusMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
 
+  // Analysis modal state
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
   // Sorting state
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -289,32 +348,35 @@ const Watchlist: React.FC = () => {
     { key: 'ivol', visible: true, order: 2 },
     { key: 'predicted_beta', visible: true, order: 3 },
     { key: 'risk_contribution', visible: true, order: 4 },
-    { key: 'industry', visible: false, order: 5 },
-    { key: 'sector', visible: false, order: 6 },
-    { key: 'mcap', visible: false, order: 7 },
-    { key: 'isADR', visible: false, order: 8 },
-    { key: 'isActive', visible: false, order: 9 },
-    { key: 'reportingCurrency', visible: false, order: 10 },
-    { key: 'td_resistance', visible: false, order: 11 },
-    { key: 'td_support', visible: false, order: 12 },
-    { key: 'tec_riskRangeHigh', visible: false, order: 13 },
-    { key: 'tec_riskRangeLow', visible: false, order: 14 },
-    { key: 'tag', visible: false, order: 15 },
+    { key: 'ai_sentiment', visible: true, order: 5 },
+    { key: 'ai_decision', visible: true, order: 6 },
+    { key: 'ai_age', visible: true, order: 7 },
+    { key: 'industry', visible: false, order: 8 },
+    { key: 'sector', visible: false, order: 9 },
+    { key: 'mcap', visible: false, order: 10 },
+    { key: 'isADR', visible: false, order: 11 },
+    { key: 'isActive', visible: false, order: 12 },
+    { key: 'reportingCurrency', visible: false, order: 13 },
+    { key: 'td_resistance', visible: false, order: 14 },
+    { key: 'td_support', visible: false, order: 15 },
+    { key: 'tec_riskRangeHigh', visible: false, order: 16 },
+    { key: 'tec_riskRangeLow', visible: false, order: 17 },
+    { key: 'tag', visible: false, order: 18 },
     // Crypto columns
-    { key: 'crypto_ranks', visible: true, order: 16 },
-    { key: 'lppl_side', visible: false, order: 17 },
-    { key: 'lppl_pos_conf', visible: false, order: 18 },
-    { key: 'lppl_neg_conf', visible: false, order: 19 },
-    { key: 'strategy_side', visible: false, order: 20 },
-    { key: 'strategy_profit_per_trade', visible: false, order: 21 },
-    { key: 'strategy_expectancy', visible: false, order: 22 },
-    { key: 'strategy_profit_factor', visible: false, order: 23 },
-    { key: 'quoteCurrency', visible: false, order: 24 },
-    { key: 'open', visible: false, order: 25 },
-    { key: 'high', visible: false, order: 26 },
-    { key: 'low', visible: false, order: 27 },
-    { key: 'close', visible: false, order: 28 },
-    { key: 'volume', visible: false, order: 29 },
+    { key: 'crypto_ranks', visible: true, order: 19 },
+    { key: 'lppl_side', visible: false, order: 20 },
+    { key: 'lppl_pos_conf', visible: false, order: 21 },
+    { key: 'lppl_neg_conf', visible: false, order: 22 },
+    { key: 'strategy_side', visible: false, order: 23 },
+    { key: 'strategy_profit_per_trade', visible: false, order: 24 },
+    { key: 'strategy_expectancy', visible: false, order: 25 },
+    { key: 'strategy_profit_factor', visible: false, order: 26 },
+    { key: 'quoteCurrency', visible: false, order: 27 },
+    { key: 'open', visible: false, order: 28 },
+    { key: 'high', visible: false, order: 29 },
+    { key: 'low', visible: false, order: 30 },
+    { key: 'close', visible: false, order: 31 },
+    { key: 'volume', visible: false, order: 32 },
   ]);
 
   // Drag and drop state
@@ -342,32 +404,35 @@ const Watchlist: React.FC = () => {
             { key: 'ivol', visible: true, order: 2 },
             { key: 'predicted_beta', visible: true, order: 3 },
             { key: 'risk_contribution', visible: true, order: 4 },
-            { key: 'industry', visible: false, order: 5 },
-            { key: 'sector', visible: false, order: 6 },
-            { key: 'mcap', visible: false, order: 7 },
-            { key: 'isADR', visible: false, order: 8 },
-            { key: 'isActive', visible: false, order: 9 },
-            { key: 'reportingCurrency', visible: false, order: 10 },
-            { key: 'td_resistance', visible: false, order: 11 },
-            { key: 'td_support', visible: false, order: 12 },
-            { key: 'tec_riskRangeHigh', visible: false, order: 13 },
-            { key: 'tec_riskRangeLow', visible: false, order: 14 },
-            { key: 'tag', visible: false, order: 15 },
+            { key: 'ai_sentiment', visible: true, order: 5 },
+            { key: 'ai_decision', visible: true, order: 6 },
+            { key: 'ai_age', visible: true, order: 7 },
+            { key: 'industry', visible: false, order: 8 },
+            { key: 'sector', visible: false, order: 9 },
+            { key: 'mcap', visible: false, order: 10 },
+            { key: 'isADR', visible: false, order: 11 },
+            { key: 'isActive', visible: false, order: 12 },
+            { key: 'reportingCurrency', visible: false, order: 13 },
+            { key: 'td_resistance', visible: false, order: 14 },
+            { key: 'td_support', visible: false, order: 15 },
+            { key: 'tec_riskRangeHigh', visible: false, order: 16 },
+            { key: 'tec_riskRangeLow', visible: false, order: 17 },
+            { key: 'tag', visible: false, order: 18 },
             // Crypto columns
-            { key: 'crypto_ranks', visible: true, order: 16 },
-            { key: 'lppl_side', visible: false, order: 17 },
-            { key: 'lppl_pos_conf', visible: false, order: 18 },
-            { key: 'lppl_neg_conf', visible: false, order: 19 },
-            { key: 'strategy_side', visible: false, order: 20 },
-            { key: 'strategy_profit_per_trade', visible: false, order: 21 },
-            { key: 'strategy_expectancy', visible: false, order: 22 },
-            { key: 'strategy_profit_factor', visible: false, order: 23 },
-            { key: 'quoteCurrency', visible: false, order: 24 },
-            { key: 'open', visible: false, order: 25 },
-            { key: 'high', visible: false, order: 26 },
-            { key: 'low', visible: false, order: 27 },
-            { key: 'close', visible: false, order: 28 },
-            { key: 'volume', visible: false, order: 29 },
+            { key: 'crypto_ranks', visible: true, order: 19 },
+            { key: 'lppl_side', visible: false, order: 20 },
+            { key: 'lppl_pos_conf', visible: false, order: 21 },
+            { key: 'lppl_neg_conf', visible: false, order: 22 },
+            { key: 'strategy_side', visible: false, order: 23 },
+            { key: 'strategy_profit_per_trade', visible: false, order: 24 },
+            { key: 'strategy_expectancy', visible: false, order: 25 },
+            { key: 'strategy_profit_factor', visible: false, order: 26 },
+            { key: 'quoteCurrency', visible: false, order: 27 },
+            { key: 'open', visible: false, order: 28 },
+            { key: 'high', visible: false, order: 29 },
+            { key: 'low', visible: false, order: 30 },
+            { key: 'close', visible: false, order: 31 },
+            { key: 'volume', visible: false, order: 32 },
           ];
 
           // Create a map of saved columns for quick lookup
@@ -846,6 +911,7 @@ const Watchlist: React.FC = () => {
         const symbolUpper = symbol.toUpperCase();
         const symbolLower = symbol.toLowerCase();
         try {
+          console.log(`Fetching crypto ranks for ${symbolLower}...`);
           const response = await fetch(`${API_BASE_URL}/crypto_ranks?baseCurrency=${encodeURIComponent(symbolLower)}`, {
             method: 'GET',
             headers: {
@@ -855,10 +921,19 @@ const Watchlist: React.FC = () => {
 
           if (response.ok) {
             const data = await response.json();
+            console.log(`Crypto ranks data for ${symbolLower}:`, data);
+            // Log first entry to see available fields
+            if (data && data.length > 0) {
+              console.log(`Sample entry for ${symbolLower}:`, data[0]);
+              console.log(`Available keys:`, Object.keys(data[0]));
+            }
             const mergedEntry = mergeCryptoRankEntries(data, symbolUpper);
+            console.log(`Merged entry for ${symbolUpper}:`, mergedEntry);
             if (mergedEntry) {
               aggregatedEntries.set(mergedEntry.baseCurrency, mergedEntry);
             }
+          } else {
+            console.warn(`Failed to fetch crypto ranks for ${symbolUpper}: ${response.status}`);
           }
         } catch (symbolError) {
           console.warn(`Failed to fetch crypto ranks for ${symbolUpper}:`, symbolError);
@@ -866,6 +941,7 @@ const Watchlist: React.FC = () => {
         }
       }
 
+      console.log('All crypto ranks data:', Array.from(aggregatedEntries.values()));
       setCryptoRanksData(Array.from(aggregatedEntries.values()));
     } catch (err) {
       console.error('Error fetching crypto ranks data:', err);
@@ -1088,6 +1164,42 @@ const Watchlist: React.FC = () => {
     }
   };
 
+  // Run AI analysis on a symbol
+  const runAnalysis = async (symbol: string, company: string, assetType: 'crypto' | 'stocks') => {
+    setShowAnalysisModal(true);
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    setAnalysisResult(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/analysis/run`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ticker: symbol,
+          company: company,
+          asset_type: assetType,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(errorData.detail || `Analysis failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      setAnalysisResult(result);
+    } catch (err) {
+      console.error('Error running analysis:', err);
+      setAnalysisError(err instanceof Error ? err.message : 'Failed to run analysis');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   // Load data when active watchlist changes
   useEffect(() => {
     if (activeWatchlistId) {
@@ -1245,7 +1357,7 @@ const Watchlist: React.FC = () => {
                   .filter(col => {
                     if (activeWatchlist?.type === 'crypto') {
                       // Crypto columns
-                      return ['crypto_ranks', 'lppl_side', 'lppl_pos_conf', 'lppl_neg_conf', 'strategy_side', 'strategy_profit_per_trade', 'strategy_expectancy', 'strategy_profit_factor', 'quoteCurrency', 'open', 'high', 'low', 'close', 'volume', 'ivol', 'predicted_beta', 'risk_contribution'].includes(col.key);
+                      return ['crypto_ranks', 'lppl_side', 'lppl_pos_conf', 'lppl_neg_conf', 'strategy_side', 'strategy_profit_per_trade', 'strategy_expectancy', 'strategy_profit_factor', 'quoteCurrency', 'open', 'high', 'low', 'close', 'volume', 'ivol', 'predicted_beta', 'risk_contribution', 'ai_sentiment', 'ai_decision', 'ai_age'].includes(col.key);
                     } else {
                       // Stock columns
                       return !['crypto_ranks', 'lppl_side', 'lppl_pos_conf', 'lppl_neg_conf', 'strategy_side', 'strategy_profit_per_trade', 'strategy_expectancy', 'strategy_profit_factor', 'quoteCurrency', 'open', 'high', 'low', 'close', 'volume'].includes(col.key);
@@ -1286,6 +1398,9 @@ const Watchlist: React.FC = () => {
                         {col.key === 'ivol' && 'IVol'}
                         {col.key === 'predicted_beta' && 'Beta'}
                         {col.key === 'risk_contribution' && 'Risk Contribution'}
+                        {col.key === 'ai_sentiment' && 'AI Sentiment'}
+                        {col.key === 'ai_decision' && 'AI Decision'}
+                        {col.key === 'ai_age' && 'AI Age'}
                         {col.key === 'industry' && 'Industry'}
                         {col.key === 'sector' && 'Sector'}
                         {col.key === 'mcap' && 'Market Cap'}
@@ -1382,7 +1497,7 @@ const Watchlist: React.FC = () => {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[50px]"></TableHead>
+                            <TableHead className="w-[80px]"></TableHead>
                             <SortableHeader column="symbol">Symbol</SortableHeader>
                             <SortableHeader column="latest" className="text-right">Latest</SortableHeader>
                             <SortableHeader column="1d" className="text-right">1d</SortableHeader>
@@ -1403,7 +1518,7 @@ const Watchlist: React.FC = () => {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[50px]"></TableHead>
+                            <TableHead className="w-[80px]"></TableHead>
                             <SortableHeader column="symbol">Symbol</SortableHeader>
                             <SortableHeader column="latest" className="text-right">Latest</SortableHeader>
                             <SortableHeader column="1d" className="text-right">1d</SortableHeader>
@@ -1424,6 +1539,9 @@ const Watchlist: React.FC = () => {
                                       ivol: 'IVol',
                                       predicted_beta: 'Beta',
                                       risk_contribution: 'Risk Contrib.',
+                                      ai_sentiment: 'AI Sentiment',
+                                      ai_decision: 'AI Decision',
+                                      ai_age: 'AI Age',
                                       industry: 'Industry',
                                       sector: 'Sector',
                                       mcap: 'Market Cap',
@@ -1448,7 +1566,7 @@ const Watchlist: React.FC = () => {
                             {watchlist.type === 'crypto' && (
                               <>
                                 {columnConfig
-                                  .filter(col => ['crypto_ranks', 'lppl_side', 'lppl_pos_conf', 'lppl_neg_conf', 'strategy_side', 'strategy_profit_per_trade', 'strategy_expectancy', 'strategy_profit_factor', 'quoteCurrency', 'open', 'high', 'low', 'close', 'volume', 'ivol', 'predicted_beta', 'risk_contribution'].includes(col.key) && col.visible)
+                                  .filter(col => ['crypto_ranks', 'lppl_side', 'lppl_pos_conf', 'lppl_neg_conf', 'strategy_side', 'strategy_profit_per_trade', 'strategy_expectancy', 'strategy_profit_factor', 'quoteCurrency', 'open', 'high', 'low', 'close', 'volume', 'ivol', 'predicted_beta', 'risk_contribution', 'ai_sentiment', 'ai_decision', 'ai_age'].includes(col.key) && col.visible)
                                   .sort((a, b) => a.order - b.order)
                                   .map(col => {
                                     const headerText = {
@@ -1468,7 +1586,10 @@ const Watchlist: React.FC = () => {
                                       volume: 'Volume',
                                       ivol: 'IVol',
                                       predicted_beta: 'Beta',
-                                      risk_contribution: 'Risk Contrib'
+                                      risk_contribution: 'Risk Contrib',
+                                      ai_sentiment: 'AI Sentiment',
+                                      ai_decision: 'AI Decision',
+                                      ai_age: 'AI Age'
                                     }[col.key] || col.key;
 
                                     return (
@@ -1493,8 +1614,26 @@ const Watchlist: React.FC = () => {
                             // Get ranks data for stocks
                             const ranksDataItem = watchlist.type === 'stocks' ? ranksData.find(r => r.ticker?.toUpperCase() === symbol) : null;
 
-                            // Get crypto ranks data for crypto
-                            const cryptoRanksDataItem = watchlist.type === 'crypto' ? cryptoRanksData.find(r => r.baseCurrency?.toUpperCase() === symbol) : null;
+                            // Get crypto ranks data for crypto - handle symbols with suffixes like 'usd', 'usdt'
+                            const cryptoRanksDataItem = watchlist.type === 'crypto'
+                              ? cryptoRanksData.find(r => {
+                                  const match = matchesCryptoSymbol(symbol, r.baseCurrency || '');
+                                  if (match) {
+                                    console.log(`Matched ${symbol} with ${r.baseCurrency}`);
+                                  }
+                                  return match;
+                                })
+                              : null;
+
+                            if (watchlist.type === 'crypto') {
+                              console.log(`Looking for crypto data for ${symbol}`, {
+                                cryptoRanksDataItem,
+                                availableSymbols: cryptoRanksData.map(r => r.baseCurrency),
+                                ai_sentiment: cryptoRanksDataItem?.ai_sentiment,
+                                ai_decision: cryptoRanksDataItem?.ai_decision,
+                                ai_age: cryptoRanksDataItem?.ai_age
+                              });
+                            }
 
                             const formatPrice = (price: number | null) => price ? `$${price.toFixed(2)}` : 'N/A';
                             const formatReturn = (returnPct: number | null) => {
@@ -1507,14 +1646,37 @@ const Watchlist: React.FC = () => {
                             return (
                               <TableRow key={symbol}>
                                 <TableCell>
-                                  <Button
-                                    onClick={() => removeSymbol(symbol)}
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      onClick={() => {
+                                        // Try to get company name from ranks data
+                                        let companyName = symbol;
+                                        if (watchlist.type === 'stocks') {
+                                          const ranks = ranksData.find(r => r.ticker?.toUpperCase() === symbol);
+                                          companyName = ranks?.name || symbol;
+                                        } else {
+                                          // For crypto, use the symbol as the company name
+                                          companyName = symbol;
+                                        }
+                                        runAnalysis(symbol, companyName, watchlist.type);
+                                      }}
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-6 w-6 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      title="Run AI Analysis"
+                                    >
+                                      <Sparkles className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      onClick={() => removeSymbol(symbol)}
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                      title="Remove from watchlist"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
                                 </TableCell>
                                 <TableCell className="font-medium">{symbol}</TableCell>
                                 <TableCell className="text-right">
@@ -1592,6 +1754,15 @@ const Watchlist: React.FC = () => {
                                           case 'risk_contribution':
                                             cellContent = ranksDataItem?.risk_contribution !== null && ranksDataItem?.risk_contribution !== undefined ? ranksDataItem.risk_contribution.toFixed(2) : 'N/A';
                                             break;
+                                          case 'ai_sentiment':
+                                            cellContent = ranksDataItem?.ai_sentiment !== null && ranksDataItem?.ai_sentiment !== undefined ? ranksDataItem.ai_sentiment : 'N/A';
+                                            break;
+                                          case 'ai_decision':
+                                            cellContent = ranksDataItem?.ai_decision !== null && ranksDataItem?.ai_decision !== undefined ? ranksDataItem.ai_decision : 'N/A';
+                                            break;
+                                          case 'ai_age':
+                                            cellContent = ranksDataItem?.ai_age || 'N/A';
+                                            break;
                                           case 'industry':
                                             cellContent = abbreviateSectorIndustry(ranksDataItem?.industry || null, 'industry');
                                             break;
@@ -1638,7 +1809,7 @@ const Watchlist: React.FC = () => {
                                 {watchlist.type === 'crypto' && (
                                   <>
                                     {columnConfig
-                                      .filter(col => ['crypto_ranks', 'lppl_side', 'lppl_pos_conf', 'lppl_neg_conf', 'strategy_side', 'strategy_profit_per_trade', 'strategy_expectancy', 'strategy_profit_factor', 'quoteCurrency', 'open', 'high', 'low', 'close', 'volume', 'ivol', 'predicted_beta', 'risk_contribution'].includes(col.key) && col.visible)
+                                      .filter(col => ['crypto_ranks', 'lppl_side', 'lppl_pos_conf', 'lppl_neg_conf', 'strategy_side', 'strategy_profit_per_trade', 'strategy_expectancy', 'strategy_profit_factor', 'quoteCurrency', 'open', 'high', 'low', 'close', 'volume', 'ivol', 'predicted_beta', 'risk_contribution', 'ai_sentiment', 'ai_decision', 'ai_age'].includes(col.key) && col.visible)
                                       .sort((a, b) => a.order - b.order)
                                       .map(col => {
                                         let cellContent: React.ReactNode = 'N/A';
@@ -1694,6 +1865,15 @@ const Watchlist: React.FC = () => {
                                             break;
                                           case 'risk_contribution':
                                             cellContent = cryptoRanksDataItem?.risk_contribution !== null && cryptoRanksDataItem?.risk_contribution !== undefined ? cryptoRanksDataItem.risk_contribution.toFixed(2) : 'N/A';
+                                            break;
+                                          case 'ai_sentiment':
+                                            cellContent = cryptoRanksDataItem?.ai_sentiment !== null && cryptoRanksDataItem?.ai_sentiment !== undefined ? cryptoRanksDataItem.ai_sentiment : 'N/A';
+                                            break;
+                                          case 'ai_decision':
+                                            cellContent = cryptoRanksDataItem?.ai_decision !== null && cryptoRanksDataItem?.ai_decision !== undefined ? cryptoRanksDataItem.ai_decision : 'N/A';
+                                            break;
+                                          case 'ai_age':
+                                            cellContent = cryptoRanksDataItem?.ai_age || 'N/A';
                                             break;
                                         }
 
@@ -1754,6 +1934,15 @@ const Watchlist: React.FC = () => {
           </Card>
         )}
       </div>
+
+      {/* Analysis Modal */}
+      <AnalysisModal
+        isOpen={showAnalysisModal}
+        onClose={() => setShowAnalysisModal(false)}
+        analysis={analysisResult}
+        isLoading={isAnalyzing}
+        error={analysisError}
+      />
     </div>
   );
 };
