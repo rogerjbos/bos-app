@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Watchlist Column Config</title>
+</head>
+<body>
+    <h1>Clear Watchlist Column Configuration</h1>
+    <button onclick="clearConfig()">Clear Column Config</button>
+    <p id="message"></p>
+    <script>
+        function clearConfig() {
+            localStorage.removeItem('watchlist-column-config');
+            document.getElementById('message').textContent = 'Column configuration cleared! Please refresh your watchlist page.';
+        }
+    </script>
+</body>
+</html>

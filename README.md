@@ -148,6 +148,7 @@ bos-app/
 #### Notes
 cd ~/node_home/bos-app
 cd ~/python_home/data-api-server
+cd ~/rust_home/rig_buy_sell
 kill $(lsof -ti:5173)
 ~/scripts/run_data_api_server.sh restart
 ~/scripts/manage_node_server.sh restart
