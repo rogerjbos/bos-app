@@ -14,8 +14,8 @@ const ReportsPage: React.FC = () => {
     // or fetch it from a simple API
     const availableReports = [
       { name: 'ONJ Status', path: '/reports/onj.html'},
+      { name: 'Buy/Sell Decisions', path: '/reports/buy_sell.html'},
       { name: 'Holdings', path: '/reports/holdings.html'},
-      // { name: 'ONJ Rmd Status', path: '/reports/onj_markdown.html'},
       // Add more reports as they're generated
     ];
     

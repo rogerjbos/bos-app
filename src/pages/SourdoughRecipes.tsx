@@ -4,7 +4,7 @@ const SourdoughRecipes: React.FC = () => {
   const recipes = [
     {
       id: 1,
-      title: "Sourdough Bread",
+      title: "Bread",
       description: "A classic sourdough loaf  with rolled oats & chia seeds.",
       ingredients: [
         "3 cups bread flour",
@@ -18,7 +18,7 @@ const SourdoughRecipes: React.FC = () => {
     },
     {
       id: 2,
-      title: "Sourdough pancakes",
+      title: "Pancakes",
       description: "Fluffy sourdough pancakes with tangy flavor",
       ingredients: [
         "1 cup active sourdough starter (fed and bubbly)",
@@ -35,7 +35,7 @@ const SourdoughRecipes: React.FC = () => {
     },
     {
       id: 3,
-      title: "Sourdough Chocolate Chip Cookies",
+      title: "Chocolate Chip Cookies",
       description: "Tangy chocolate chip cookies without eggs.",
       ingredients: [
         "1 cup active sourdough starter",
@@ -49,6 +49,49 @@ const SourdoughRecipes: React.FC = () => {
         "1 1/2 cups chocolate chips"
       ],
       instructions: "Preheat the oven to 375°F and line baking sheets with parchment paper.<br>whisk together the flour, baking soda, and salt.<br>In another bowl, cream together the softened butter, granulated sugar, and brown sugar until light and fluffy, about 2-3 minutes.<br>Stir in the sourdough starter and vanilla extract until well combined.<br>Gradually add the dry ingredients to the wet ingredients, mixing just until combined. Fold in the chocolate chips.<br>Drop rounded tablespoons of dough onto the prepared baking sheets, spacing them about 2 inches apart.<br>Bake for 9-11 minutes, or until the edges are lightly golden. The centers may still look soft, but they will firm up as they cool.<br>Allow the cookies to cool on the baking sheet for 5 minutes before transferring them to a wire rack to cool completely."
+    },
+    {
+      id: 4,
+      title: "Hamburger Buns",
+      description: "Tangy sourdough hamburger buns perfect for burgers and sandwiches.",
+      ingredients: [
+        "For the Starter (Levain):",
+        "25 grams (2 tablespoons) active sourdough starter",
+        "50 grams (1/4 cup) warm water",
+        "50 grams (1/3 cup) all-purpose flour",
+        "For the Dough:",
+        "175 grams (3/4 cup) warm water",
+        "250 grams (2 cups) bread flour",
+        "25 grams (2 tablespoons) whole wheat flour",
+        "5 grams (3/4 teaspoon) salt",
+        "12 grams (1 tablespoon) granulated sugar",
+        "25 grams (2 tablespoons) unsalted butter, softened",
+        "1 large egg",
+        "All of the levain",
+        "For Topping (Optional):",
+        "1/2 large egg, beaten with 1/2 tablespoon of milk or water",
+        "Sesame seeds or poppy seeds"
+      ],
+      instructions: "</strong>1. <strong>Make the Leaven:</strong> In a small bowl, combine the active sourdough starter, warm water, and all-purpose flour for the levain. Mix until smooth and cover loosely. Let it sit at room temperature for 4-6 hours, or until it has doubled in size and is bubbly and active.<br><br><strong>2. Mix the Dough:</strong> In the bowl of a stand mixer fitted with a dough hook, combine the 175 grams of warm water and the entire levain. Mix briefly to break up the levain. Add the bread flour, whole wheat flour, salt, and sugar. Mix on low speed until a shaggy dough forms. Increase the speed to medium and knead for 5-7 minutes until the dough starts to come together and become smooth.<br><br><strong>3. Incorporate Butter and Egg:</strong> Add the softened butter and the large egg to the dough. Continue to knead on medium speed for another 5-8 minutes. The dough is ready when it passes the windowpane test (you can stretch a small piece of dough thin enough to see light through it) and pulls away from the sides of the bowl. It should be soft, smooth, and slightly tacky.<br><br><strong>4. Bulk Fermentation:</strong> Place the dough in a lightly greased bowl, cover it, and let it rise at room temperature for 4-6 hours. The dough should rise by about 75-80%, not necessarily double in size. To help develop strength, you can perform a set of stretches and folds once during the first hour of rising.<br><br><strong>5. Divide and Shape:</strong> Turn the dough out onto a lightly floured work surface. Gently degass it and divide it into 4 equal pieces (each will be about 130-140 grams). To shape each bun, take a piece of dough and create a tight, smooth ball by cupping your hand over it and moving it in a circular motion on the work surface.<br><br><strong>6. Second Proof (Proofing):</strong> Place the shaped dough balls onto a baking sheet lined with parchment paper. Press them down gently to flatten them slightly into a disc shape. Cover loosely with plastic wrap or a damp towel and let them proof for 2-3 hours at room temperature. They should look puffy and have risen noticeably, but not doubled.<br><br><strong>7. Preheat Oven:</strong> About 30 minutes before the end of the proofing time, preheat your oven to 400°F (200°C).<br><br><strong>8. Prepare for Baking:</strong> Brush the tops of the proofed buns with the egg wash (beaten egg and milk/water). Sprinkle generously with sesame or poppy seeds if desired.<br><br><strong>9. Bake:</strong> Place the baking sheet in the preheated oven and bake for 18-22 minutes. The buns are done when they are a deep golden brown and their internal temperature reaches 190-200°F (88-93°C).<br><br><strong>10. Cool:</strong> Remove the buns from the oven and let them cool on the baking sheet for a few minutes before transferring them to a wire rack to cool completely."
+    },
+    {
+      id: 5,
+      title: "Chocolate Bread",
+      description: "Rich chocolate bread with complex sourdough tang and gooey chocolate pockets.",
+      ingredients: [
+        "For the Leaven:",
+        "50g active sourdough starter",
+        "100g water",
+        "100g all-purpose or bread flour",
+        "For the Final Dough:",
+        "700g bread flour",
+        "50g unsweetened cocoa powder",
+        "550g water (adjust as needed)",
+        "10g fine sea salt",
+        "10g sugar (optional)",
+        "150g dark chocolate chunks or chips"
+      ],
+      instructions: "</strong>1. <strong>Make the Leaven:</strong> The night before, mix your 50g starter with the 100g water and 100g flour. Let it sit until it's bubbly, active, and has doubled in size.<br><br>2. <strong>Mix the Dough:</strong> In a large bowl, whisk together the 700g flour and 50g cocoa powder. Add the 550g water and all of your active leaven. Mix until no dry bits remain. Let this rest for 30-60 minutes (autolyse).<br><br>3. <strong>Add Salt & Sugar:</strong> After the autolyse, sprinkle the salt and optional sugar over the dough. Use wet hands to squeeze and fold it in until fully incorporated.<br><br>4. <strong>Bulk Fermentation:</strong> Perform a set of stretch and folds every 30 minutes for the first 2-3 hours. During the last set of folds, gently fold in the chocolate chunks. Cover the dough and let it complete its bulk fermentation, which can take another 3-5 hours. The dough is ready when it's puffy, jiggly, and has risen by about 50-75%.<br><br>5. <strong>Shape & Cold Proof:</strong> Gently turn the dough out onto a lightly floured surface, shape it into a round or oval, and place it seam-side up into a well-floured banneton. Cover it and place it in the refrigerator for 12-18 hours.<br><br>6. <strong>Bake:</strong> Preheat your Dutch oven in a 500°F (260°C) oven. Turn the dough out onto parchment paper, score it, and carefully place it into the hot Dutch oven. Bake with the lid on for 20-25 minutes, then remove the lid and bake for another 20-25 minutes until deep, dark, and the internal temperature is around 205-210°F (96-99°C).<br><br>The result is a delicious, rich bread with a complex flavor profile that is perfect for toast, French toast, or just eating on its own with a slather of butter."
     }
   ];
 

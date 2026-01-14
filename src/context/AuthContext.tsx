@@ -1,4 +1,9 @@
-import { useSIWS, useSIWSAuth, useWalletConnect } from '@shawncoe/siws-auth/react';
+// Temporarily avoid importing SIWS hooks directly to prevent a dev-time React hook crash.
+// The functions below provide safe fallbacks so the rest of the app can run.
+let useSIWS: any = () => null;
+let useSIWSAuth: any = () => ({ signIn: undefined });
+let useWalletConnect: any = () => ({ accounts: [] });
+
 import React, { createContext, ReactNode, useContext, useEffect } from 'react';
 import { useMetaMaskContext } from '../providers/MetaMaskProvider';
 
@@ -55,9 +60,19 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const { user: siwsUser, isAuthenticated: siwsAuthenticated, isLoading: siwsLoading, signOut: siwsSignOut } = useSIWS();
-  const { signIn: siwsSignIn } = useSIWSAuth();
-  const { accounts } = useWalletConnect();
+  // The SIWS hooks rely on a provider which may be temporarily removed during development.
+  // Call the hooks and then defensively access properties so the app doesn't crash when the provider is missing.
+  const siws = useSIWS() as any | null;
+  const siwsUser = siws?.user ?? null;
+  const siwsAuthenticated = siws?.isAuthenticated ?? false;
+  const siwsLoading = siws?.isLoading ?? false;
+  const siwsSignOut = siws?.signOut as (() => Promise<void>) | undefined;
+
+  const siwsAuth = useSIWSAuth() as any | null;
+  const siwsSignIn = siwsAuth?.signIn as (() => Promise<void>) | undefined;
+
+  const walletConnectCtx = useWalletConnect() as any | null;
+  const accounts = walletConnectCtx?.accounts || [];
 
   // Use MetaMask context instead of direct detection
   const { accounts: metaMaskAccounts, connected: metaMaskConnected, disconnect: metaMaskDisconnect } = useMetaMaskContext();
@@ -91,7 +106,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Connect wallet (for SIWS, this is handled by signIn)
   const connectWallet = async () => {
-    await siwsSignIn();
+    if (siwsSignIn) {
+      await siwsSignIn();
+    } else {
+      // No SIWS provider available (dev mode) — nothing to do
+      console.warn('SIWS signIn not available; SIWSProvider may be disabled');
+    }
   };
 
   // Disconnect wallet - properly clear both SIWS and MetaMask state
@@ -101,7 +121,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Sign in method
   const signIn = async () => {
-    await siwsSignIn();
+    if (siwsSignIn) {
+      await siwsSignIn();
+    } else {
+      console.warn('SIWS signIn not available; SIWSProvider may be disabled');
+    }
   };
 
   // Sign out method - properly clear both SIWS and MetaMask state

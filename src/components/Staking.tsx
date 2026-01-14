@@ -884,6 +884,12 @@ const Staking: React.FC = () => {
     });
   };
 
+  // Helper function to shorten wallet addresses
+  const shortenAddress = (address: string): string => {
+    if (!address || address.length <= 12) return address;
+    return `${address.slice(0, 5)}...${address.slice(-4)}`;
+  };
+
   // Handle input changes for the new item form
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -1058,7 +1064,7 @@ const Staking: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
               {stakingItems.length > 0 && stakingItems[0].username
-                ? <>Staking:  <span className="text-lg font-normal">{stakingItems[0].username}</span></>
+                ? <>Staking:  <span className="text-lg font-normal">{shortenAddress(stakingItems[0].username)}</span></>
                 : 'Staking Value'
               }
             </h1>

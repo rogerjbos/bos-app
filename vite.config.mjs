@@ -13,6 +13,12 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       buffer: 'buffer',
+      react: path.resolve(__dirname, './node_modules/react'),
+      'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
+      '@polkadot/util': path.resolve(__dirname, './node_modules/@polkadot/util'),
+      '@polkadot/util-crypto': path.resolve(__dirname, './node_modules/@polkadot/util-crypto'),
+      '@polkadot/api': path.resolve(__dirname, './node_modules/@polkadot/api'),
+      '@polkadot/extension-dapp': path.resolve(__dirname, './node_modules/@polkadot/extension-dapp'),
     },
   },
   define: {
