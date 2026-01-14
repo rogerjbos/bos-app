@@ -26,6 +26,7 @@ const NavBarComponent: React.FC = () => {
     { to: '/', label: 'Home' },
     { to: '/counter', label: 'Counter' },
     { to: '/sourdough', label: 'Personal' },
+    { to: '/premium', label: 'Premium' },
   ], []);
 
   // Public client items - available to any connected wallet

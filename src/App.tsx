@@ -8,6 +8,7 @@ import Counter from './pages/Counter';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import PortfolioPage from './pages/PortfolioPage';
+import PremiumPage from './pages/PremiumPage';
 import ReportsPage from './pages/ReportsPage';
 import SourdoughRecipes from './pages/SourdoughRecipes';
 import StakingPage from './pages/StakingPage';
@@ -62,6 +63,7 @@ const App: React.FC = () => {
                     <Route path="/thermostat" element={<ProtectedRoute element={<ThermostatPage />} authorizedOnly={true} />} />
                     <Route path="/counter" element={<Counter />} />
                     <Route path="/sourdough" element={<SourdoughRecipes />} />
+                    <Route path="/premium" element={<PremiumPage />} />
                   </Routes>
                 </div>
               </div>

@@ -42,9 +42,17 @@ export function useMetaMask() {
       try {
         const eth = window.ethereum;
 
-        // Read initial accounts (may be empty)
-        const accs = await eth.request({ method: "eth_accounts" });
-        handleAccountsChanged(accs);
+        // Check if user explicitly disconnected - if so, don't auto-reconnect
+        const isDisconnected = sessionStorage.getItem('metamask_disconnected') === 'true';
+
+        if (!isDisconnected) {
+          // Read initial accounts (may be empty)
+          const accs = await eth.request({ method: "eth_accounts" });
+          handleAccountsChanged(accs);
+        } else {
+          // User disconnected, so start with empty accounts
+          handleAccountsChanged([]);
+        }
 
         const id = await eth.request({ method: "eth_chainId" });
         setChainId(id);
@@ -89,6 +97,9 @@ export function useMetaMask() {
   const connect = useCallback(async () => {
     if (!window?.ethereum) throw new Error("MetaMask is not installed");
     try {
+      // Clear the disconnect flag when user explicitly connects
+      sessionStorage.removeItem('metamask_disconnected');
+
       // Try to request permissions first to ensure fresh account selection
       try {
         await window.ethereum.request({
@@ -117,6 +128,8 @@ export function useMetaMask() {
 
   const disconnect = useCallback(() => {
     // MetaMask doesn't provide a programmatic disconnect. We clear local state.
+    // Set a flag to prevent auto-reconnection on page reload
+    sessionStorage.setItem('metamask_disconnected', 'true');
     setAccounts([]);
     setConnected(false);
   }, []);

@@ -91,6 +91,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Connect wallet (for SIWS, this is handled by signIn)
   const connectWallet = async () => {
+    // Clear MetaMask disconnect flag when connecting with Polkadot wallet
+    sessionStorage.removeItem('metamask_disconnected');
     await siwsSignIn();
   };
 
@@ -101,12 +103,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Sign in method
   const signIn = async () => {
+    // Clear MetaMask disconnect flag when connecting with Polkadot wallet
+    sessionStorage.removeItem('metamask_disconnected');
     await siwsSignIn();
   };
 
   // Sign out method - properly clear both SIWS and MetaMask state
   const signOut = async () => {
     try {
+      // Set MetaMask disconnect flag BEFORE clearing sessionStorage
+      sessionStorage.setItem('metamask_disconnected', 'true');
 
       // Sign out from SIWS if available
       if (siwsSignOut) {
@@ -118,9 +124,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         metaMaskDisconnect();
       }
 
-      // Clear local storage that might contain auth state
+      // Clear local storage that might contain auth state (but preserve metamask_disconnected)
+      const metamaskDisconnected = sessionStorage.getItem('metamask_disconnected');
       localStorage.clear();
       sessionStorage.clear();
+      if (metamaskDisconnected) {
+        sessionStorage.setItem('metamask_disconnected', metamaskDisconnected);
+      }
 
       // Reload to ensure clean state
       window.location.reload();
