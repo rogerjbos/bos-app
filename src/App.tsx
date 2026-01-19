@@ -2,6 +2,7 @@ import React from 'react';
 import { Route, BrowserRouter as Router, Routes, useLocation } from 'react-router-dom';
 import NavBar from './components/NavBar';
 import ProtectedRoute from './components/ProtectedRoute';
+import Ranks from './components/Ranks';
 import BacktesterPage from './pages/BacktesterPage';
 import BotsPage from './pages/BotsPage';
 import Counter from './pages/Counter';
@@ -63,6 +64,7 @@ const App: React.FC = () => {
                     <Route path="/thermostat" element={<ProtectedRoute element={<ThermostatPage />} authorizedOnly={true} />} />
                     <Route path="/counter" element={<Counter />} />
                     <Route path="/sourdough" element={<SourdoughRecipes />} />
+                    <Route path="/ranks" element={<Ranks />} />
                     <Route path="/premium" element={<PremiumPage />} />
                   </Routes>
                 </div>

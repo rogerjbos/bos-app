@@ -863,7 +863,7 @@ const Ranks: React.FC = () => {
   const [cryptoData, setCryptoData] = useState<CryptoRankData[]>([]);
   const [stockOHLCVData, setStockOHLCVData] = useState<OHLCVData[]>([]);
   const [cryptoOHLCVData, setCryptoOHLCVData] = useState<OHLCVData[]>([]);
-  const [stockTicker, setStockTicker] = useState('amzn');
+  const [stockTicker, setStockTicker] = useState('AAPL');
   const [cryptoTicker, setCryptoTicker] = useState('btc');
   const [isLoadingStocks, setIsLoadingStocks] = useState(false);
   const [isLoadingCrypto, setIsLoadingCrypto] = useState(false);
@@ -874,21 +874,22 @@ const Ranks: React.FC = () => {
   // const { getAccessToken } = useWalletAuthContext();
 
   // API configuration (similar to Staking.tsx)
-  const API_BASE_URL = import.meta.env.DEV
-    ? '/api'
-    : (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:4000/api');
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
   const API_KEY = import.meta.env.VITE_API_KEY;
 
   const fetchRankData = async (selectedTicker: string) => {
     setIsLoadingStocks(true);
     setStockError(null);
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (API_KEY) {
+        headers['Authorization'] = `Bearer ${API_KEY}`;
+      }
       const response = await fetch(`${API_BASE_URL}/ranks?ticker=${encodeURIComponent(selectedTicker)}`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -912,12 +913,15 @@ const Ranks: React.FC = () => {
     setIsLoadingCrypto(true);
     setCryptoError(null);
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (API_KEY) {
+        headers['Authorization'] = `Bearer ${API_KEY}`;
+      }
       const response = await fetch(`${API_BASE_URL}/crypto_ranks?baseCurrency=${encodeURIComponent(selectedBaseCurrency)}`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -945,7 +949,7 @@ const Ranks: React.FC = () => {
   }, []); // Intentionally empty - we only want this to run on mount
 
   const handleStockTickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setStockTicker(e.target.value.toLowerCase());
+    setStockTicker(e.target.value.toUpperCase());
   };
 
   const handleCryptoTickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {

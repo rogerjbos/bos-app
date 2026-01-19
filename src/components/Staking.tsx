@@ -78,13 +78,13 @@ const StakingTableContent: React.FC<{
           <tr>
             <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300"></th>
             <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ticker</th>
-            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Staked</th>
-            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unclaimed</th>
-            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total</th>
-            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Price</th>
-            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{selectedReturnPeriod} Return</th>
-            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Value</th>
-            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">%</th>
+            <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Staked</th>
+            <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unclaimed</th>
+            <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total</th>
+            <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Price</th>
+            <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{selectedReturnPeriod} Return</th>
+            <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Value</th>
+            <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">%</th>
             <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Link</th>
             <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account</th>
           </tr>
@@ -191,10 +191,7 @@ const StakingTableContent: React.FC<{
                       className="cursor-pointer editable-cell hover:bg-gray-100 dark:hover:bg-gray-600 rounded px-1 py-1"
                       title={item.account ? `Full account: ${item.account}` : 'No account specified'}
                     >
-                      {item.account && item.account.length > 12
-                        ? item.account.substring(0, 12) + '...'
-                        : item.account || 'N/A'
-                      }
+                      {formatWalletAddress(item.account)}
                     </div>
                   )}
                 </td>
@@ -446,7 +443,12 @@ const Staking: React.FC = () => {
   // Get the authenticated user and wallet address
   const { user, walletAddress } = useAuth();
 
-  console.log('Staking component rendering with:', { user, walletAddress });
+  // Helper function to format wallet addresses
+  const formatWalletAddress = (address: string | undefined | null): string => {
+    if (!address) return 'N/A';
+    if (address.length <= 14) return address; // If short enough, show full address
+    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+  };
 
   // Define the storage helper BEFORE any useState that uses it
   const storage = {
@@ -730,15 +732,11 @@ const Staking: React.FC = () => {
 
   const fetchStakingData = useCallback(async () => {
     if (!walletAddress) {
-      console.log('fetchStakingData: No wallet address available');
       return;
     }
 
     try {
-      console.log('fetchStakingData: Fetching staking data for wallet:', walletAddress);
       const apiUrl = `${API_BASE_URL}/staking?username=${encodeURIComponent(walletAddress)}`;
-      console.log('fetchStakingData: API URL:', apiUrl);
-      console.log('fetchStakingData: Username being sent to API:', walletAddress);
 
       const fetchOptions = {
         method: 'GET',
@@ -747,32 +745,21 @@ const Staking: React.FC = () => {
           'Content-Type': 'application/json',
         },
       };
-      console.log('fetchStakingData: Making API call:', {
-        url: apiUrl,
-        method: fetchOptions.method,
-        headers: fetchOptions.headers
-      });
 
       const response = await fetch(apiUrl, fetchOptions);
-
-      console.log('fetchStakingData: Response status:', response.status, 'ok:', response.ok);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch staking data: ${response.status}`);
       }
 
       const stakingData = await response.json();
-      console.log('fetchStakingData: Received staking data:', stakingData);
 
       if (Array.isArray(stakingData) && stakingData.length > 0) {
         // Update staking items with API data
         setStakingItems(stakingData);
         storage.save('stakingData', stakingData);
-        console.log(`fetchStakingData: Loaded ${stakingData.length} staking items from API`);
         showStatus(`Loaded ${stakingData.length} staking items from API`, 'success');
       } else {
-        console.log('fetchStakingData: No staking data found in API response');
-        // If no API data, keep local storage data
         showStatus('No staking data found in API, using local data', 'success');
       }
     } catch (err) {
@@ -801,10 +788,7 @@ const Staking: React.FC = () => {
 
       // Fetch price and return data from API
       const username = walletAddress || '';
-      console.log('fetchPriceData: Starting with walletAddress:', walletAddress, 'user:', user);
-      console.log('fetchPriceData: Using username:', username);
       const apiUrl = `${API_BASE_URL}/prices`;
-      console.log('fetchPriceData: API URL:', apiUrl);
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
@@ -813,26 +797,32 @@ const Staking: React.FC = () => {
         },
       });
 
-      console.log('fetchPriceData: Response status:', response.status, 'ok:', response.ok);
       if (!response.ok) {
         throw new Error(`Failed to fetch staking data: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('fetchPriceData: Received data:', data);
 
       // Update staking items with the fetched data
-      if (data.prices && data.returns) {
+      if (data.prices && (data.returns_30d || data.returns)) {
         const updatedItems = stakingItems.map(item => {
           const symbol = item.ticker.toLowerCase();
           const price = data.prices[symbol];
-          const return30d = data.returns[symbol];
+          const return7d = data.returns_7d ? data.returns_7d[symbol] : undefined;
+          const return30d = data.returns_30d ? data.returns_30d[symbol] : (data.returns ? data.returns[symbol] : undefined);
+          const return60d = data.returns_60d ? data.returns_60d[symbol] : undefined;
+          const return90d = data.returns_90d ? data.returns_90d[symbol] : undefined;
+          const return120d = data.returns_120d ? data.returns_120d[symbol] : undefined;
 
           if (price !== undefined) {
             return {
               ...item,
               price: price.toString(),
+              return7d: return7d !== undefined ? return7d.toString() : item.return7d,
               return30d: return30d !== undefined ? return30d.toString() : item.return30d,
+              return60d: return60d !== undefined ? return60d.toString() : item.return60d,
+              return90d: return90d !== undefined ? return90d.toString() : item.return90d,
+              return120d: return120d !== undefined ? return120d.toString() : item.return120d,
               priceLastUpdated: new Date().toISOString()
             };
           }
@@ -1058,7 +1048,12 @@ const Staking: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
               {stakingItems.length > 0 && stakingItems[0].username
-                ? <>Staking:  <span className="text-lg font-normal">{stakingItems[0].username}</span></>
+                ? <>Staking: <span
+                    className="text-lg font-normal"
+                    title={stakingItems[0].username}
+                  >
+                    {formatWalletAddress(stakingItems[0].username)}
+                  </span></>
                 : 'Staking Value'
               }
             </h1>
