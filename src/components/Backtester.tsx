@@ -2,6 +2,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import React, { useEffect, useState } from 'react';
 import { FaSort, FaSortDown, FaSortUp, FaSync } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import PriceChart from './PriceChart';
 
 // API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -12,9 +13,11 @@ interface FileInfo {
   name: string;
   type: 'decisions' | 'performance';
   asset_type: 'stocks' | 'crypto';
-  level: 'summary' | 'symbol' | 'strategy';
-  symbol?: string;
-  strategy?: string;
+  level?: 'summary' | 'symbol' | 'strategy'; // Optional, computed
+  symbol?: string; // Optional, computed
+  strategy?: string; // Optional, computed
+  size?: number; // Optional, not returned by API
+  modified?: string; // Optional, not returned by API
 }
 
 interface DecisionData {
@@ -285,7 +288,7 @@ const Backtester: React.FC = () => {
 
   // Sorted data for tables
   const sortedFiles = sortData(files, filesSortColumn, filesSortDirection);
-  const sortedFileContent = sortData(fileContent, contentSortColumn, contentSortDirection);
+  const sortedFileContent = sortData(fileContent as any[], contentSortColumn, contentSortDirection);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -315,93 +318,96 @@ const Backtester: React.FC = () => {
           </div>
         )}
 
-        {/* Model Selection */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Select Model
-          </label>
-          <select
-            value={selectedModel}
-            onChange={(e) => {
-              setSelectedModel(e.target.value);
+        {/* Controls Row */}
+        <div className="mb-6 flex flex-wrap gap-4 items-end">
+          {/* Asset Type Tabs */}
+          <div className="flex-shrink-0">
+            <Tabs value={activeTab} onValueChange={(value) => {
+              setActiveTab(value as 'stocks' | 'crypto');
               setSelectedFile('');
               setFileContent([]);
-            }}
-            className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={loadingModels}
-          >
-            <option value="">Select a model...</option>
-            {models.map(model => (
-              <option key={model} value={model}>{model}</option>
-            ))}
-          </select>
-          {loadingModels && <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading models...</span>}
-        </div>
-
-        {/* Asset Type Selection */}
-        <div className="mb-6">
-          <Tabs value={activeTab} onValueChange={(value) => {
-            setActiveTab(value as 'stocks' | 'crypto');
-            setSelectedFile('');
-            setFileContent([]);
-            setViewMode('overview');
-            setSelectedSymbol('');
-          }}>
-            <TabsList className="mb-4">
-              <TabsTrigger value="stocks">Stocks</TabsTrigger>
-              <TabsTrigger value="crypto">Crypto</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
-        {/* View Mode Selection */}
-        {selectedModel && (
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              View Mode
-            </label>
-            <select
-              value={viewMode}
-              onChange={(e) => {
-                const newViewMode = e.target.value as 'overview' | 'symbols' | 'strategies';
-                setViewMode(newViewMode);
-                setSelectedFile(''); // Clear selected file for all view modes
-                setFileContent([]);
-                if (newViewMode !== 'strategies') {
-                  setSelectedSymbol('');
-                }
-              }}
-              className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="overview">Overview (Summary Files)</option>
-              <option value="symbols">By Symbol</option>
-              <option value="strategies">By Strategy</option>
-            </select>
+              setViewMode('overview');
+              setSelectedSymbol('');
+            }}>
+              <TabsList>
+                <TabsTrigger value="stocks">Stocks</TabsTrigger>
+                <TabsTrigger value="crypto">Crypto</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
-        )}
 
-        {/* Symbol Selection for Strategies View */}
-        {viewMode === 'strategies' && (
-          <div className="mb-6">
+          {/* Model Selection */}
+          <div className="flex-1 min-w-0">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Select Symbol
+              Select Model
             </label>
             <select
-              value={selectedSymbol}
+              value={selectedModel}
               onChange={(e) => {
-                setSelectedSymbol(e.target.value);
+                setSelectedModel(e.target.value);
                 setSelectedFile('');
                 setFileContent([]);
               }}
-              className="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={loadingModels}
             >
-              <option value="">Select a symbol...</option>
-              {Array.from(new Set(files.filter(f => f.level === 'strategy' && f.symbol).map(f => f.symbol!))).sort().map(symbol => (
-                <option key={symbol} value={symbol}>{symbol.toUpperCase()}</option>
+              <option value="">Select a model...</option>
+              {models.map(model => (
+                <option key={model} value={model}>{model}</option>
               ))}
             </select>
+            {loadingModels && <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading models...</span>}
           </div>
-        )}
+
+          {/* View Mode Selection */}
+          {selectedModel && (
+            <div className="flex-1 min-w-0">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                View Mode
+              </label>
+              <select
+                value={viewMode}
+                onChange={(e) => {
+                  const newViewMode = e.target.value as 'overview' | 'symbols' | 'strategies';
+                  setViewMode(newViewMode);
+                  setSelectedFile(''); // Clear selected file for all view modes
+                  setFileContent([]);
+                  if (newViewMode !== 'strategies') {
+                    setSelectedSymbol('');
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="overview">Overview (Summary Files)</option>
+                <option value="symbols">By Symbol</option>
+                <option value="strategies">By Strategy</option>
+              </select>
+            </div>
+          )}
+
+          {/* Symbol Selection for Strategies View */}
+          {viewMode === 'strategies' && (
+            <div className="flex-1 min-w-0">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Select Symbol
+              </label>
+              <select
+                value={selectedSymbol}
+                onChange={(e) => {
+                  setSelectedSymbol(e.target.value);
+                  setSelectedFile('');
+                  setFileContent([]);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select a symbol...</option>
+                {Array.from(new Set(files.filter(f => f.level === 'strategy' && f.symbol).map(f => f.symbol!))).sort().map(symbol => (
+                  <option key={symbol} value={symbol}>{symbol.toUpperCase()}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
 
         {/* Files Table */}
         {selectedModel && (!selectedFile || viewMode !== 'overview') && !(viewMode === 'strategies' && selectedSymbol) && viewMode !== 'symbols' && (
@@ -409,7 +415,6 @@ const Backtester: React.FC = () => {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
               {activeTab === 'stocks' ? 'Stock' : 'Crypto'} Files - {selectedModel}
               {viewMode === 'overview' && ' (Summary)'}
-              {viewMode === 'symbols' && ' (By Symbol)'}
               {viewMode === 'strategies' && selectedSymbol && ` (Strategies for ${selectedSymbol.toUpperCase()})`}
               {viewMode === 'strategies' && !selectedSymbol && ' (Select a Symbol)'}
             </h2>
@@ -447,30 +452,6 @@ const Backtester: React.FC = () => {
                           {filesSortColumn !== 'type' && <FaSort className="ml-1 opacity-50" />}
                         </div>
                       </th>
-                      <th
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                        onClick={() => handleFilesSort('size')}
-                      >
-                        <div className="flex items-center">
-                          Size (KB)
-                          {filesSortColumn === 'size' && (
-                            filesSortDirection === 'asc' ? <FaSortUp className="ml-1" /> : <FaSortDown className="ml-1" />
-                          )}
-                          {filesSortColumn !== 'size' && <FaSort className="ml-1 opacity-50" />}
-                        </div>
-                      </th>
-                      <th
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                        onClick={() => handleFilesSort('modified')}
-                      >
-                        <div className="flex items-center">
-                          Modified
-                          {filesSortColumn === 'modified' && (
-                            filesSortDirection === 'asc' ? <FaSortUp className="ml-1" /> : <FaSortDown className="ml-1" />
-                          )}
-                          {filesSortColumn !== 'modified' && <FaSort className="ml-1 opacity-50" />}
-                        </div>
-                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Actions
                       </th>
@@ -479,7 +460,7 @@ const Backtester: React.FC = () => {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {loadingFiles ? (
                       <tr>
-                        <td colSpan={viewMode === 'strategies' ? 6 : 5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colSpan={viewMode === 'strategies' ? 4 : 3} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                           Loading files...
                         </td>
                       </tr>
@@ -488,9 +469,6 @@ const Backtester: React.FC = () => {
                       let displayFiles = sortedFiles;
                       if (viewMode === 'overview') {
                         displayFiles = sortedFiles.filter(f => f.level === 'summary');
-                      } else if (viewMode === 'symbols') {
-                        // For symbols mode, don't show files - we'll show a symbol list below
-                        displayFiles = [];
                       } else if (viewMode === 'strategies' && selectedSymbol) {
                         displayFiles = sortedFiles.filter(f => f.level === 'strategy' && f.symbol === selectedSymbol);
                       } else if (viewMode === 'strategies' && !selectedSymbol) {
@@ -499,7 +477,7 @@ const Backtester: React.FC = () => {
 
                       return displayFiles.length === 0 ? (
                         <tr>
-                          <td colSpan={viewMode === 'strategies' ? 6 : 5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                          <td colSpan={viewMode === 'strategies' ? 4 : 3} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                             {viewMode === 'strategies' && !selectedSymbol ? 'Select a symbol to view strategies' : 'No files found'}
                           </td>
                         </tr>
@@ -528,12 +506,6 @@ const Backtester: React.FC = () => {
                               }`}>
                                 {file.type}
                               </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                              {(file.size / 1024).toFixed(2)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                              {new Date(file.modified).toLocaleDateString()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                               <button
@@ -649,6 +621,20 @@ const Backtester: React.FC = () => {
                 ? `${selectedSymbol.toUpperCase()} Strategy Performance`
                 : `${selectedFile} Content`}
             </h2>
+
+            {/* Price Chart - show when viewing a specific decision file */}
+            {selectedFile && fileContent.length > 0 && files.find(f => f.name === selectedFile)?.type === 'decisions' && (
+              <div className="mb-8">
+                <PriceChart
+                  symbol={selectedSymbol || 'UNKNOWN'}
+                  decisions={fileContent as DecisionData[]}
+                  assetType={activeTab}
+                  apiKey={API_KEY}
+                  apiBaseUrl={API_BASE_URL}
+                />
+              </div>
+            )}
+
             <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -660,7 +646,7 @@ const Backtester: React.FC = () => {
                           className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 ${
                             colIndex < 2 ? 'sticky z-20 bg-gray-50 dark:bg-gray-700' : ''
                           }`}
-                          style={colIndex < 2 ? { left: colIndex === 0 ? '0px' : '160px' } : {}}
+                          style={colIndex < 2 ? { left: colIndex === 0 ? '0px' : '200px', minWidth: colIndex === 0 ? '200px' : '160px' } : {}}
                           onClick={() => handleContentSort(column)}
                         >
                           <div className="flex items-center">
@@ -712,7 +698,7 @@ const Backtester: React.FC = () => {
                                   className={`px-6 py-4 whitespace-nowrap text-sm ${
                                     cellIndex < 2 ? 'sticky z-10 bg-white dark:bg-gray-800' : ''
                                   }`}
-                                  style={cellIndex < 2 ? { left: cellIndex === 0 ? '0px' : '160px' } : {}}
+                                  style={cellIndex < 2 ? { left: cellIndex === 0 ? '0px' : '200px', minWidth: cellIndex === 0 ? '200px' : '160px' } : {}}
                                 >
                                   <button
                                     onClick={() => {
@@ -785,7 +771,7 @@ const Backtester: React.FC = () => {
                                 className={`px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 ${
                                   cellIndex < 2 ? 'sticky z-10 bg-white dark:bg-gray-800' : ''
                                 }`}
-                                style={cellIndex < 2 ? { left: cellIndex === 0 ? '0px' : '160px' } : {}}
+                                style={cellIndex < 2 ? { left: cellIndex === 0 ? '0px' : '200px', minWidth: cellIndex === 0 ? '200px' : '160px' } : {}}
                               >
                                 {typeof displayValue === 'number' ? displayValue.toFixed(1) : String(displayValue)}
                               </td>
