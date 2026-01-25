@@ -14,7 +14,8 @@ const ReportsPage: React.FC = () => {
     // or fetch it from a simple API
     const availableReports = [
       { name: 'ONJ Status', path: '/reports/onj.html'},
-      { name: 'Buy / Sell Decisions', path: '/reports/buy_sell.html'},
+      { name: 'Stock Buy / Sell Decisions', path: '/reports/buy_sell_stocks.html'},
+      { name: 'Crypto Buy / Sell Decisions', path: '/reports/buy_sell_crypto.html'},
       { name: 'Holdings', path: '/reports/holdings.html'},
       { name: 'HEFT Updates', path: '/reports/heft.html'},
       // { name: 'ONJ Rmd Status', path: '/reports/onj_markdown.html'},
