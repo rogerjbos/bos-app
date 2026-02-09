@@ -1,6 +1,7 @@
 import { Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { getAuthHeaders } from '../lib/api';
 import { KrakenBotSymbol, KrakenBotSymbolsConfig, SchwabBotSymbol, SchwabBotSymbolsConfig } from '../types/trading';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { Button } from './ui/Button';
@@ -12,7 +13,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 
 // API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const API_KEY = import.meta.env.VITE_API_KEY;
 
 // Helper function to sanitize numeric fields
 const sanitizeNumericField = (value: any, defaultValue: number = 0): number => {
@@ -157,7 +157,7 @@ const Bots: React.FC = () => {
       const identifier = user?.name || walletAddress;
       const response = await fetch(`${API_BASE_URL}/kraken-bot-symbols`, {
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json'
         }
       });
@@ -175,7 +175,7 @@ const Bots: React.FC = () => {
       showStatus(`Failed to fetch trading config: ${errorMessage}`, 'error');
       return [];
     }
-  }, [user?.name, walletAddress, API_BASE_URL, API_KEY]);
+  }, [user?.name, walletAddress, API_BASE_URL]);
 
   const saveTradingConfigToAPI = useCallback(async (data: KrakenBotSymbolsConfig) => {
     if (!user?.name && !walletAddress) {
@@ -187,7 +187,7 @@ const Bots: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/kraken-bot-symbols`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -213,7 +213,7 @@ const Bots: React.FC = () => {
       showStatus(`Failed to save trading config: ${errorMessage}`, 'error');
       return false;
     }
-  }, [user?.name, walletAddress, API_BASE_URL, API_KEY]);
+  }, [user?.name, walletAddress, API_BASE_URL]);
 
   const fetchSchwabConfig = useCallback(async () => {
     if (!user?.name && !walletAddress) {
@@ -223,7 +223,7 @@ const Bots: React.FC = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/schwab-bot-symbols`, {
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json'
         }
       });
@@ -241,7 +241,7 @@ const Bots: React.FC = () => {
       showStatus(`Failed to fetch schwab config: ${errorMessage}`, 'error');
       return [];
     }
-  }, [user?.name, walletAddress, API_BASE_URL, API_KEY]);
+  }, [user?.name, walletAddress, API_BASE_URL]);
 
   const saveSchwabConfigToAPI = useCallback(async (data: SchwabBotSymbolsConfig) => {
     if (!user?.name && !walletAddress) {
@@ -253,7 +253,7 @@ const Bots: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/schwab-bot-symbols`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -279,7 +279,7 @@ const Bots: React.FC = () => {
       showStatus(`Failed to save schwab config: ${errorMessage}`, 'error');
       return false;
     }
-  }, [user?.name, walletAddress, API_BASE_URL, API_KEY]);
+  }, [user?.name, walletAddress, API_BASE_URL]);
 
   // Auto-save when tradingSymbols changes
   useEffect(() => {
@@ -638,7 +638,7 @@ const Bots: React.FC = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/crypto_thresholds?${symbols.map(s => `symbols=${encodeURIComponent(s)}`).join('&')}`, {
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json'
         }
       });
@@ -661,7 +661,7 @@ const Bots: React.FC = () => {
       // Don't show error for thresholds, just log it
       console.warn('Failed to fetch crypto thresholds');
     }
-  }, [API_BASE_URL, API_KEY]);
+  }, [API_BASE_URL]);
 
   const fetchStockThresholds = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
@@ -669,7 +669,7 @@ const Bots: React.FC = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/stock_thresholds?${symbols.map(s => `symbols=${encodeURIComponent(s)}`).join('&')}`, {
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json'
         }
       });
@@ -692,7 +692,7 @@ const Bots: React.FC = () => {
       // Don't show error for thresholds, just log it
       console.warn('Failed to fetch stock thresholds');
     }
-  }, [API_BASE_URL, API_KEY]);
+  }, [API_BASE_URL]);
 
   const fetchLatestCryptoPrices = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
@@ -700,7 +700,7 @@ const Bots: React.FC = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/latest_crypto_price?${symbols.map(s => `symbols=${encodeURIComponent(s)}`).join('&')}`, {
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json'
         }
       });
@@ -723,7 +723,7 @@ const Bots: React.FC = () => {
       // Don't show error for prices, just log it
       console.warn('Failed to fetch latest crypto prices');
     }
-  }, [API_BASE_URL, API_KEY]);
+  }, [API_BASE_URL]);
 
   const fetchLatestStockPrices = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
@@ -731,7 +731,7 @@ const Bots: React.FC = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/latest_stock_price?${symbols.map(s => `symbols=${encodeURIComponent(s)}`).join('&')}`, {
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json'
         }
       });
@@ -754,7 +754,7 @@ const Bots: React.FC = () => {
       // Don't show error for prices, just log it
       console.warn('Failed to fetch latest stock prices');
     }
-  }, [API_BASE_URL, API_KEY]);
+  }, [API_BASE_URL]);
 
   return (
     <div className="min-h-screen bg-background">

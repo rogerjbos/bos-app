@@ -2,11 +2,11 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import React, { useEffect, useState } from 'react';
 import { FaSort, FaSortDown, FaSortUp, FaSync } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { getAuthHeaders } from '../lib/api';
 import PriceChart from './PriceChart';
 
 // API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const API_KEY = import.meta.env.VITE_API_KEY;
 
 // Types for the file data
 interface FileInfo {
@@ -68,12 +68,6 @@ const Backtester: React.FC = () => {
   const [contentSortColumn, setContentSortColumn] = useState<string>('date');
   const [contentSortDirection, setContentSortDirection] = useState<SortDirection>('desc');
 
-  // Helper function to get a valid access token (refresh if expired)
-  const getValidAccessToken = async (): Promise<string | null> => {
-    // For API key authentication, we don't need tokens
-    return API_KEY;
-  };
-
   // Get available models
   const fetchModels = async () => {
     setLoadingModels(true);
@@ -82,7 +76,7 @@ const Backtester: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/backtester/models`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });
@@ -111,7 +105,7 @@ const Backtester: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/backtester/${model}/files`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });
@@ -176,7 +170,7 @@ const Backtester: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/backtester/${model}/files/${filename}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });
@@ -629,7 +623,6 @@ const Backtester: React.FC = () => {
                   symbol={selectedSymbol || 'UNKNOWN'}
                   decisions={fileContent as DecisionData[]}
                   assetType={activeTab}
-                  apiKey={API_KEY}
                   apiBaseUrl={API_BASE_URL}
                 />
               </div>

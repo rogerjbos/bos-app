@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp, Plus, RefreshCw, Save, Settings, Sparkles, Tras
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { abbreviateSectorIndustry } from '../lib/financialUtils';
+import { getAuthHeaders } from '../lib/api';
 import { AnalysisModal } from './AnalysisModal';
 import { TableRowSkeleton } from './LoadingSkeleton';
 import { Badge } from './ui/badge';
@@ -14,7 +15,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 
 // API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const API_KEY = import.meta.env.VITE_API_KEY;
 
 // Interfaces
 interface Watchlist {
@@ -711,7 +711,7 @@ const Watchlist: React.FC = () => {
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });
@@ -764,7 +764,7 @@ const Watchlist: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/crypto_xdays?${params.toString()}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
         },
       });
 
@@ -793,7 +793,7 @@ const Watchlist: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/latest_crypto_price?${params.toString()}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
         },
       });
 
@@ -847,7 +847,7 @@ const Watchlist: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/stock_xdays?${params.toString()}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
         },
       });
 
@@ -876,7 +876,7 @@ const Watchlist: React.FC = () => {
           const response = await fetch(`${API_BASE_URL}/ranks?ticker=${encodeURIComponent(symbol)}`, {
             method: 'GET',
             headers: {
-              'Authorization': `Bearer ${API_KEY}`,
+              ...getAuthHeaders(),
             },
           });
 
@@ -915,7 +915,7 @@ const Watchlist: React.FC = () => {
           const response = await fetch(`${API_BASE_URL}/crypto_ranks?baseCurrency=${encodeURIComponent(symbolLower)}`, {
             method: 'GET',
             headers: {
-              'Authorization': `Bearer ${API_KEY}`,
+              ...getAuthHeaders(),
             },
           });
 
@@ -993,7 +993,7 @@ const Watchlist: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/watchlists`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -1039,7 +1039,7 @@ const Watchlist: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/watchlists/${watchlistId}?username=${encodeURIComponent(username)}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });
@@ -1094,7 +1094,7 @@ const Watchlist: React.FC = () => {
         const response = await fetch(`${API_BASE_URL}/watchlists/${activeWatchlistId}/symbols?username=${encodeURIComponent(username)}&symbol=${encodeURIComponent(symbol)}`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${API_KEY}`,
+            ...getAuthHeaders(),
             'Content-Type': 'application/json',
           },
         });
@@ -1108,7 +1108,7 @@ const Watchlist: React.FC = () => {
       const updatedWatchlistResponse = await fetch(`${API_BASE_URL}/watchlists/${activeWatchlistId}?username=${encodeURIComponent(username)}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });
@@ -1146,7 +1146,7 @@ const Watchlist: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/watchlists/${activeWatchlistId}/symbols/${symbol}?username=${encodeURIComponent(username)}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });
@@ -1175,7 +1175,7 @@ const Watchlist: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/analysis/run`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

@@ -1,5 +1,6 @@
 import * as echarts from 'echarts';
 import React, { useEffect, useRef } from 'react';
+import { getAuthHeaders } from '../lib/api';
 
 interface PriceData {
   date: string;
@@ -23,17 +24,15 @@ interface PriceChartProps {
   symbol: string;
   decisions: DecisionData[];
   assetType: 'stocks' | 'crypto';
-  apiKey: string;
   apiBaseUrl: string;
 }
 
-const PriceChart: React.FC<PriceChartProps> = ({ symbol, decisions, assetType, apiKey, apiBaseUrl }) => {
+const PriceChart: React.FC<PriceChartProps> = ({ symbol, decisions, assetType, apiBaseUrl }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
   // API configuration
   const API_BASE_URL = apiBaseUrl;
-  const API_KEY = apiKey;
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -106,7 +105,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ symbol, decisions, assetType, a
       const response = await fetch(`${API_BASE_URL}/${endpoint}?ticker=${chartSymbol}&start_date=${startDate}&end_date=${endDate}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });

@@ -1,6 +1,7 @@
 import * as echarts from 'echarts';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ThemeContext } from '../context/ThemeContext';
+import { getAuthHeaders } from '../lib/api';
 import { abbreviateSectorIndustry } from '../lib/financialUtils';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
@@ -875,7 +876,6 @@ const Ranks: React.FC = () => {
 
   // API configuration (similar to Staking.tsx)
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-  const API_KEY = import.meta.env.VITE_API_KEY;
 
   const fetchRankData = async (selectedTicker: string) => {
     setIsLoadingStocks(true);
@@ -883,10 +883,8 @@ const Ranks: React.FC = () => {
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       };
-      if (API_KEY) {
-        headers['Authorization'] = `Bearer ${API_KEY}`;
-      }
       const response = await fetch(`${API_BASE_URL}/ranks?ticker=${encodeURIComponent(selectedTicker)}`, {
         method: 'GET',
         headers,
@@ -915,10 +913,8 @@ const Ranks: React.FC = () => {
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       };
-      if (API_KEY) {
-        headers['Authorization'] = `Bearer ${API_KEY}`;
-      }
       const response = await fetch(`${API_BASE_URL}/crypto_ranks?baseCurrency=${encodeURIComponent(selectedBaseCurrency)}`, {
         method: 'GET',
         headers,

@@ -6,8 +6,10 @@ import Ranks from './components/Ranks';
 import BacktesterPage from './pages/BacktesterPage';
 import BotsPage from './pages/BotsPage';
 import Counter from './pages/Counter';
+import DappsPage from './pages/DappsPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
+import MarkdownReportPage from './pages/MarkdownReportPage';
 import PortfolioPage from './pages/PortfolioPage';
 import PremiumPage from './pages/PremiumPage';
 import ReportsPage from './pages/ReportsPage';
@@ -56,6 +58,7 @@ const App: React.FC = () => {
                     <Route path="/" element={<HomePage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/reports" element={<ProtectedRoute element={<ReportsPage />} authorizedOnly={true} />} />
+                    <Route path="/reports/:filename" element={<ProtectedRoute element={<MarkdownReportPage />} authorizedOnly={true} />} />
                     <Route path="/staking" element={<ProtectedRoute element={<StakingPage />} walletOnly={true} />} />
                     <Route path="/watchlist" element={<ProtectedRoute element={<WatchlistPage />} walletOnly={true} />} />
                     <Route path="/portfolio" element={<ProtectedRoute element={<PortfolioPage />} walletOnly={true} />} />
@@ -63,6 +66,7 @@ const App: React.FC = () => {
                     <Route path="/backtester" element={<ProtectedRoute element={<BacktesterPage />} authorizedOnly={true} />} />
                     <Route path="/thermostat" element={<ProtectedRoute element={<ThermostatPage />} authorizedOnly={true} />} />
                     <Route path="/counter" element={<Counter />} />
+                    <Route path="/dapps" element={<DappsPage />} />
                     <Route path="/sourdough" element={<SourdoughRecipes />} />
                     <Route path="/ranks" element={<Ranks />} />
                     <Route path="/premium" element={<PremiumPage />} />

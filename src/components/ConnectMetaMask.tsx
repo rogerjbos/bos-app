@@ -1,5 +1,6 @@
 import { ChevronDown, ExternalLink, RefreshCw, UserCheck, Wallet } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import { useMetaMaskContext } from "../providers/MetaMaskProvider";
 import { Button } from "./ui/Button";
 
@@ -8,12 +9,19 @@ export default function ConnectMetaMask() {
 
   // Use the MetaMask context
   const { isInstalled, accounts, connected, connect, disconnect, refreshAccounts, switchAccount } = useMetaMaskContext();
+  const { serverAuthenticate } = useAuth();
 
   const address = accounts[0];
 
   const handleAuthenticate = async () => {
-    // For now, just show that authentication would happen
-    alert('MetaMask authentication would happen here');
+    try {
+      const success = await serverAuthenticate('metamask');
+      if (!success) {
+        console.warn('MetaMask server authentication failed');
+      }
+    } catch (error) {
+      console.error('MetaMask authentication error:', error);
+    }
   };
 
   const handleDisconnect = () => {

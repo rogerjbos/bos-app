@@ -146,9 +146,13 @@ bos-app/
 - Used by TradingConfig, Portfolio, and other components for API calls
 
 #### Notes
+tmux new -s backtester
+tmux ls
+tmux attach -t backtester
 cd ~/node_home/bos-app
 cd ~/python_home/data-api-server
 cd ~/rust_home/rig_buy_sell
+cd ~/rust_home/backtester
 kill $(lsof -ti:5173)
 ~/scripts/run_data_api_server.sh restart
-~/scripts/manage_node_server.sh restarts
+~/scripts/manage_node_server.sh restart

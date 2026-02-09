@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
+import { getAuthHeaders } from '../lib/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const API_KEY = import.meta.env.VITE_API_KEY;
 
 interface ThermostatTime {
   day: number;
@@ -44,7 +44,7 @@ const ThermostatPage = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/thermostat/${location}/status`, {
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
         },
       });
       if (response.ok) {
@@ -98,7 +98,7 @@ const ThermostatPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
         },
         body: JSON.stringify(payload),
       });
@@ -131,7 +131,7 @@ const ThermostatPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
         },
         body: JSON.stringify(payload),
       });
@@ -163,7 +163,7 @@ const ThermostatPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
         },
         body: JSON.stringify(payload),
       });
@@ -199,7 +199,7 @@ const ThermostatPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
         },
         body: JSON.stringify(timeData),
       });

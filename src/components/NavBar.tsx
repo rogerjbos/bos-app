@@ -24,9 +24,10 @@ const NavBarComponent: React.FC = () => {
   // Navigation items based on authentication status
   const publicItems = useMemo(() => [
     { to: '/', label: 'Home' },
-    { to: '/counter', label: 'Counter' },
+    { to: '/dapps', label: 'Dapps' },
+    // { to: '/counter', label: 'Counter' },
     { to: '/sourdough', label: 'Personal' },
-    { to: '/premium', label: 'Premium' },
+    // { to: '/premium', label: 'Premium' },
   ], []);
 
   // Public client items - available to any connected wallet

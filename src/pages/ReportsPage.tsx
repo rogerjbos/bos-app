@@ -1,5 +1,6 @@
 // src/pages/ReportsPage.tsx
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 interface Report {
   name: string;
@@ -18,7 +19,9 @@ const ReportsPage: React.FC = () => {
       { name: 'Crypto Buy / Sell Decisions', path: '/reports/buy_sell_crypto.html'},
       { name: 'Holdings', path: '/reports/holdings.html'},
       { name: 'HEFT Updates', path: '/reports/heft.html'},
-      // { name: 'ONJ Rmd Status', path: '/reports/onj_markdown.html'},
+      { name: 'Backtester Comprehensive Docs', path: '/reports/BACKTESTER_COMPREHENSIVE_DOCS.md'},
+      { name: 'Backtester Usage', path: '/reports/BACKTESTER_USAGE.md'},
+      { name: 'Backtester Decisions Usage', path: '/reports/BACKTESTER_DECISIONS_USAGE.md'},
       // Add more reports as they're generated
     ];
 
@@ -41,14 +44,23 @@ const ReportsPage: React.FC = () => {
                     {/* <small className="text-sm text-gray-500 dark:text-gray-400">Generated: {report.date}</small> */}
                   </div>
                   <div className="flex-shrink-0">
-                    <a
-                      href={report.path}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center px-3 py-2 border border-blue-300 dark:border-blue-600 text-sm leading-4 font-medium rounded-md text-blue-700 dark:text-blue-400 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"
-                    >
-                      View Report
-                    </a>
+                    {report.path.endsWith('.md') ? (
+                      <Link
+                        to={`/reports/${report.path.split('/').pop()}`}
+                        className="inline-flex items-center px-3 py-2 border border-blue-300 dark:border-blue-600 text-sm leading-4 font-medium rounded-md text-blue-700 dark:text-blue-400 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"
+                      >
+                        View Report
+                      </Link>
+                    ) : (
+                      <a
+                        href={report.path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-3 py-2 border border-blue-300 dark:border-blue-600 text-sm leading-4 font-medium rounded-md text-blue-700 dark:text-blue-400 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"
+                      >
+                        View Report
+                      </a>
+                    )}
                   </div>
                 </div>
               </li>

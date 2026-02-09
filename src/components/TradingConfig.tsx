@@ -1,7 +1,8 @@
 import { Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useWalletAuthContext } from '../providers/WalletAuthProvider';
+import { getAuthHeaders } from '../lib/api';
+
 import { KrakenBotSymbol, KrakenBotSymbolsConfig, SchwabBotSymbol, SchwabBotSymbolsConfig } from '../types/trading';
 import { Button } from './ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
@@ -51,7 +52,7 @@ const sanitizeSchwabBotSymbol = (item: any): SchwabBotSymbol => {
 const Bots: React.FC = () => {
   // Get the authenticated user and authentication status
   const { user, isAuthenticated, walletAddress } = useAuth();
-  const { getAccessToken } = useWalletAuthContext();
+  // getAccessToken no longer needed — getAuthHeaders() handles JWT + API key fallback
 
   const [tradingSymbols, setTradingSymbols] = useState<KrakenBotSymbolsConfig>([]);
   const [schwabSymbols, setSchwabSymbols] = useState<SchwabBotSymbolsConfig>([]);
@@ -155,9 +156,7 @@ const Bots: React.FC = () => {
 
     try {
       // Only add Authorization header when we actually have a token
-      const accessToken = getAccessToken ? getAccessToken() : null;
-      const headers: Record<string,string> = { 'Content-Type': 'application/json' };
-      if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+      const headers: Record<string,string> = { 'Content-Type': 'application/json', ...getAuthHeaders() };
 
       const response = await fetch(`${API_BASE_URL}/kraken-bot-symbols`, {
         method: 'GET',
@@ -189,7 +188,7 @@ const Bots: React.FC = () => {
       console.error('Error fetching trading config from API:', error);
       throw error;
     }
-  }, [user?.name, walletAddress, API_BASE_URL, getAccessToken]);
+  }, [user?.name, walletAddress, API_BASE_URL]);
 
   const saveTradingConfigToAPI = useCallback(async (data: KrakenBotSymbolsConfig) => {
     const identifier = user?.name || walletAddress;
@@ -198,9 +197,7 @@ const Bots: React.FC = () => {
     }
 
     try {
-      const accessToken = getAccessToken ? getAccessToken() : null;
-      const headers: Record<string,string> = { 'Content-Type': 'application/json' };
-      if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+      const headers: Record<string,string> = { 'Content-Type': 'application/json', ...getAuthHeaders() };
 
       const response = await fetch(`${API_BASE_URL}/kraken-bot-symbols`, {
         method: 'POST',
@@ -220,14 +217,12 @@ const Bots: React.FC = () => {
       console.error('Error saving to API:', error);
       throw error;
     }
-  }, [user?.name, walletAddress, API_BASE_URL, getAccessToken]);
+  }, [user?.name, walletAddress, API_BASE_URL]);
 
   const fetchSchwabConfig = useCallback(async () => {
     // Public read; don't require user to fetch. Only include Authorization when token present.
     try {
-      const accessToken = getAccessToken ? getAccessToken() : null;
-      const headers: Record<string,string> = { 'Content-Type': 'application/json' };
-      if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+      const headers: Record<string,string> = { 'Content-Type': 'application/json', ...getAuthHeaders() };
 
       const response = await fetch(`${API_BASE_URL}/schwab-bot-symbols`, {
         method: 'GET',
@@ -259,7 +254,7 @@ const Bots: React.FC = () => {
       console.error('Error fetching schwab config from API:', error);
       throw error;
     }
-  }, [user?.name, walletAddress, API_BASE_URL, getAccessToken]);
+  }, [user?.name, walletAddress, API_BASE_URL]);
 
   const saveSchwabConfigToAPI = useCallback(async (data: SchwabBotSymbolsConfig) => {
     const identifier = user?.name || walletAddress;
@@ -268,9 +263,7 @@ const Bots: React.FC = () => {
     }
 
     try {
-      const accessToken = getAccessToken ? getAccessToken() : null;
-      const headers: Record<string,string> = { 'Content-Type': 'application/json' };
-      if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+      const headers: Record<string,string> = { 'Content-Type': 'application/json', ...getAuthHeaders() };
 
       const response = await fetch(`${API_BASE_URL}/schwab-bot-symbols`, {
         method: 'POST',
@@ -311,7 +304,7 @@ const Bots: React.FC = () => {
       console.error('Error saving schwab config to API:', error);
       throw error;
     }
-  }, [user?.name, walletAddress, API_BASE_URL, getAccessToken]);
+  }, [user?.name, walletAddress, API_BASE_URL]);
 
   // Auto-save when tradingSymbols changes
   useEffect(() => {
@@ -669,9 +662,7 @@ const Bots: React.FC = () => {
 
     try {
       const queryParams = symbols.map(sym => `symbols=${encodeURIComponent(sym)}`).join('&');
-      const accessToken = getAccessToken ? getAccessToken() : null;
-      const headers: Record<string,string> = { 'Content-Type': 'application/json' };
-      if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+      const headers: Record<string,string> = { 'Content-Type': 'application/json', ...getAuthHeaders() };
 
       const response = await fetch(`${API_BASE_URL}/crypto_thresholds?${queryParams}`, {
         method: 'GET',
@@ -698,16 +689,14 @@ const Bots: React.FC = () => {
       console.error('Error fetching crypto thresholds:', error);
       // Don't show error for thresholds, just log it
     }
-  }, [API_BASE_URL, getAccessToken]);
+  }, [API_BASE_URL]);
 
   const fetchStockThresholds = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
 
     try {
       const queryParams = symbols.map(sym => `symbols=${encodeURIComponent(sym)}`).join('&');
-      const accessToken = getAccessToken ? getAccessToken() : null;
-      const headers: Record<string,string> = { 'Content-Type': 'application/json' };
-      if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+      const headers: Record<string,string> = { 'Content-Type': 'application/json', ...getAuthHeaders() };
 
       const response = await fetch(`${API_BASE_URL}/stock_thresholds?${queryParams}`, {
         method: 'GET',
@@ -734,16 +723,14 @@ const Bots: React.FC = () => {
       console.error('Error fetching stock thresholds:', error);
       // Don't show error for thresholds, just log it
     }
-  }, [API_BASE_URL, getAccessToken]);
+  }, [API_BASE_URL]);
 
   const fetchLatestCryptoPrices = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
 
     try {
       const queryParams = symbols.map(sym => `symbols=${encodeURIComponent(sym)}`).join('&');
-      const accessToken = getAccessToken ? getAccessToken() : null;
-      const headers: Record<string,string> = { 'Content-Type': 'application/json' };
-      if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+      const headers: Record<string,string> = { 'Content-Type': 'application/json', ...getAuthHeaders() };
 
       const response = await fetch(`${API_BASE_URL}/latest_crypto_price?${queryParams}`, {
         method: 'GET',
@@ -770,16 +757,14 @@ const Bots: React.FC = () => {
       console.error('Error fetching latest crypto prices:', error);
       // Don't show error for prices, just log it
     }
-  }, [API_BASE_URL, getAccessToken]);
+  }, [API_BASE_URL]);
 
   const fetchLatestStockPrices = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
 
     try {
       const queryParams = symbols.map(sym => `symbols=${encodeURIComponent(sym)}`).join('&');
-      const accessToken = getAccessToken ? getAccessToken() : null;
-      const headers: Record<string,string> = { 'Content-Type': 'application/json' };
-      if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+      const headers: Record<string,string> = { 'Content-Type': 'application/json', ...getAuthHeaders() };
 
       const response = await fetch(`${API_BASE_URL}/latest_stock_price?${queryParams}`, {
         method: 'GET',
@@ -806,7 +791,7 @@ const Bots: React.FC = () => {
       console.error('Error fetching latest stock prices:', error);
       // Don't show error for prices, just log it
     }
-  }, [API_BASE_URL, getAccessToken]);
+  }, [API_BASE_URL]);
 
   return (
     <div className="min-h-screen bg-background">

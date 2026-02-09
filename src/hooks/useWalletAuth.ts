@@ -76,7 +76,7 @@ export function useWalletAuth() {
     setError(null);
 
     try {
-      const response = await fetch('/auth/challenge', {
+      const response = await fetch('/api/auth/challenge', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -113,7 +113,7 @@ export function useWalletAuth() {
     setError(null);
 
     try {
-      const response = await fetch('/auth/verify', {
+      const response = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -174,7 +174,7 @@ export function useWalletAuth() {
     }
 
     try {
-      const response = await fetch('/auth/refresh', {
+      const response = await fetch('/api/auth/refresh', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

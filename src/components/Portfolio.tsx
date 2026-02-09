@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp, Plus, RefreshCw, Save, Settings, Trash2, X } fr
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { abbreviateSectorIndustry } from '../lib/financialUtils';
+import { getAuthHeaders } from '../lib/api';
 import { TableRowSkeleton } from './LoadingSkeleton';
 import { Badge } from './ui/badge';
 import { Button } from './ui/Button';
@@ -13,7 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 
 // API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const API_KEY = import.meta.env.VITE_API_KEY;
 
 // Interfaces
 interface Portfolio {
@@ -621,7 +621,7 @@ const Portfolio: React.FC = () => {
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });
@@ -672,7 +672,7 @@ const Portfolio: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/crypto_xdays?${params.toString()}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
         },
       });
 
@@ -702,7 +702,7 @@ const Portfolio: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/latest_crypto_price?${params.toString()}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
         },
       });
 
@@ -756,7 +756,7 @@ const Portfolio: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/stock_xdays?${params.toString()}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
         },
       });
 
@@ -785,7 +785,7 @@ const Portfolio: React.FC = () => {
           const response = await fetch(`${API_BASE_URL}/ranks?ticker=${encodeURIComponent(symbol)}`, {
             method: 'GET',
             headers: {
-              'Authorization': `Bearer ${API_KEY}`,
+              ...getAuthHeaders(),
             },
           });
 
@@ -823,7 +823,7 @@ const Portfolio: React.FC = () => {
           const response = await fetch(`${API_BASE_URL}/crypto_ranks?baseCurrency=${encodeURIComponent(symbolLower)}`, {
             method: 'GET',
             headers: {
-              'Authorization': `Bearer ${API_KEY}`,
+              ...getAuthHeaders(),
             },
           });
 
@@ -895,7 +895,7 @@ const Portfolio: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/transactions/aggregate?${params.toString()}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });
@@ -933,7 +933,7 @@ const Portfolio: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/transactions/${symbol}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });
@@ -975,7 +975,7 @@ const Portfolio: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/transactions`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -1016,7 +1016,7 @@ const Portfolio: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/portfolios`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -1062,7 +1062,7 @@ const Portfolio: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/portfolios/${portfolioId}?username=${encodeURIComponent(username)}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });
@@ -1117,7 +1117,7 @@ const Portfolio: React.FC = () => {
         const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/symbols?username=${encodeURIComponent(username)}&symbol=${encodeURIComponent(symbol)}`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${API_KEY}`,
+            ...getAuthHeaders(),
             'Content-Type': 'application/json',
           },
         });
@@ -1131,7 +1131,7 @@ const Portfolio: React.FC = () => {
       const updatedPortfolioResponse = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}?username=${encodeURIComponent(username)}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });
@@ -1170,7 +1170,7 @@ const Portfolio: React.FC = () => {
       const response = await fetch(`${API_BASE_URL}/portfolios/${activePortfolioId}/symbols/${symbol}?username=${encodeURIComponent(username)}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });

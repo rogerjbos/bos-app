@@ -3,6 +3,7 @@ import * as echarts from 'echarts';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FaExternalLinkAlt, FaPlusSquare, FaSave, FaTimes, FaTrash, FaUndo } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { getAuthHeaders } from '../lib/api';
 
 
 // Check your interface definition to ensure all required fields are present
@@ -37,7 +38,14 @@ const APP_VERSION = '1.0.0';
 
 // API configuration (similar to Ranks.tsx)
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-const API_KEY = import.meta.env.VITE_API_KEY;
+
+// Helper function to format wallet addresses (module-level so all components can use it)
+const formatWalletAddress = (address: string | undefined | null): string => {
+  if (!address) return 'N/A';
+  if (address.length <= 14) return address;
+  return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+};
+
 const StakingTableContent: React.FC<{
   filteredStakingItems: Array<{ item: StakingItem; idx: number }>;
   filteredCalculatedValues: Array<{ totalQuantity: number; itemValue: number }>;
@@ -443,12 +451,7 @@ const Staking: React.FC = () => {
   // Get the authenticated user and wallet address
   const { user, walletAddress } = useAuth();
 
-  // Helper function to format wallet addresses
-  const formatWalletAddress = (address: string | undefined | null): string => {
-    if (!address) return 'N/A';
-    if (address.length <= 14) return address; // If short enough, show full address
-    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
-  };
+
 
   // Define the storage helper BEFORE any useState that uses it
   const storage = {
@@ -741,7 +744,7 @@ const Staking: React.FC = () => {
       const fetchOptions = {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       };
@@ -792,7 +795,7 @@ const Staking: React.FC = () => {
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${API_KEY}`,
+          ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
       });
