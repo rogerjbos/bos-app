@@ -124,7 +124,16 @@ const Backtester: React.FC = () => {
           let strategy: string | undefined;
 
           // Check if it's a summary file (level 1)
-          if (file.name === `${activeTab}_testing.csv`) {
+          // Support both single file (stocks_testing.csv), multiple size-based files,
+          // and the new consolidated format (decisions.csv / results.csv)
+          if (file.name === `${activeTab}_testing.csv` ||
+              (activeTab === 'stocks' &&
+               (file.name === 'LC_testing.csv' ||
+                file.name === 'MC_testing.csv' ||
+                file.name === 'SC_testing.csv' ||
+                file.name === 'Micro_testing.csv')) ||
+              file.name === 'decisions.csv' ||
+              file.name === 'results.csv') {
             level = 'summary';
           }
           // Check if it's a symbol file (level 2) - just symbol name, no "decision"
@@ -246,12 +255,15 @@ const Backtester: React.FC = () => {
   }, [selectedModel, activeTab]);
 
   // Auto-select summary file when files are loaded (only for overview mode)
+  // Only auto-select if there's exactly one summary file
   useEffect(() => {
     if (files.length > 0 && !selectedFile && viewMode === 'overview') {
-      const summaryFile = files.find(f => f.level === 'summary');
-      if (summaryFile) {
-        setSelectedFile(summaryFile.name);
+      const summaryFiles = files.filter(f => f.level === 'summary');
+      // Only auto-select if there's exactly one summary file
+      if (summaryFiles.length === 1) {
+        setSelectedFile(summaryFiles[0].name);
       }
+      // If there are multiple summary files, let the user choose
     }
   }, [files, selectedFile, viewMode]);
 
