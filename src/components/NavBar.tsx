@@ -24,6 +24,7 @@ const NavBarComponent: React.FC = () => {
   // Navigation items based on authentication status
   const publicItems = useMemo(() => [
     { to: '/', label: 'Home' },
+    { to: '/crypto-universe', label: 'Markets' },
     { to: '/dapps', label: 'Dapps' },
     // { to: '/counter', label: 'Counter' },
     { to: '/sourdough', label: 'Personal' },
@@ -42,6 +43,7 @@ const NavBarComponent: React.FC = () => {
     { to: '/reports', label: 'Reports' },
     { to: '/bots', label: 'Bots' },
     { to: '/backtester', label: 'Backtester' },
+    { to: '/portfolio-backtest', label: 'Portfolio Backtest' },
     { to: '/ranks', label: 'Ranks' },
     { to: '/thermostat', label: 'Thermostat' },
   ], []);

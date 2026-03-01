@@ -6,6 +6,7 @@ import Ranks from './components/Ranks';
 import BacktesterPage from './pages/BacktesterPage';
 import BotsPage from './pages/BotsPage';
 import Counter from './pages/Counter';
+import PortfolioBacktestPage from './pages/PortfolioBacktestPage';
 import DappsPage from './pages/DappsPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
@@ -13,6 +14,7 @@ import MarkdownReportPage from './pages/MarkdownReportPage';
 import PortfolioPage from './pages/PortfolioPage';
 import PremiumPage from './pages/PremiumPage';
 import ReportsPage from './pages/ReportsPage';
+import CryptoUniversePage from './pages/CryptoUniversePage';
 import SourdoughRecipes from './pages/SourdoughRecipes';
 import StakingPage from './pages/StakingPage';
 import ThermostatPage from './pages/ThermostatPage';
@@ -64,8 +66,10 @@ const App: React.FC = () => {
                     <Route path="/portfolio" element={<ProtectedRoute element={<PortfolioPage />} walletOnly={true} />} />
                     <Route path="/bots" element={<ProtectedRoute element={<BotsPage />} authorizedOnly={true} />} />
                     <Route path="/backtester" element={<ProtectedRoute element={<BacktesterPage />} authorizedOnly={true} />} />
+                    <Route path="/portfolio-backtest" element={<ProtectedRoute element={<PortfolioBacktestPage />} authorizedOnly={true} />} />
                     <Route path="/thermostat" element={<ProtectedRoute element={<ThermostatPage />} authorizedOnly={true} />} />
                     <Route path="/counter" element={<Counter />} />
+                    <Route path="/crypto-universe" element={<CryptoUniversePage />} />
                     <Route path="/dapps" element={<DappsPage />} />
                     <Route path="/sourdough" element={<SourdoughRecipes />} />
                     <Route path="/ranks" element={<Ranks />} />

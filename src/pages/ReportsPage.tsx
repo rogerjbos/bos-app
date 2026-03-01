@@ -19,9 +19,6 @@ const ReportsPage: React.FC = () => {
       { name: 'Crypto Buy / Sell Decisions', path: '/reports/buy_sell_crypto.html'},
       { name: 'Holdings', path: '/reports/holdings.html'},
       { name: 'HEFT Updates', path: '/reports/heft.html'},
-      { name: 'Backtester Comprehensive Docs', path: '/reports/BACKTESTER_COMPREHENSIVE_DOCS.md'},
-      { name: 'Backtester Usage', path: '/reports/BACKTESTER_USAGE.md'},
-      { name: 'Backtester Decisions Usage', path: '/reports/BACKTESTER_DECISIONS_USAGE.md'},
       // Add more reports as they're generated
     ];
 
