@@ -10,7 +10,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 interface PortfolioBacktestData {
   universe: string;
   sector: string;
-  cagr: number;
+  cagr_price: number;
+  cagr_tr: number;
   total_return_pct: number;
   initial_value: number;
   final_value: number;
@@ -52,7 +53,7 @@ const PortfolioBacktest: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Sorting states
-  const [contentSortColumn, setContentSortColumn] = useState<string>('cagr');
+  const [contentSortColumn, setContentSortColumn] = useState<string>('cagr_tr');
   const [contentSortDirection, setContentSortDirection] = useState<SortDirection>('desc');
 
   // Filter states
@@ -297,15 +298,21 @@ const PortfolioBacktest: React.FC = () => {
                 {sectorFilter && ` (Sector: ${sectorFilter})`}
               </div>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
                 <div className="text-sm text-gray-500 dark:text-gray-400">Total Backtests</div>
                 <div className="text-2xl font-bold text-gray-900 dark:text-white">{filteredContent.length}</div>
               </div>
               <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-                <div className="text-sm text-gray-500 dark:text-gray-400">Avg CAGR</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Avg CAGR (Price)</div>
                 <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {filteredContent.length > 0 ? (filteredContent.reduce((sum, row) => sum + parseFloat(String(row.cagr || 0)), 0) / filteredContent.length).toFixed(2) : '0.00'}%
+                  {filteredContent.length > 0 ? (filteredContent.reduce((sum, row) => sum + parseFloat(String(row.cagr_price || 0)), 0) / filteredContent.length).toFixed(2) : '0.00'}%
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                <div className="text-sm text-gray-500 dark:text-gray-400">Avg CAGR (TR)</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {filteredContent.length > 0 ? (filteredContent.reduce((sum, row) => sum + parseFloat(String(row.cagr_tr || 0)), 0) / filteredContent.length).toFixed(2) : '0.00'}%
                 </div>
               </div>
               <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">

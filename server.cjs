@@ -27,6 +27,23 @@ const MIME_TYPES = {
   '.otf': 'font/otf',
 };
 
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Content-Security-Policy': [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; '),
+};
+
 const server = http.createServer((req, res) => {
   let filePath = path.join(DIST_DIR, req.url === '/' ? 'index.html' : req.url);
 
@@ -40,19 +57,21 @@ const server = http.createServer((req, res) => {
         filePath = path.join(DIST_DIR, 'index.html');
         fs.readFile(filePath, (err, indexContent) => {
           if (err) {
-            res.writeHead(404, { 'Content-Type': 'text/html' });
+            res.writeHead(404, { 'Content-Type': 'text/html', ...SECURITY_HEADERS });
             res.end('<h1>404 Not Found</h1>', 'utf-8');
           } else {
-            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store', ...SECURITY_HEADERS });
             res.end(indexContent, 'utf-8');
           }
         });
       } else {
-        res.writeHead(500);
+        res.writeHead(500, SECURITY_HEADERS);
         res.end('Server Error: ' + error.code, 'utf-8');
       }
     } else {
-      res.writeHead(200, { 'Content-Type': contentType });
+      const headers = { 'Content-Type': contentType, ...SECURITY_HEADERS };
+      if (contentType === 'text/html') headers['Cache-Control'] = 'no-store';
+      res.writeHead(200, headers);
       res.end(content, 'utf-8');
     }
   });

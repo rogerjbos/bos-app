@@ -5,6 +5,15 @@ import { FaExternalLinkAlt, FaPlusSquare, FaSave, FaTimes, FaTrash, FaUndo } fro
 import { useAuth } from '../context/AuthContext';
 import { getAuthHeaders } from '../lib/api';
 
+function isSafeUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 
 // Check your interface definition to ensure all required fields are present
 interface StakingItem {
@@ -170,7 +179,7 @@ const StakingTableContent: React.FC<{
                       className="w-full px-1 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   ) : (
-                    item.stakingUrl ? (
+                    item.stakingUrl && isSafeUrl(item.stakingUrl) ? (
                       <a href={item.stakingUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-xs">
                         {FaExternalLinkAlt({ style: { fontSize: '10px' } })} Visit
                       </a>
@@ -892,6 +901,10 @@ const Staking: React.FC = () => {
       showStatus('Please fill in ticker and account', 'error');
       return;
     }
+    if (newItem.stakingUrl && !isSafeUrl(newItem.stakingUrl)) {
+      showStatus('Staking URL must start with https:// or http://', 'error');
+      return;
+    }
 
     const itemToAdd: StakingItem = {
       ...newItem,
@@ -958,6 +971,10 @@ const Staking: React.FC = () => {
   // Save edit
   const saveEdit = () => {
     if (editIndex !== null && editItem) {
+      if (editItem.stakingUrl && !isSafeUrl(editItem.stakingUrl)) {
+        showStatus('Staking URL must start with https:// or http://', 'error');
+        return;
+      }
       const updatedItems = [...stakingItems];
       updatedItems[editIndex] = { ...editItem, username: walletAddress || '' };
       setStakingItems(updatedItems);
