@@ -19,6 +19,7 @@ import SourdoughRecipes from './pages/SourdoughRecipes';
 import StakingPage from './pages/StakingPage';
 import ThermostatPage from './pages/ThermostatPage';
 import WatchlistPage from './pages/WatchlistPage';
+import CryptoHoldingsPage from './pages/CryptoHoldingsPage';
 
 import { SIWSProvider } from '@shawncoe/siws-auth/react';
 import { AuthProvider } from './context/AuthContext';
@@ -68,6 +69,7 @@ const App: React.FC = () => {
                     <Route path="/backtester" element={<ProtectedRoute element={<BacktesterPage />} authorizedOnly={true} />} />
                     <Route path="/portfolio-backtest" element={<ProtectedRoute element={<PortfolioBacktestPage />} authorizedOnly={true} />} />
                     <Route path="/thermostat" element={<ProtectedRoute element={<ThermostatPage />} authorizedOnly={true} />} />
+                    <Route path="/crypto-holdings" element={<ProtectedRoute element={<CryptoHoldingsPage />} authorizedOnly={true} />} />
                     <Route path="/counter" element={<Counter />} />
                     <Route path="/crypto-universe" element={<CryptoUniversePage />} />
                     <Route path="/dapps" element={<DappsPage />} />

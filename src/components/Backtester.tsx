@@ -54,6 +54,7 @@ const Backtester: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [selectedFile, setSelectedFile] = useState<string>('');
+  const [selectedFileInfo, setSelectedFileInfo] = useState<FileInfo | null>(null);
   const [fileContent, setFileContent] = useState<DecisionData[] | PerformanceData[]>([]);
   const [resultsContent, setResultsContent] = useState<any[]>([]);
 
@@ -120,12 +121,16 @@ const Backtester: React.FC = () => {
       const categorizedFiles = data
         .filter(file => file.asset_type === activeTab)
         .map(file => {
+          // If the API already provides strategy/symbol (new parquet format), use them directly
+          if (file.strategy && file.symbol) {
+            return { ...file, level: 'strategy' as const };
+          }
+
           let level: 'summary' | 'symbol' | 'strategy' = 'strategy';
           let symbol: string | undefined;
           let strategy: string | undefined;
 
           // Check if it's a summary file (level 1)
-          // Support both single file (stocks_testing.csv) and multiple size-based files
           if (file.name.toLowerCase() === `${activeTab}_testing.csv` ||
               (activeTab === 'stocks' &&
                (file.name === 'LC_testing.csv' ||
@@ -139,10 +144,9 @@ const Backtester: React.FC = () => {
             level = 'symbol';
             symbol = file.name.replace('.csv', '');
           }
-          // Check if it's a decision file (level 3)
+          // Check if it's a decision file (level 3) - old flat CSV format
           else if (file.name.includes('decision')) {
             level = 'strategy';
-            // Extract symbol and strategy from filename like "uni_adx_indicator_decisions.csv"
             const parts = file.name.replace('_decisions.csv', '').split('_');
             if (parts.length >= 2) {
               symbol = parts[0];
@@ -150,12 +154,7 @@ const Backtester: React.FC = () => {
             }
           }
 
-          return {
-            ...file,
-            level,
-            symbol,
-            strategy
-          };
+          return { ...file, level, symbol, strategy };
         });
 
       setFiles(categorizedFiles);
@@ -186,13 +185,14 @@ const Backtester: React.FC = () => {
   };
 
   // Get file content
-  const fetchFileContent = async (model: string, filename: string) => {
+  const fetchFileContent = async (model: string, filename: string, strategy?: string) => {
     if (!model || !filename) return;
 
     setLoadingContent(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/backtester/${model}/files/${filename}`, {
+      const params = strategy ? `?strategy=${encodeURIComponent(strategy)}` : '';
+      const response = await fetch(`${API_BASE_URL}/backtester/${model}/files/${filename}${params}`, {
         method: 'GET',
         headers: {
           ...getAuthHeaders(),
@@ -267,6 +267,7 @@ const Backtester: React.FC = () => {
       fetchFiles(selectedModel);
       fetchResultsContent(selectedModel);
       setSelectedFile('');
+      setSelectedFileInfo(null);
       setFileContent([]);
       setResultsContent([]);
     }
@@ -280,6 +281,7 @@ const Backtester: React.FC = () => {
       // Only auto-select if there's exactly one summary file
       if (summaryFiles.length === 1) {
         setSelectedFile(summaryFiles[0].name);
+        setSelectedFileInfo(summaryFiles[0]);
       }
       // If there are multiple summary files, let the user choose
     }
@@ -306,7 +308,7 @@ const Backtester: React.FC = () => {
   // Load file content when file is selected
   useEffect(() => {
     if (selectedModel && selectedFile) {
-      fetchFileContent(selectedModel, selectedFile);
+      fetchFileContent(selectedModel, selectedFile, selectedFileInfo?.strategy);
     }
   }, [selectedFile]);
 
@@ -520,14 +522,14 @@ const Backtester: React.FC = () => {
                       ) : (
                         displayFiles.map((file) => (
                           <tr
-                            key={file.name}
+                            key={`${file.strategy || ''}-${file.name}`}
                             className={`hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${
-                              selectedFile === file.name ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                              selectedFile === file.name && selectedFileInfo?.strategy === file.strategy ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                             }`}
-                            onClick={() => setSelectedFile(file.name)}
+                            onClick={() => { setSelectedFile(file.name); setSelectedFileInfo(file); }}
                           >
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                              {file.name}
+                              {file.symbol || file.name}
                             </td>
                             {viewMode === 'strategies' && (
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -548,6 +550,7 @@ const Backtester: React.FC = () => {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setSelectedFile(file.name);
+                                  setSelectedFileInfo(file);
                                 }}
                                 className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300"
                               >
@@ -741,60 +744,22 @@ const Backtester: React.FC = () => {
                                 >
                                   <button
                                     onClick={() => {
-                                      // Find the decisions file for this strategy
                                       const strategyValue = String(value);
-                                      console.log('Looking for strategy:', strategyValue, 'for symbol:', selectedSymbol);
-                                      console.log('Available strategy files:', files.filter(f => f.level === 'strategy' && f.symbol === selectedSymbol));
-
-                                      // Try exact match first
-                                      let strategyFile = files.find(f =>
-                                        f.level === 'strategy' &&
-                                        f.symbol === selectedSymbol &&
-                                        f.strategy === strategyValue
-                                      );
-
-                                      // If no exact match, try partial match
-                                      if (!strategyFile) {
-                                        strategyFile = files.find(f =>
-                                          f.level === 'strategy' &&
-                                          f.symbol === selectedSymbol &&
-                                          f.strategy && f.strategy.includes(strategyValue)
-                                        );
-                                      }
-
-                                      // If still no match, try filename contains strategy
-                                      if (!strategyFile) {
-                                        strategyFile = files.find(f =>
-                                          f.level === 'strategy' &&
-                                          f.symbol === selectedSymbol &&
-                                          f.name.includes(strategyValue)
-                                        );
-                                      }
-
-                                      if (strategyFile) {
-                                        console.log('Found strategy file:', strategyFile.name);
-                                        // Change to overview mode and load the file
-                                        setViewMode('overview');
-                                        setSelectedFile(strategyFile.name);
-                                        setPreviousSymbol(selectedSymbol); // Remember the symbol for back navigation
-                                        setSelectedSymbol(''); // Clear symbol selection
-                                        setCameFromStrategies(true); // Track that we came from strategies mode
-                                      } else {
-                                        console.log('No strategy file found for:', strategyValue);
-                                        // Fallback: try to find any strategy file for this symbol
-                                        const anyStrategyFile = files.find(f =>
-                                          f.level === 'strategy' &&
-                                          f.symbol === selectedSymbol
-                                        );
-                                        if (anyStrategyFile) {
-                                          console.log('Using fallback strategy file:', anyStrategyFile.name);
-                                          setViewMode('overview');
-                                          setSelectedFile(anyStrategyFile.name);
-                                          setPreviousSymbol(selectedSymbol); // Remember the symbol for back navigation
-                                          setSelectedSymbol('');
-                                          setCameFromStrategies(true); // Track that we came from strategies mode
-                                        }
-                                      }
+                                      const parquetName = `${selectedSymbol}.parquet`;
+                                      const fileInfo: FileInfo = {
+                                        name: parquetName,
+                                        type: 'decisions',
+                                        asset_type: 'stocks',
+                                        strategy: strategyValue,
+                                        symbol: selectedSymbol,
+                                        level: 'strategy',
+                                      };
+                                      setViewMode('overview');
+                                      setSelectedFile(parquetName);
+                                      setSelectedFileInfo(fileInfo);
+                                      setPreviousSymbol(selectedSymbol);
+                                      setSelectedSymbol('');
+                                      setCameFromStrategies(true);
                                     }}
                                     className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 underline"
                                   >

@@ -74,6 +74,12 @@ const PortfolioBacktest: React.FC = () => {
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          setError('Session expired. Please refresh the page to sign in again.');
+          return;
+        }
         throw new Error(`Failed to fetch models: ${response.status}`);
       }
 
@@ -110,6 +116,12 @@ const PortfolioBacktest: React.FC = () => {
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          setError('Session expired. Please refresh the page to sign in again.');
+          return;
+        }
         throw new Error(`Failed to fetch content: ${response.status}`);
       }
 
@@ -183,6 +195,16 @@ const PortfolioBacktest: React.FC = () => {
   });
 
   const sortedFileContent = sortData(filteredContent as any[], contentSortColumn, contentSortDirection);
+
+  // Build sector -> signals -> universe -> cagr_price lookup from full fileContent (all universes)
+  const cagrLookup: Record<string, Record<string, Record<string, number>>> = {};
+  for (const row of fileContent) {
+    if (!cagrLookup[row.sector]) cagrLookup[row.sector] = {};
+    if (!cagrLookup[row.sector][row.signals]) cagrLookup[row.sector][row.signals] = {};
+    const val = parseFloat(String(row.cagr_price));
+    if (!isNaN(val)) cagrLookup[row.sector][row.signals][row.universe] = val;
+  }
+  const UNIVERSES = ['Micro', 'SC', 'MC', 'LC'];
 
   // Format model name for display (extract date from results_YYYYMMDD and preserve suffix)
   const formatModelName = (model: string): string => {
@@ -360,18 +382,26 @@ const PortfolioBacktest: React.FC = () => {
                           </div>
                         </th>
                       ))}
+                      {UNIVERSES.map(u => (
+                        <th
+                          key={`cagr_price_${u}`}
+                          className="px-6 py-3 text-left text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50 dark:bg-blue-900/20"
+                        >
+                          CAGR {u}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {loadingContent ? (
                       <tr>
-                        <td colSpan={Object.keys(sortedFileContent[0] || {}).length} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colSpan={Object.keys(sortedFileContent[0] || {}).length + UNIVERSES.length} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                           Loading content...
                         </td>
                       </tr>
                     ) : sortedFileContent.length === 0 ? (
                       <tr>
-                        <td colSpan={Object.keys(sortedFileContent[0] || {}).length || 1} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colSpan={(Object.keys(sortedFileContent[0] || {}).length || 1) + UNIVERSES.length} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                           No content found
                         </td>
                       </tr>
@@ -404,6 +434,17 @@ const PortfolioBacktest: React.FC = () => {
                                 style={cellIndex < 2 ? { left: cellIndex === 0 ? '0px' : '120px', minWidth: cellIndex === 0 ? '120px' : '100px' } : {}}
                               >
                                 {typeof displayValue === 'number' ? displayValue.toFixed(2) : String(displayValue)}
+                              </td>
+                            );
+                          })}
+                          {UNIVERSES.map(u => {
+                            const val = cagrLookup[row.sector]?.[row.signals]?.[u];
+                            return (
+                              <td
+                                key={`cagr_price_${u}`}
+                                className="px-6 py-4 whitespace-nowrap text-sm text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/10"
+                              >
+                                {val !== undefined ? val.toFixed(2) : '-'}
                               </td>
                             );
                           })}
