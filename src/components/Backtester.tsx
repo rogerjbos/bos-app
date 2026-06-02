@@ -18,6 +18,7 @@ interface FileInfo {
   strategy?: string; // Optional, computed
   size?: number; // Optional, not returned by API
   modified?: string; // Optional, not returned by API
+  rowCount?: number; // Optional, fetched lazily for summary files
 }
 
 interface DecisionData {
@@ -69,6 +70,11 @@ const Backtester: React.FC = () => {
   const [filesSortDirection, setFilesSortDirection] = useState<SortDirection>('asc');
   const [contentSortColumn, setContentSortColumn] = useState<string>('date');
   const [contentSortDirection, setContentSortDirection] = useState<SortDirection>('desc');
+
+  // Optional universe filter applied to the file content view
+  const [universeFilter, setUniverseFilter] = useState<string>('');
+  // Optional variant filter (_ls / _lo / _so suffix on the strategy column)
+  const [variantFilter, setVariantFilter] = useState<string>('');
 
   // Get available models
   const fetchModels = async () => {
@@ -273,6 +279,44 @@ const Backtester: React.FC = () => {
     }
   }, [selectedModel, activeTab]);
 
+  // Lazily fetch row counts for summary files so the user can see which file is most complete
+  useEffect(() => {
+    if (!selectedModel) return;
+    const pending = files.filter(f => f.level === 'summary' && f.rowCount === undefined);
+    if (pending.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(pending.map(async (file) => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/backtester/${selectedModel}/files/${file.name}`, {
+          method: 'GET',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          return { name: file.name, count: Array.isArray(data) ? data.length : 0 };
+        }
+      } catch {
+        // ignore - leave rowCount undefined
+      }
+      return { name: file.name, count: -1 };
+    })).then(results => {
+      if (cancelled) return;
+      setFiles(prev => prev.map(f => {
+        const r = results.find(rr => rr.name === f.name);
+        return r ? { ...f, rowCount: r.count } : f;
+      }));
+    });
+
+    return () => { cancelled = true; };
+  }, [selectedModel, files]);
+
+  // Reset universe filter when the user switches to a different file
+  useEffect(() => {
+    setUniverseFilter('');
+    setVariantFilter('');
+  }, [selectedFile, selectedSymbol, viewMode]);
+
   // Auto-select summary file when files are loaded (only for overview mode)
   // Only auto-select if there's exactly one summary file
   useEffect(() => {
@@ -323,6 +367,41 @@ const Backtester: React.FC = () => {
   // Sorted data for tables
   const sortedFiles = sortData(files, filesSortColumn, filesSortDirection);
   const sortedFileContent = sortData(fileContent as any[], contentSortColumn, contentSortDirection);
+
+  // Distinct universes available in the current file content, used to populate the optional filter
+  const availableUniverses = Array.from(new Set(
+    (fileContent as any[])
+      .map(r => r?.universe)
+      .filter(u => u !== undefined && u !== null && u !== '')
+  )).sort() as string[];
+
+  // Detect _ls / _lo / _so suffix from the strategy column to populate the variant filter
+  const getVariant = (row: any): string | null => {
+    const s = String(row?.strategy ?? '');
+    const match = s.match(/_(ls|lo|so)$/);
+    return match ? match[1] : null;
+  };
+  // Shorten long strategy tokens so the _ls / _lo / _so suffix stays visible in narrow columns
+  const strategyAbbreviations: Array<[RegExp, string]> = [
+    [/\bcontrarian\b/gi, 'cont'],
+    [/\bstochastic\b/gi, 'stoc'],
+  ];
+  const abbreviateStrategy = (s: string): string =>
+    strategyAbbreviations.reduce((acc, [re, repl]) => acc.replace(re, repl), s);
+  const variantLabels: Record<string, string> = {
+    ls: 'Long/Short (_ls)',
+    lo: 'Long Only (_lo)',
+    so: 'Short Only (_so)',
+  };
+  const availableVariants = Array.from(new Set(
+    (fileContent as any[])
+      .map(getVariant)
+      .filter((v): v is string => v !== null)
+  )).sort();
+
+  const filteredFileContent = sortedFileContent
+    .filter((row: any) => !universeFilter || row.universe === universeFilter)
+    .filter((row: any) => !variantFilter || getVariant(row) === variantFilter);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -490,6 +569,18 @@ const Backtester: React.FC = () => {
                           {filesSortColumn !== 'type' && <FaSort className="ml-1 opacity-50" />}
                         </div>
                       </th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                        onClick={() => handleFilesSort('rowCount')}
+                      >
+                        <div className="flex items-center">
+                          Rows
+                          {filesSortColumn === 'rowCount' && (
+                            filesSortDirection === 'asc' ? <FaSortUp className="ml-1" /> : <FaSortDown className="ml-1" />
+                          )}
+                          {filesSortColumn !== 'rowCount' && <FaSort className="ml-1 opacity-50" />}
+                        </div>
+                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Actions
                       </th>
@@ -498,7 +589,7 @@ const Backtester: React.FC = () => {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {loadingFiles ? (
                       <tr>
-                        <td colSpan={viewMode === 'strategies' ? 4 : 3} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colSpan={viewMode === 'strategies' ? 5 : 4} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                           Loading files...
                         </td>
                       </tr>
@@ -515,7 +606,7 @@ const Backtester: React.FC = () => {
 
                       return displayFiles.length === 0 ? (
                         <tr>
-                          <td colSpan={viewMode === 'strategies' ? 4 : 3} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                          <td colSpan={viewMode === 'strategies' ? 5 : 4} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                             {viewMode === 'strategies' && !selectedSymbol ? 'Select a symbol to view strategies' : 'No files found'}
                           </td>
                         </tr>
@@ -533,7 +624,7 @@ const Backtester: React.FC = () => {
                             </td>
                             {viewMode === 'strategies' && (
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                {file.strategy || 'Unknown'}
+                                {file.strategy ? abbreviateStrategy(file.strategy) : 'Unknown'}
                               </td>
                             )}
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -544,6 +635,13 @@ const Backtester: React.FC = () => {
                               }`}>
                                 {file.type}
                               </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              {file.rowCount === undefined
+                                ? '…'
+                                : file.rowCount < 0
+                                  ? '—'
+                                  : file.rowCount.toLocaleString()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                               <button
@@ -677,12 +775,54 @@ const Backtester: React.FC = () => {
               </div>
             )}
 
+            {/* Optional filters — shown only when the data has a column with multiple values */}
+            {(availableUniverses.length > 1 || availableVariants.length > 1) && (
+              <div className="mb-4 flex flex-wrap items-center gap-6">
+                {availableUniverses.length > 1 && (
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Filter by Universe
+                    </label>
+                    <select
+                      value={universeFilter}
+                      onChange={(e) => setUniverseFilter(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">All ({sortedFileContent.length})</option>
+                      {availableUniverses.map(u => {
+                        const count = sortedFileContent.filter((r: any) => r.universe === u).length;
+                        return <option key={u} value={u}>{u} ({count})</option>;
+                      })}
+                    </select>
+                  </div>
+                )}
+                {availableVariants.length > 1 && (
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Filter by Variant
+                    </label>
+                    <select
+                      value={variantFilter}
+                      onChange={(e) => setVariantFilter(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">All ({sortedFileContent.length})</option>
+                      {availableVariants.map(v => {
+                        const count = sortedFileContent.filter((r: any) => getVariant(r) === v).length;
+                        return <option key={v} value={v}>{variantLabels[v] || v} ({count})</option>;
+                      })}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden">
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
                     <tr>
-                      {Object.keys(sortedFileContent[0] || {}).map((column, colIndex) => (
+                      {Object.keys(filteredFileContent[0] || {}).map((column, colIndex) => (
                         <th
                           key={column}
                           className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 ${
@@ -705,21 +845,21 @@ const Backtester: React.FC = () => {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {loadingContent ? (
                       <tr>
-                        <td colSpan={Object.keys(sortedFileContent[0] || {}).length} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colSpan={Object.keys(filteredFileContent[0] || {}).length} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                           Loading content...
                         </td>
                       </tr>
-                    ) : sortedFileContent.length === 0 ? (
+                    ) : filteredFileContent.length === 0 ? (
                       <tr>
-                        <td colSpan={Object.keys(sortedFileContent[0] || {}).length} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colSpan={Object.keys(filteredFileContent[0] || {}).length || 1} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                           No content found
                         </td>
                       </tr>
                     ) : (
-                      sortedFileContent.map((row, index) => (
+                      filteredFileContent.map((row, index) => (
                         <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                           {Object.entries(row).map(([column, value], cellIndex) => {
-                            let displayValue = value;
+                            let displayValue: any = value;
 
                             // Try to parse as number if it's a string that looks like a number
                             // Skip date columns to preserve their original format
@@ -728,6 +868,11 @@ const Backtester: React.FC = () => {
                               if (!isNaN(numValue) && isFinite(numValue)) {
                                 displayValue = numValue;
                               }
+                            }
+
+                            // Abbreviate long strategy tokens so the _ls/_lo/_so suffix stays visible
+                            if (column.toLowerCase() === 'strategy' && typeof displayValue === 'string') {
+                              displayValue = abbreviateStrategy(displayValue);
                             }
 
                             // In strategies mode, make strategy-related columns clickable

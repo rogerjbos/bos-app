@@ -259,7 +259,11 @@ const CryptoUniverse: React.FC = () => {
   }, [activeTab, topData, polkadotData]);
 
   const displayData = useMemo(() => {
-    if (activeTab === 'polkadot') return polkadotData;
+    if (activeTab === 'polkadot') {
+      return polkadotData.filter(
+        coin => !(coin.symbol === 'HDX' && /home depot/i.test(coin.name))
+      );
+    }
     return topData.slice(0, Number(activeTab));
   }, [activeTab, topData, polkadotData]);
 

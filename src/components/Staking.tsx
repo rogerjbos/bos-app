@@ -826,15 +826,15 @@ const Staking: React.FC = () => {
           const return90d = data.returns_90d ? data.returns_90d[symbol] : undefined;
           const return120d = data.returns_120d ? data.returns_120d[symbol] : undefined;
 
-          if (price !== undefined) {
+          if (price != null) {
             return {
               ...item,
               price: price.toString(),
-              return7d: return7d !== undefined ? return7d.toString() : item.return7d,
-              return30d: return30d !== undefined ? return30d.toString() : item.return30d,
-              return60d: return60d !== undefined ? return60d.toString() : item.return60d,
-              return90d: return90d !== undefined ? return90d.toString() : item.return90d,
-              return120d: return120d !== undefined ? return120d.toString() : item.return120d,
+              return7d: return7d != null ? return7d.toString() : item.return7d,
+              return30d: return30d != null ? return30d.toString() : item.return30d,
+              return60d: return60d != null ? return60d.toString() : item.return60d,
+              return90d: return90d != null ? return90d.toString() : item.return90d,
+              return120d: return120d != null ? return120d.toString() : item.return120d,
               priceLastUpdated: new Date().toISOString()
             };
           }

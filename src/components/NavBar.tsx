@@ -47,6 +47,7 @@ const NavBarComponent: React.FC = () => {
     { to: '/ranks', label: 'Ranks' },
     { to: '/thermostat', label: 'Thermostat' },
     { to: '/crypto-holdings', label: 'Crypto Holdings' },
+    { to: '/correlation', label: 'Correlation' },
   ], []);
 
   // Close dropdown on outside click

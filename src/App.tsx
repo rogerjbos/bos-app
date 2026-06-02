@@ -15,6 +15,7 @@ import PortfolioPage from './pages/PortfolioPage';
 import PremiumPage from './pages/PremiumPage';
 import ReportsPage from './pages/ReportsPage';
 import CryptoUniversePage from './pages/CryptoUniversePage';
+import CorrelationPage from './pages/CorrelationPage';
 import SourdoughRecipes from './pages/SourdoughRecipes';
 import StakingPage from './pages/StakingPage';
 import ThermostatPage from './pages/ThermostatPage';
@@ -70,6 +71,7 @@ const App: React.FC = () => {
                     <Route path="/portfolio-backtest" element={<ProtectedRoute element={<PortfolioBacktestPage />} authorizedOnly={true} />} />
                     <Route path="/thermostat" element={<ProtectedRoute element={<ThermostatPage />} authorizedOnly={true} />} />
                     <Route path="/crypto-holdings" element={<ProtectedRoute element={<CryptoHoldingsPage />} authorizedOnly={true} />} />
+                    <Route path="/correlation" element={<ProtectedRoute element={<CorrelationPage />} authorizedOnly={true} />} />
                     <Route path="/counter" element={<Counter />} />
                     <Route path="/crypto-universe" element={<CryptoUniversePage />} />
                     <Route path="/dapps" element={<DappsPage />} />

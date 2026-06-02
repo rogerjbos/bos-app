@@ -157,5 +157,3 @@ cd ~/rust_home/backtester
 kill $(lsof -ti:5173)
 ~/scripts/run_data_api_server.sh restart
 ~/scripts/manage_node_server.sh restart
-
-
