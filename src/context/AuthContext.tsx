@@ -1,6 +1,7 @@
 import { useSIWS, useSIWSAuth, useWalletConnect } from '@shawncoe/siws-auth/react';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useMetaMaskContext } from '../providers/MetaMaskProvider';
+import { getMetaMaskProvider } from '../lib/metamaskProvider';
 import { useWalletAuthContext } from '../providers/WalletAuthProvider';
 
 // MetaMask hook type
@@ -132,9 +133,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       let signature: string;
 
       if (walletType === 'metamask') {
-        // MetaMask personal_sign
-        if (!window.ethereum) throw new Error('MetaMask not available');
-        signature = await window.ethereum.request({
+        // MetaMask personal_sign — resolve the MetaMask provider specifically
+        // so other wallets (e.g. Phantom) don't intercept the signature request.
+        const eth = getMetaMaskProvider();
+        if (!eth) throw new Error('MetaMask not available');
+        signature = await eth.request({
           method: 'personal_sign',
           params: [challenge, currentWalletAddress],
         });

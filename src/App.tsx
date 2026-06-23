@@ -21,6 +21,7 @@ import StakingPage from './pages/StakingPage';
 import ThermostatPage from './pages/ThermostatPage';
 import WatchlistPage from './pages/WatchlistPage';
 import CryptoHoldingsPage from './pages/CryptoHoldingsPage';
+import MelodyLab from './pages/Melodylab';
 
 import { SIWSProvider } from '@shawncoe/siws-auth/react';
 import { AuthProvider } from './context/AuthContext';
@@ -76,6 +77,7 @@ const App: React.FC = () => {
                     <Route path="/crypto-universe" element={<CryptoUniversePage />} />
                     <Route path="/dapps" element={<DappsPage />} />
                     <Route path="/sourdough" element={<SourdoughRecipes />} />
+                    <Route path="/melody" element={<MelodyLab />} />
                     <Route path="/ranks" element={<Ranks />} />
                     <Route path="/premium" element={<PremiumPage />} />
                   </Routes>

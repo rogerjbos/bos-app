@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getMetaMaskProvider, isMetaMaskAvailable } from "../lib/metamaskProvider";
 
 declare global {
   interface Window {
@@ -7,9 +8,7 @@ declare global {
 }
 
 export function useMetaMask() {
-  const [isInstalled, setIsInstalled] = useState<boolean>(
-    typeof window !== "undefined" && !!window.ethereum
-  );
+  const [isInstalled, setIsInstalled] = useState<boolean>(isMetaMaskAvailable());
   const [accounts, setAccounts] = useState<string[]>([]);
   const [connected, setConnected] = useState<boolean>(false);
   const [chainId, setChainId] = useState<string | null>(null);
@@ -34,13 +33,13 @@ export function useMetaMask() {
   }, [handleAccountsChanged, handleChainChanged]);
 
   useEffect(() => {
-    setIsInstalled(typeof window !== "undefined" && !!window.ethereum);
+    setIsInstalled(isMetaMaskAvailable());
 
-    if (!window?.ethereum) return;
+    const eth = getMetaMaskProvider();
+    if (!eth) return;
 
     const setupMetaMask = async () => {
       try {
-        const eth = window.ethereum;
 
         // Check if user explicitly disconnected - if so, don't auto-reconnect
         const isDisconnected = sessionStorage.getItem('metamask_disconnected') === 'true';
@@ -74,9 +73,9 @@ export function useMetaMask() {
         // Store cleanup functions
         return () => {
           try {
-            if (window.ethereum?.removeListener) {
-              window.ethereum.removeListener("accountsChanged", accountsChangedCallback);
-              window.ethereum.removeListener("chainChanged", chainChangedCallback);
+            if (eth?.removeListener) {
+              eth.removeListener("accountsChanged", accountsChangedCallback);
+              eth.removeListener("chainChanged", chainChangedCallback);
             }
           } catch (e) {
             console.warn("Error cleaning up listeners", e);
@@ -95,14 +94,15 @@ export function useMetaMask() {
   }, []); // Remove dependencies since we're using refs
 
   const connect = useCallback(async () => {
-    if (!window?.ethereum) throw new Error("MetaMask is not installed");
+    const eth = getMetaMaskProvider();
+    if (!eth) throw new Error("MetaMask is not installed");
     try {
       // Clear the disconnect flag when user explicitly connects
       sessionStorage.removeItem('metamask_disconnected');
 
       // Try to request permissions first to ensure fresh account selection
       try {
-        await window.ethereum.request({
+        await eth.request({
           method: "wallet_requestPermissions",
           params: [{ eth_accounts: {} }],
         });
@@ -111,12 +111,12 @@ export function useMetaMask() {
       }
 
       // Always request accounts to get the currently selected account in MetaMask
-      const accs: string[] = await window.ethereum.request({
+      const accs: string[] = await eth.request({
         method: "eth_requestAccounts",
       });
 
       handleAccountsChanged(accs);
-      const id: string = await window.ethereum.request({
+      const id: string = await eth.request({
         method: "eth_chainId",
       });
       setChainId(id);
@@ -136,9 +136,10 @@ export function useMetaMask() {
 
   // Method to refresh accounts - gets current accounts without triggering selection
   const refreshAccounts = useCallback(async () => {
-    if (!window?.ethereum) return [];
+    const eth = getMetaMaskProvider();
+    if (!eth) return [];
     try {
-      const accs: string[] = await window.ethereum.request({
+      const accs: string[] = await eth.request({
         method: 'eth_accounts',
       });
       handleAccountsChanged(accs);
@@ -151,16 +152,17 @@ export function useMetaMask() {
 
   // Method to switch accounts - forces MetaMask to show account selection
   const switchAccount = useCallback(async () => {
-    if (!window?.ethereum) return;
+    const eth = getMetaMaskProvider();
+    if (!eth) return;
     try {
       // First try to request permissions which should trigger account selection
-      await window.ethereum.request({
+      await eth.request({
         method: 'wallet_requestPermissions',
         params: [{ eth_accounts: {} }],
       });
 
       // Then get the accounts
-      const accs: string[] = await window.ethereum.request({
+      const accs: string[] = await eth.request({
         method: 'eth_requestAccounts',
       });
 
@@ -171,7 +173,7 @@ export function useMetaMask() {
 
       // Fallback: try eth_requestAccounts directly
       try {
-        const accs: string[] = await window.ethereum.request({
+        const accs: string[] = await eth.request({
           method: 'eth_requestAccounts',
         });
         handleAccountsChanged(accs);
