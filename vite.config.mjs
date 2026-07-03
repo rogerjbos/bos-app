@@ -20,6 +20,12 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      // Two entry points: the main SPA, and the standalone MelodyLab document
+      // loaded in an iframe (served with a relaxed CSP for Strudel).
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        melody: path.resolve(__dirname, 'melody-frame.html'),
+      },
       output: {
         manualChunks: undefined,
       },

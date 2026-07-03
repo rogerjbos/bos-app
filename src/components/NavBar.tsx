@@ -48,6 +48,7 @@ const NavBarComponent: React.FC = () => {
     { to: '/thermostat', label: 'Thermostat' },
     { to: '/crypto-holdings', label: 'Crypto Holdings' },
     { to: '/correlation', label: 'Correlation' },
+    { to: '/factor-backtests', label: 'Factor Backtests' },
   ], []);
 
   // Close dropdown on outside click

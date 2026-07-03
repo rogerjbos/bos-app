@@ -16,12 +16,13 @@ import PremiumPage from './pages/PremiumPage';
 import ReportsPage from './pages/ReportsPage';
 import CryptoUniversePage from './pages/CryptoUniversePage';
 import CorrelationPage from './pages/CorrelationPage';
+import FactorBacktests from './pages/FactorBacktests';
 import SourdoughRecipes from './pages/SourdoughRecipes';
 import StakingPage from './pages/StakingPage';
 import ThermostatPage from './pages/ThermostatPage';
 import WatchlistPage from './pages/WatchlistPage';
 import CryptoHoldingsPage from './pages/CryptoHoldingsPage';
-import MelodyLab from './pages/Melodylab';
+import MelodyLab from './pages/MelodyLabFrame';
 
 import { SIWSProvider } from '@shawncoe/siws-auth/react';
 import { AuthProvider } from './context/AuthContext';
@@ -73,6 +74,7 @@ const App: React.FC = () => {
                     <Route path="/thermostat" element={<ProtectedRoute element={<ThermostatPage />} authorizedOnly={true} />} />
                     <Route path="/crypto-holdings" element={<ProtectedRoute element={<CryptoHoldingsPage />} authorizedOnly={true} />} />
                     <Route path="/correlation" element={<ProtectedRoute element={<CorrelationPage />} authorizedOnly={true} />} />
+                    <Route path="/factor-backtests" element={<ProtectedRoute element={<FactorBacktests />} authorizedOnly={true} />} />
                     <Route path="/counter" element={<Counter />} />
                     <Route path="/crypto-universe" element={<CryptoUniversePage />} />
                     <Route path="/dapps" element={<DappsPage />} />
