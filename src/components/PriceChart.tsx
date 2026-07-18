@@ -40,8 +40,12 @@ const PriceChart: React.FC<PriceChartProps> = ({ symbol, decisions, assetType, a
     // Initialize chart
     chartInstance.current = echarts.init(chartRef.current);
 
-    // Fetch price data and render chart
-    fetchPriceData();
+    // Fetch price data and render chart. The AbortController + `cancelled` flag
+    // stop a slow response for a previous symbol from painting onto this newly
+    // created chart instance after the effect re-runs.
+    const controller = new AbortController();
+    let cancelled = false;
+    fetchPriceData(controller.signal, () => !cancelled);
 
     // Handle window resize
     const handleResize = () => {
@@ -50,18 +54,23 @@ const PriceChart: React.FC<PriceChartProps> = ({ symbol, decisions, assetType, a
     window.addEventListener('resize', handleResize);
 
     return () => {
+      cancelled = true;
+      controller.abort();
       window.removeEventListener('resize', handleResize);
       chartInstance.current?.dispose();
+      chartInstance.current = null;
     };
   }, [symbol, assetType, decisions]);
 
-  const fetchPriceData = async () => {
+  const fetchPriceData = async (signal?: AbortSignal, isCurrent: () => boolean = () => true) => {
+    // Hoisted so it is in scope in the catch block below (the render fallback).
+    let isDecisionData = false;
     try {
       // Extract symbol from decision data
       const chartSymbol = decisions && decisions.length > 0 && decisions[0].ticker ? decisions[0].ticker : symbol;
 
       // Check if this is decision data (4 fields) or performance data (24+ fields)
-      const isDecisionData = decisions.length > 0 && decisions[0] && Object.keys(decisions[0]).length === 4;
+      isDecisionData = decisions.length > 0 && !!decisions[0] && Object.keys(decisions[0]).length === 4;
 
       let startDate: string;
       let endDate: string;
@@ -108,6 +117,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ symbol, decisions, assetType, a
           ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
+        signal,
       });
 
       if (!response.ok) {
@@ -131,8 +141,12 @@ const PriceChart: React.FC<PriceChartProps> = ({ symbol, decisions, assetType, a
         console.log('First price date:', transformedData[0].date, 'Last price date:', transformedData[transformedData.length - 1].date);
       }
 
+      // Drop the result if this effect run was superseded (symbol changed) or
+      // the request was aborted — otherwise we'd paint onto a disposed/new chart.
+      if (!isCurrent()) return;
       renderChart(transformedData, isDecisionData);
     } catch (err) {
+      if (signal?.aborted || !isCurrent()) return;
       console.error('Error fetching price data:', err);
       // Render empty chart or show error
       renderChart([], isDecisionData);

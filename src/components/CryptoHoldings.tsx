@@ -2,6 +2,7 @@ import ReactECharts from 'echarts-for-react';
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { FaChartBar, FaCheck, FaChevronDown, FaChevronRight, FaDownload, FaEdit, FaFileDownload, FaPlus, FaSave, FaTimes, FaTrash } from 'react-icons/fa';
 import { ThemeContext } from '../context/ThemeContext';
+import { useRequestToken } from '../hooks/useRequestToken';
 import { API_BASE_URL, authFetch, getAuthHeaders } from '../lib/api';
 
 interface CryptoTransaction {
@@ -159,7 +160,12 @@ const CryptoHoldings: React.FC = () => {
   const [realizedSort, setRealizedSort] = useState<SortConfig>({ col: 'sell_date', dir: 'asc' });
   const [unrealizedSort, setUnrealizedSort] = useState<SortConfig>({ col: 'unrealized_pnl', dir: 'desc' });
 
+  const beginRequest = useRequestToken();
+
   const fetchTransactions = useCallback(async (currentPage: number) => {
+    // Guard against out-of-order responses: typing "BTC" fires B, BT, BTC and
+    // whichever resolves last would otherwise win. isCurrent() drops stale ones.
+    const isCurrent = beginRequest();
     setIsLoading(true);
     setError(null);
     try {
@@ -177,18 +183,24 @@ const CryptoHoldings: React.FC = () => {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const rows: CryptoTransaction[] = await res.json();
+      if (!isCurrent()) return;
       setTransactions(rows);
       setHasMore(rows.length >= PAGE_SIZE);
     } catch (e) {
+      if (!isCurrent()) return;
       setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {
-      setIsLoading(false);
+      if (isCurrent()) setIsLoading(false);
     }
-  }, [symbolFilter, tradeTypeFilter]);
+  }, [symbolFilter, tradeTypeFilter, beginRequest]);
 
   useEffect(() => {
-    setPage(0);
-    fetchTransactions(0);
+    // Debounce so typing in the symbol filter doesn't fire a request per keystroke.
+    const t = setTimeout(() => {
+      setPage(0);
+      fetchTransactions(0);
+    }, 300);
+    return () => clearTimeout(t);
   }, [fetchTransactions]);
 
   const visibleRows = transactions;

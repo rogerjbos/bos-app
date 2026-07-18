@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FaSort, FaSortDown, FaSortUp, FaSync } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { useRequestToken } from '../hooks/useRequestToken';
 import { getAuthHeaders } from '../lib/api';
 
 // API configuration
@@ -101,9 +102,13 @@ const PortfolioBacktest: React.FC = () => {
   };
 
   // Get file content
+  // Drops out-of-order content responses when the selected model changes fast.
+  const beginContent = useRequestToken();
+
   const fetchFileContent = async (model: string) => {
     if (!model) return;
 
+    const isCurrent = beginContent();
     setLoadingContent(true);
     setError(null);
     try {
@@ -126,12 +131,14 @@ const PortfolioBacktest: React.FC = () => {
       }
 
       const data = await response.json();
+      if (!isCurrent()) return;
       setFileContent(data);
     } catch (err) {
+      if (!isCurrent()) return;
       console.error('Error fetching file content:', err);
       setError(`Failed to load file content: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
-      setLoadingContent(false);
+      if (isCurrent()) setLoadingContent(false);
     }
   };
 

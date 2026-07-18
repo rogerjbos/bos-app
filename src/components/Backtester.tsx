@@ -2,6 +2,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import React, { useEffect, useState } from 'react';
 import { FaSort, FaSortDown, FaSortUp, FaSync } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { useRequestToken } from '../hooks/useRequestToken';
 import { getAuthHeaders } from '../lib/api';
 import PriceChart from './PriceChart';
 
@@ -108,9 +109,17 @@ const Backtester: React.FC = () => {
   };
 
   // Get available files for a model
+  // Separate request tokens per concern so a file-list fetch and a file-content
+  // fetch don't invalidate each other; each drops its own out-of-order responses
+  // when the model/file/tab changes while a request is in flight.
+  const beginFiles = useRequestToken();
+  const beginContent = useRequestToken();
+  const beginSymbols = useRequestToken();
+
   const fetchFiles = async (model: string) => {
     if (!model) return;
 
+    const isCurrent = beginFiles();
     setLoadingFiles(true);
     setError(null);
     try {
@@ -167,12 +176,14 @@ const Backtester: React.FC = () => {
           return { ...file, level, symbol, strategy };
         });
 
+      if (!isCurrent()) return;
       setFiles(categorizedFiles);
     } catch (err) {
+      if (!isCurrent()) return;
       console.error('Error fetching files:', err);
       setError(`Failed to load files: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
-      setLoadingFiles(false);
+      if (isCurrent()) setLoadingFiles(false);
     }
   };
 
@@ -180,19 +191,22 @@ const Backtester: React.FC = () => {
   // By Symbol / By Strategy views. This replaces the old fetch of the entire
   // results.csv, which downloaded hundreds of MB and crashed the browser tab.
   const fetchResultsSymbols = async (model: string) => {
+    const isCurrent = beginSymbols();
     try {
       const response = await fetch(`${API_BASE_URL}/backtester/${model}/results/symbols`, {
         method: 'GET',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
       });
+      if (!isCurrent()) return;
       if (response.ok) {
         const data = await response.json();
+        if (!isCurrent()) return;
         setResultsSymbols(Array.isArray(data) ? data : []);
       } else {
         setResultsSymbols([]);
       }
     } catch {
-      setResultsSymbols([]);
+      if (isCurrent()) setResultsSymbols([]);
     }
   };
 
@@ -220,6 +234,7 @@ const Backtester: React.FC = () => {
   const fetchFileContent = async (model: string, filename: string, strategy?: string) => {
     if (!model || !filename) return;
 
+    const isCurrent = beginContent();
     setLoadingContent(true);
     setError(null);
     try {
@@ -237,12 +252,14 @@ const Backtester: React.FC = () => {
       }
 
       const data = await response.json();
+      if (!isCurrent()) return;
       setFileContent(data);
     } catch (err) {
+      if (!isCurrent()) return;
       console.error('Error fetching file content:', err);
       setError(`Failed to load file content: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
-      setLoadingContent(false);
+      if (isCurrent()) setLoadingContent(false);
     }
   };
 

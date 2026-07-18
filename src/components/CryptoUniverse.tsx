@@ -250,12 +250,19 @@ const CryptoUniverse: React.FC = () => {
     const params = new URLSearchParams({ days: '90' });
     tabSymbols.forEach(s => params.append('symbols', s));
 
+    // Guard against out-of-order responses: switching tabs mid-fetch must not
+    // let a slow prior tab's breadth data overwrite the current tab's.
+    let cancelled = false;
+    const controller = new AbortController();
+
     setBreadthLoading(true);
-    fetch(`${API_BASE_URL}/crypto/universe/breadth?${params}`)
+    fetch(`${API_BASE_URL}/crypto/universe/breadth?${params}`, { signal: controller.signal })
       .then(r => { if (!r.ok) throw new Error(`Breadth fetch failed: ${r.status}`); return r.json(); })
-      .then(json => setBreadthData(json))
-      .catch(e => console.error('Breadth fetch error:', e))
-      .finally(() => setBreadthLoading(false));
+      .then(json => { if (!cancelled) setBreadthData(json); })
+      .catch(e => { if (!cancelled) console.error('Breadth fetch error:', e); })
+      .finally(() => { if (!cancelled) setBreadthLoading(false); });
+
+    return () => { cancelled = true; controller.abort(); };
   }, [activeTab, topData, polkadotData]);
 
   const displayData = useMemo(() => {

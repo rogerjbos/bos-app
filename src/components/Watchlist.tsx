@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp, Plus, RefreshCw, Save, Settings, Sparkles, Tras
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { abbreviateSectorIndustry } from '../lib/financialUtils';
+import { useRequestToken } from '../hooks/useRequestToken';
 import { getAuthHeaders } from '../lib/api';
 import { AnalysisModal } from './AnalysisModal';
 import { TableRowSkeleton } from './LoadingSkeleton';
@@ -754,7 +755,10 @@ const Watchlist: React.FC = () => {
   }, []);
 
   // Fetch crypto data
-  const fetchCryptoData = useCallback(async (symbols: string[]) => {
+  // Drops out-of-order responses when the user switches watchlists mid-refresh.
+  const beginRequest = useRequestToken();
+
+  const fetchCryptoData = useCallback(async (symbols: string[], isCurrent: () => boolean = () => true) => {
     if (symbols.length === 0) return [] as CryptoXDaysData[];
 
     try {
@@ -773,7 +777,7 @@ const Watchlist: React.FC = () => {
       }
 
       const data = await response.json();
-      setCryptoData(data || []);
+      if (isCurrent()) setCryptoData(data || []);
       return data || [];
     } catch (err) {
       console.error('Error fetching crypto data:', err);
@@ -783,7 +787,7 @@ const Watchlist: React.FC = () => {
   }, [showStatus]);
 
   // Fetch latest prices from backend
-  const fetchLatestPrices = useCallback(async (symbols: string[], historicalData: CryptoXDaysData[]) => {
+  const fetchLatestPrices = useCallback(async (symbols: string[], historicalData: CryptoXDaysData[], isCurrent: () => boolean = () => true) => {
     if (symbols.length === 0) return;
 
     try {
@@ -829,7 +833,7 @@ const Watchlist: React.FC = () => {
         };
       });
 
-      setLatestPrices(result);
+      if (isCurrent()) setLatestPrices(result);
     } catch (err) {
       console.error('Error fetching latest prices:', err);
       showStatus(`Failed to load latest prices: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
@@ -837,7 +841,7 @@ const Watchlist: React.FC = () => {
   }, [showStatus]);
 
   // Fetch stock data
-  const fetchStockData = useCallback(async (symbols: string[]) => {
+  const fetchStockData = useCallback(async (symbols: string[], isCurrent: () => boolean = () => true) => {
     if (symbols.length === 0) return;
 
     try {
@@ -856,7 +860,7 @@ const Watchlist: React.FC = () => {
       }
 
       const data = await response.json();
-      setStockData(data || []);
+      if (isCurrent()) setStockData(data || []);
     } catch (err) {
       console.error('Error fetching stock data:', err);
       showStatus(`Failed to load stock data: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
@@ -864,7 +868,7 @@ const Watchlist: React.FC = () => {
   }, [showStatus]);
 
   // Fetch ranks data
-  const fetchRanksData = useCallback(async (symbols: string[]) => {
+  const fetchRanksData = useCallback(async (symbols: string[], isCurrent: () => boolean = () => true) => {
     if (symbols.length === 0) return;
 
     try {
@@ -892,7 +896,7 @@ const Watchlist: React.FC = () => {
         }
       }
 
-      setRanksData(allRanksData);
+      if (isCurrent()) setRanksData(allRanksData);
     } catch (err) {
       console.error('Error fetching ranks data:', err);
       showStatus(`Failed to load stock ranks: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
@@ -900,7 +904,7 @@ const Watchlist: React.FC = () => {
   }, [showStatus]);
 
   // Fetch crypto ranks data
-  const fetchCryptoRanksData = useCallback(async (symbols: string[]) => {
+  const fetchCryptoRanksData = useCallback(async (symbols: string[], isCurrent: () => boolean = () => true) => {
     if (symbols.length === 0) return;
 
     try {
@@ -942,7 +946,7 @@ const Watchlist: React.FC = () => {
       }
 
       console.log('All crypto ranks data:', Array.from(aggregatedEntries.values()));
-      setCryptoRanksData(Array.from(aggregatedEntries.values()));
+      if (isCurrent()) setCryptoRanksData(Array.from(aggregatedEntries.values()));
     } catch (err) {
       console.error('Error fetching crypto ranks data:', err);
       showStatus(`Failed to load crypto ranks: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
@@ -954,6 +958,10 @@ const Watchlist: React.FC = () => {
     const activeWatchlist = watchlists.find(w => w.id === activeWatchlistId);
     if (!activeWatchlist) return;
 
+    // Switching watchlists mid-refresh invalidates the in-flight chain, so a
+    // slow prior response can't repaint the newly-selected watchlist's table.
+    const isCurrent = beginRequest();
+
     setIsLoading(true);
     setError(null);
     setLatestPrices([]); // Clear latest prices while refreshing
@@ -962,19 +970,19 @@ const Watchlist: React.FC = () => {
 
     try {
       if (activeWatchlist.type === 'crypto') {
-        const historicalData = await fetchCryptoData(activeWatchlist.symbols);
-        await fetchLatestPrices(activeWatchlist.symbols, historicalData);
+        const historicalData = await fetchCryptoData(activeWatchlist.symbols, isCurrent);
+        await fetchLatestPrices(activeWatchlist.symbols, historicalData, isCurrent);
         // Fetch crypto ranks data for crypto watchlists
-        await fetchCryptoRanksData(activeWatchlist.symbols);
+        await fetchCryptoRanksData(activeWatchlist.symbols, isCurrent);
       } else {
-        await fetchStockData(activeWatchlist.symbols);
+        await fetchStockData(activeWatchlist.symbols, isCurrent);
         // Only fetch ranks data for stocks, not crypto
-        await fetchRanksData(activeWatchlist.symbols);
+        await fetchRanksData(activeWatchlist.symbols, isCurrent);
       }
     } finally {
-      setIsLoading(false);
+      if (isCurrent()) setIsLoading(false);
     }
-  }, [activeWatchlistId, watchlists, fetchCryptoData, fetchStockData, fetchRanksData, fetchCryptoRanksData, fetchLatestPrices]);
+  }, [activeWatchlistId, watchlists, beginRequest, fetchCryptoData, fetchStockData, fetchRanksData, fetchCryptoRanksData, fetchLatestPrices]);
 
   // Create new watchlist
   const createWatchlist = async () => {

@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Plus, RefreshCw, Save, Settings, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useRequestToken } from '../hooks/useRequestToken';
 import { abbreviateSectorIndustry } from '../lib/financialUtils';
 import { getAuthHeaders } from '../lib/api';
 import { TableRowSkeleton } from './LoadingSkeleton';
@@ -662,7 +663,10 @@ const Portfolio: React.FC = () => {
   }, []);
 
   // Fetch crypto data
-  const fetchCryptoData = useCallback(async (symbols: string[]): Promise<CryptoXDaysData[]> => {
+  // Drops out-of-order responses when the user switches portfolios mid-refresh.
+  const beginRequest = useRequestToken();
+
+  const fetchCryptoData = useCallback(async (symbols: string[], isCurrent: () => boolean = () => true): Promise<CryptoXDaysData[]> => {
     if (symbols.length === 0) return [];
 
     try {
@@ -682,7 +686,7 @@ const Portfolio: React.FC = () => {
 
       const data = await response.json();
       const normalizedData: CryptoXDaysData[] = Array.isArray(data) ? data : [];
-      setCryptoData(normalizedData);
+      if (isCurrent()) setCryptoData(normalizedData);
       return normalizedData;
     } catch (err) {
       console.error('Error fetching crypto data:', err);
@@ -692,7 +696,7 @@ const Portfolio: React.FC = () => {
   }, [showStatus]);
 
   // Fetch latest prices from backend
-  const fetchLatestPrices = useCallback(async (symbols: string[], historicalData: CryptoXDaysData[] = []) => {
+  const fetchLatestPrices = useCallback(async (symbols: string[], historicalData: CryptoXDaysData[] = [], isCurrent: () => boolean = () => true) => {
     if (symbols.length === 0) return;
 
     try {
@@ -738,7 +742,7 @@ const Portfolio: React.FC = () => {
         };
       });
 
-      setLatestPrices(result);
+      if (isCurrent()) setLatestPrices(result);
     } catch (err) {
       console.error('Error fetching latest prices:', err);
       showStatus(`Failed to load latest prices: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
@@ -746,7 +750,7 @@ const Portfolio: React.FC = () => {
   }, [showStatus]);
 
   // Fetch stock data
-  const fetchStockData = useCallback(async (symbols: string[]) => {
+  const fetchStockData = useCallback(async (symbols: string[], isCurrent: () => boolean = () => true) => {
     if (symbols.length === 0) return;
 
     try {
@@ -765,7 +769,7 @@ const Portfolio: React.FC = () => {
       }
 
       const data = await response.json();
-      setStockData(data || []);
+      if (isCurrent()) setStockData(data || []);
       return (data || []) as StockXDaysData[];
     } catch (err) {
       console.error('Error fetching stock data:', err);
@@ -777,7 +781,7 @@ const Portfolio: React.FC = () => {
   // Fetch latest stock prices from backend. Mirrors fetchLatestPrices (crypto)
   // and computes trailing returns from the stock_xdays historical closes so
   // stock portfolios populate the Value/PnL/Latest columns.
-  const fetchLatestStockPrices = useCallback(async (symbols: string[], historicalData: StockXDaysData[] = []) => {
+  const fetchLatestStockPrices = useCallback(async (symbols: string[], historicalData: StockXDaysData[] = [], isCurrent: () => boolean = () => true) => {
     if (symbols.length === 0) return;
 
     try {
@@ -821,7 +825,7 @@ const Portfolio: React.FC = () => {
         };
       });
 
-      setLatestPrices(result);
+      if (isCurrent()) setLatestPrices(result);
     } catch (err) {
       console.error('Error fetching latest stock prices:', err);
       showStatus(`Failed to load latest stock prices: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
@@ -829,7 +833,7 @@ const Portfolio: React.FC = () => {
   }, [showStatus]);
 
   // Fetch ranks data
-  const fetchRanksData = useCallback(async (symbols: string[]) => {
+  const fetchRanksData = useCallback(async (symbols: string[], isCurrent: () => boolean = () => true) => {
     if (symbols.length === 0) return;
 
     try {
@@ -857,7 +861,7 @@ const Portfolio: React.FC = () => {
         }
       }
 
-      setRanksData(allRanksData);
+      if (isCurrent()) setRanksData(allRanksData);
     } catch (err) {
       console.error('Error fetching ranks data:', err);
       showStatus(`Failed to load stock ranks: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
@@ -865,7 +869,7 @@ const Portfolio: React.FC = () => {
   }, [showStatus]);
 
   // Fetch crypto ranks data
-  const fetchCryptoRanksData = useCallback(async (symbols: string[]) => {
+  const fetchCryptoRanksData = useCallback(async (symbols: string[], isCurrent: () => boolean = () => true) => {
     if (symbols.length === 0) return;
 
     try {
@@ -896,7 +900,7 @@ const Portfolio: React.FC = () => {
         }
       }
 
-      setCryptoRanksData(Array.from(aggregatedEntries.values()));
+      if (isCurrent()) setCryptoRanksData(Array.from(aggregatedEntries.values()));
     } catch (err) {
       console.error('Error fetching crypto ranks data:', err);
       showStatus(`Failed to load crypto ranks: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
@@ -908,6 +912,10 @@ const Portfolio: React.FC = () => {
     const activePortfolio = portfolios.find(w => w.id === activePortfolioId);
     if (!activePortfolio) return;
 
+    // Switching portfolios mid-refresh invalidates the in-flight chain, so a
+    // slow prior response can't repaint the newly-selected portfolio's table.
+    const isCurrent = beginRequest();
+
     setIsLoading(true);
     setError(null);
     setLatestPrices([]); // Clear latest prices while refreshing
@@ -916,28 +924,31 @@ const Portfolio: React.FC = () => {
 
     try {
       if (activePortfolio.type === 'crypto') {
-        const historicalData = await fetchCryptoData(activePortfolio.symbols);
-        await fetchLatestPrices(activePortfolio.symbols, historicalData);
+        const historicalData = await fetchCryptoData(activePortfolio.symbols, isCurrent);
+        await fetchLatestPrices(activePortfolio.symbols, historicalData, isCurrent);
         // Fetch crypto ranks data for crypto portfolios
-        await fetchCryptoRanksData(activePortfolio.symbols);
+        await fetchCryptoRanksData(activePortfolio.symbols, isCurrent);
       } else {
-        const stockHistorical = await fetchStockData(activePortfolio.symbols);
+        const stockHistorical = await fetchStockData(activePortfolio.symbols, isCurrent);
         // Populate latest prices so Value/PnL/Latest columns render for stocks
-        await fetchLatestStockPrices(activePortfolio.symbols, stockHistorical);
+        await fetchLatestStockPrices(activePortfolio.symbols, stockHistorical, isCurrent);
         // Only fetch ranks data for stocks, not crypto
-        await fetchRanksData(activePortfolio.symbols);
+        await fetchRanksData(activePortfolio.symbols, isCurrent);
       }
       // Load aggregates after price data (for Value column calculation)
-      await loadAggregates(activePortfolio.symbols);
+      await loadAggregates(activePortfolio.symbols, false, isCurrent);
     } finally {
-      setIsLoading(false);
+      if (isCurrent()) setIsLoading(false);
     }
-  }, [activePortfolioId, portfolios, fetchCryptoData, fetchStockData, fetchLatestStockPrices, fetchRanksData, fetchCryptoRanksData, fetchLatestPrices]);
+    // loadAggregates is intentionally omitted from deps: it is declared below
+    // refreshData, so referencing it here would hit the temporal dead zone.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePortfolioId, portfolios, beginRequest, fetchCryptoData, fetchStockData, fetchLatestStockPrices, fetchRanksData, fetchCryptoRanksData, fetchLatestPrices]);
 
   // Load aggregated positions for current portfolio.
   // `merge` updates only the requested symbols in place (used after editing one
   // symbol's transactions); the default replaces the whole map (full refresh).
-  const loadAggregates = useCallback(async (symbols: string[], merge = false) => {
+  const loadAggregates = useCallback(async (symbols: string[], merge = false, isCurrent: () => boolean = () => true) => {
     const activePortfolio = portfolios.find(w => w.id === activePortfolioId);
     if (!activePortfolio || !walletAddress || symbols.length === 0) return;
 
@@ -966,6 +977,7 @@ const Portfolio: React.FC = () => {
         if (response.status === 404) {
           // No aggregates for the requested symbols: clear just those when
           // merging, otherwise clear the whole map (full refresh found nothing).
+          if (!isCurrent()) return;
           if (merge) {
             setAggregates(prev => {
               const next = { ...prev };
@@ -987,6 +999,7 @@ const Portfolio: React.FC = () => {
           aggregatesMap[item.symbol.toUpperCase()] = item;
         }
       });
+      if (!isCurrent()) return;
       if (merge) {
         // Replace only the requested symbols: drop their stale entries first
         // (so a symbol whose transactions were all removed clears to zero),
