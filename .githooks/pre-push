@@ -1,0 +1,27 @@
+#!/bin/sh
+# Pre-push gate for bos-app: the production build must succeed before pushing.
+#
+# Uses `pnpm build` (Vite) rather than `tsc --noEmit`: Vite doesn't type-gate,
+# and the repo has a few known pre-existing type errors, but the build still
+# catches import/resolution/syntax breakage (e.g. the HomePage casing bug that
+# would fail a case-sensitive CI build).
+#
+# Enabled via: git config core.hooksPath .githooks   (see .githooks/README.md)
+# Bypass once with: git push --no-verify
+
+ROOT=$(git rev-parse --show-toplevel) || exit 1
+cd "$ROOT" || exit 1
+
+echo "[pre-push] bos-app: typecheck (tsc --noEmit)…"
+if ! pnpm exec tsc --noEmit; then
+  echo "[pre-push] ❌ typecheck failed — push aborted (use 'git push --no-verify' to override)." >&2
+  exit 1
+fi
+
+echo "[pre-push] bos-app: pnpm build…"
+if ! pnpm build; then
+  echo "[pre-push] ❌ build failed — push aborted (use 'git push --no-verify' to override)." >&2
+  exit 1
+fi
+echo "[pre-push] ✅ typecheck + build OK"
+exit 0

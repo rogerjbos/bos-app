@@ -280,14 +280,14 @@ const mergeCryptoRankEntries = (entries: any[], fallbackSymbol: string): CryptoR
     if (merged.ai_sentiment == null) {
       const sentimentValue = entry.sentiment ?? entry.ai_sentiment;
       if (hasValue(sentimentValue)) {
-        merged.ai_sentiment = parseNullableNumber(sentimentValue);
+        merged.ai_sentiment = parseNullableNumber(sentimentValue) ?? undefined;
       }
     }
 
     if (merged.ai_decision == null) {
       const decisionValue = entry.decision ?? entry.ai_decision;
       if (hasValue(decisionValue)) {
-        merged.ai_decision = parseNullableNumber(decisionValue);
+        merged.ai_decision = parseNullableNumber(decisionValue) ?? undefined;
       }
     }
 
