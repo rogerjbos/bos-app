@@ -76,7 +76,34 @@ const headersFor = (filePath) =>
   path.basename(filePath) === 'melody-frame.html' ? MELODY_HEADERS : SECURITY_HEADERS;
 
 const server = http.createServer((req, res) => {
-  let filePath = path.join(DIST_DIR, req.url === '/' ? 'index.html' : req.url);
+  // Decode and strip the query string before resolving to a file. Without this
+  // the raw req.url is passed straight to path.join, so `/../../etc/passwd`
+  // (or its %2e/%2f-encoded forms) escapes DIST_DIR and serves arbitrary files.
+  let urlPath;
+  try {
+    urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+  } catch {
+    res.writeHead(400, { 'Content-Type': 'text/html', ...SECURITY_HEADERS });
+    res.end('<h1>400 Bad Request</h1>', 'utf-8');
+    return;
+  }
+
+  // Reject null bytes outright (poison-null-byte path tricks).
+  if (urlPath.includes('\0')) {
+    res.writeHead(400, { 'Content-Type': 'text/html', ...SECURITY_HEADERS });
+    res.end('<h1>400 Bad Request</h1>', 'utf-8');
+    return;
+  }
+
+  let filePath = path.normalize(path.join(DIST_DIR, urlPath === '/' ? 'index.html' : urlPath));
+
+  // Containment check: the resolved path must stay inside DIST_DIR. Anything
+  // that normalizes to a parent directory is a traversal attempt → 403.
+  if (filePath !== DIST_DIR && !filePath.startsWith(DIST_DIR + path.sep)) {
+    res.writeHead(403, { 'Content-Type': 'text/html', ...SECURITY_HEADERS });
+    res.end('<h1>403 Forbidden</h1>', 'utf-8');
+    return;
+  }
 
   const extname = path.extname(filePath);
   const contentType = MIME_TYPES[extname] || 'application/octet-stream';

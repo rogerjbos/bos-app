@@ -60,6 +60,7 @@ interface ColumnDef {
 
 const COLUMNS: ColumnDef[] = [
   { key: 'factor', label: 'Factor', numeric: false },
+  { key: 'min_mcap', label: 'Cap', numeric: false },
   { key: 'fwd', label: 'Fwd', numeric: false },
   { key: 'horizon_months', label: 'Horizon (mo)', numeric: true, decimals: 0 },
   { key: 'nt', label: 'Tiles', numeric: true, decimals: 0 },
@@ -87,6 +88,17 @@ const fmtMcap = (v: number): string => {
   return `$${v.toFixed(0)}M`;
 };
 
+// Format a market-cap universe. `max_mcap === 0` (or falsy) means no upper
+// bound; `min_mcap === 0` means no lower bound.
+const fmtMcapRange = (min: number, max: number): string => {
+  if (!max) return `≥ ${fmtMcap(min)}`;
+  if (!min) return `≤ ${fmtMcap(max)}`;
+  return `${fmtMcap(min)}–${fmtMcap(max)}`;
+};
+
+// Stable key identifying a market-cap universe (min/max pair).
+const mcapKey = (min: number, max: number): string => `${min}|${max}`;
+
 const formatCell = (value: FactorBacktest[keyof FactorBacktest], col: ColumnDef): string => {
   if (value === null || value === undefined) return '—';
   if (!col.numeric) return String(value);
@@ -112,6 +124,9 @@ const FactorBacktests: React.FC = () => {
   const [factorFilter, setFactorFilter] = useState<string>(ALL);
   const [fwdFilter, setFwdFilter] = useState<string>(ALL);
   const [horizonFilter, setHorizonFilter] = useState<string>(ALL);
+  const [mcapFilter, setMcapFilter] = useState<string>(ALL);
+  // Empty string until data loads, then defaults to the most recent insert_at.
+  const [insertFilter, setInsertFilter] = useState<string>('');
 
   const [sortKey, setSortKey] = useState<keyof FactorBacktest>('ic_tstat');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -130,6 +145,12 @@ const FactorBacktests: React.FC = () => {
         }
         const rows: FactorBacktest[] = await response.json();
         setData(rows);
+        // Default the insert_at selector to the most recent run.
+        const latest = rows.reduce<string>(
+          (acc, r) => (r.insert_at > acc ? r.insert_at : acc),
+          '',
+        );
+        setInsertFilter(latest);
       } catch (err) {
         console.error('Error loading factor backtests:', err);
         setError(err instanceof Error ? err.message : 'Failed to load factor backtests');
@@ -153,13 +174,29 @@ const FactorBacktests: React.FC = () => {
     () => Array.from(new Set(data.map((d) => d.horizon_months))).sort((a, b) => a - b),
     [data],
   );
+  // Distinct market-cap universes, largest floor first.
+  const mcaps = useMemo(() => {
+    const seen = new Map<string, { key: string; min: number; max: number }>();
+    for (const d of data) {
+      const key = mcapKey(d.min_mcap, d.max_mcap);
+      if (!seen.has(key)) seen.set(key, { key, min: d.min_mcap, max: d.max_mcap });
+    }
+    return Array.from(seen.values()).sort((a, b) => b.min - a.min || a.max - b.max);
+  }, [data]);
+  // Distinct insert_at run dates, newest first.
+  const insertDates = useMemo(
+    () => Array.from(new Set(data.map((d) => d.insert_at))).sort((a, b) => b.localeCompare(a)),
+    [data],
+  );
 
   const filteredSorted = useMemo(() => {
     const filtered = data.filter(
       (d) =>
         (factorFilter === ALL || d.factor === factorFilter) &&
         (fwdFilter === ALL || d.fwd === fwdFilter) &&
-        (horizonFilter === ALL || String(d.horizon_months) === horizonFilter),
+        (horizonFilter === ALL || String(d.horizon_months) === horizonFilter) &&
+        (mcapFilter === ALL || mcapKey(d.min_mcap, d.max_mcap) === mcapFilter) &&
+        (insertFilter === '' || d.insert_at === insertFilter),
     );
 
     const dir = sortDir === 'asc' ? 1 : -1;
@@ -172,7 +209,7 @@ const FactorBacktests: React.FC = () => {
       if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
       return String(av).localeCompare(String(bv)) * dir;
     });
-  }, [data, factorFilter, fwdFilter, horizonFilter, sortKey, sortDir]);
+  }, [data, factorFilter, fwdFilter, horizonFilter, mcapFilter, insertFilter, sortKey, sortDir]);
 
   const toggleSort = (key: keyof FactorBacktest) => {
     if (key === sortKey) {
@@ -197,7 +234,7 @@ const FactorBacktests: React.FC = () => {
         header to sort.
       </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Factor
@@ -249,6 +286,40 @@ const FactorBacktests: React.FC = () => {
             ))}
           </select>
         </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Market Cap
+          </label>
+          <select
+            value={mcapFilter}
+            onChange={(e) => setMcapFilter(e.target.value)}
+            className={selectClass}
+          >
+            <option value={ALL}>All caps</option>
+            {mcaps.map((m) => (
+              <option key={m.key} value={m.key}>
+                {fmtMcapRange(m.min, m.max)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Run Date
+          </label>
+          <select
+            value={insertFilter}
+            onChange={(e) => setInsertFilter(e.target.value)}
+            className={selectClass}
+          >
+            <option value="">All dates</option>
+            {insertDates.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {error && (
@@ -266,13 +337,26 @@ const FactorBacktests: React.FC = () => {
               {filteredSorted.length}
             </span>{' '}
             backtest{filteredSorted.length === 1 ? '' : 's'}
-            {filteredSorted.length > 0 && (
-              <span className="ml-3">
-                universe {fmtMcap(filteredSorted[0].min_mcap)}–{fmtMcap(filteredSorted[0].max_mcap)}
-                {' · '}
-                {filteredSorted[0].start} → {filteredSorted[0].end}
-              </span>
-            )}
+            {filteredSorted.length > 0 && (() => {
+              const universes = Array.from(
+                new Set(filteredSorted.map((d) => mcapKey(d.min_mcap, d.max_mcap))),
+              );
+              const universeLabel =
+                universes.length === 1
+                  ? fmtMcapRange(filteredSorted[0].min_mcap, filteredSorted[0].max_mcap)
+                  : `${universes.length} cap ranges`;
+              const dates = Array.from(new Set(filteredSorted.map((d) => d.insert_at)));
+              return (
+                <span className="ml-3">
+                  universe {universeLabel}
+                  {' · '}
+                  {filteredSorted[0].start} → {filteredSorted[0].end}
+                  {dates.length === 1 && (
+                    <span className="ml-3 text-gray-500 dark:text-gray-500">run {dates[0]}</span>
+                  )}
+                </span>
+              );
+            })()}
           </div>
 
           <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-md">
@@ -308,6 +392,11 @@ const FactorBacktests: React.FC = () => {
                       const colorClass = isTstat
                         ? tstatColor(raw as number | null)
                         : 'text-gray-900 dark:text-gray-100';
+                      // The Cap column combines min_mcap/max_mcap into one range label.
+                      const content =
+                        col.key === 'min_mcap'
+                          ? fmtMcapRange(row.min_mcap, row.max_mcap)
+                          : formatCell(raw, col);
                       return (
                         <td
                           key={col.key}
@@ -319,7 +408,7 @@ const FactorBacktests: React.FC = () => {
                               : ''
                           }`}
                         >
-                          {formatCell(raw, col)}
+                          {content}
                         </td>
                       );
                     })}
@@ -345,3 +434,4 @@ const FactorBacktests: React.FC = () => {
 };
 
 export default FactorBacktests;
+

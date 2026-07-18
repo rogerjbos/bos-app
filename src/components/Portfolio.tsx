@@ -766,9 +766,65 @@ const Portfolio: React.FC = () => {
 
       const data = await response.json();
       setStockData(data || []);
+      return (data || []) as StockXDaysData[];
     } catch (err) {
       console.error('Error fetching stock data:', err);
       showStatus(`Failed to load stock data: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+      return [];
+    }
+  }, [showStatus]);
+
+  // Fetch latest stock prices from backend. Mirrors fetchLatestPrices (crypto)
+  // and computes trailing returns from the stock_xdays historical closes so
+  // stock portfolios populate the Value/PnL/Latest columns.
+  const fetchLatestStockPrices = useCallback(async (symbols: string[], historicalData: StockXDaysData[] = []) => {
+    if (symbols.length === 0) return;
+
+    try {
+      const params = new URLSearchParams();
+      symbols.forEach(symbol => params.append('symbols', symbol));
+
+      const response = await fetch(`${API_BASE_URL}/latest_stock_price?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          ...getAuthHeaders(),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch latest stock prices: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      const result: LatestPriceData[] = data.map((item: any) => {
+        const symbol = item.symbol.toUpperCase();
+        const currentPrice = item.close;
+        const historical = historicalData.find(h => h.symbol?.toUpperCase() === symbol);
+
+        const calculateReturn = (historicalPrice: number | null) => {
+          if (!historicalPrice || historicalPrice === 0) return null;
+          return ((currentPrice - historicalPrice) / historicalPrice) * 100;
+        };
+
+        return {
+          symbol,
+          latestPrice: currentPrice,
+          returns: {
+            '1d': calculateReturn(historical?.close_1d ?? null),
+            '7d': calculateReturn(historical?.close_7d ?? null),
+            '30d': calculateReturn(historical?.close_30d ?? null),
+            '60d': calculateReturn(historical?.close_60d ?? null),
+            '90d': calculateReturn(historical?.close_90d ?? null),
+            '120d': calculateReturn(historical?.close_120d ?? null),
+          },
+        };
+      });
+
+      setLatestPrices(result);
+    } catch (err) {
+      console.error('Error fetching latest stock prices:', err);
+      showStatus(`Failed to load latest stock prices: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
   }, [showStatus]);
 
@@ -865,7 +921,9 @@ const Portfolio: React.FC = () => {
         // Fetch crypto ranks data for crypto portfolios
         await fetchCryptoRanksData(activePortfolio.symbols);
       } else {
-        await fetchStockData(activePortfolio.symbols);
+        const stockHistorical = await fetchStockData(activePortfolio.symbols);
+        // Populate latest prices so Value/PnL/Latest columns render for stocks
+        await fetchLatestStockPrices(activePortfolio.symbols, stockHistorical);
         // Only fetch ranks data for stocks, not crypto
         await fetchRanksData(activePortfolio.symbols);
       }
@@ -874,10 +932,12 @@ const Portfolio: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [activePortfolioId, portfolios, fetchCryptoData, fetchStockData, fetchRanksData, fetchCryptoRanksData, fetchLatestPrices]);
+  }, [activePortfolioId, portfolios, fetchCryptoData, fetchStockData, fetchLatestStockPrices, fetchRanksData, fetchCryptoRanksData, fetchLatestPrices]);
 
-  // Load aggregated positions for current portfolio
-  const loadAggregates = useCallback(async (symbols: string[]) => {
+  // Load aggregated positions for current portfolio.
+  // `merge` updates only the requested symbols in place (used after editing one
+  // symbol's transactions); the default replaces the whole map (full refresh).
+  const loadAggregates = useCallback(async (symbols: string[], merge = false) => {
     const activePortfolio = portfolios.find(w => w.id === activePortfolioId);
     if (!activePortfolio || !walletAddress || symbols.length === 0) return;
 
@@ -900,9 +960,21 @@ const Portfolio: React.FC = () => {
         },
       });
 
+      const requested = symbols.map(s => s.toUpperCase());
+
       if (!response.ok) {
         if (response.status === 404) {
-          setAggregates({});
+          // No aggregates for the requested symbols: clear just those when
+          // merging, otherwise clear the whole map (full refresh found nothing).
+          if (merge) {
+            setAggregates(prev => {
+              const next = { ...prev };
+              requested.forEach(s => delete next[s]);
+              return next;
+            });
+          } else {
+            setAggregates({});
+          }
           return;
         }
         throw new Error(`Failed to load aggregates: ${response.status}`);
@@ -915,7 +987,18 @@ const Portfolio: React.FC = () => {
           aggregatesMap[item.symbol.toUpperCase()] = item;
         }
       });
-      setAggregates(aggregatesMap);
+      if (merge) {
+        // Replace only the requested symbols: drop their stale entries first
+        // (so a symbol whose transactions were all removed clears to zero),
+        // then apply whatever the server returned.
+        setAggregates(prev => {
+          const next = { ...prev };
+          requested.forEach(s => delete next[s]);
+          return { ...next, ...aggregatesMap };
+        });
+      } else {
+        setAggregates(aggregatesMap);
+      }
     } catch (err) {
       console.error('Error loading aggregates:', err);
       showStatus(`Failed to load portfolio aggregates: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
@@ -991,8 +1074,9 @@ const Portfolio: React.FC = () => {
 
       showStatus(`Transactions saved for ${txSymbol}`, 'success');
       setShowTxModal(false);
-      // Refresh aggregates after saving transactions
-      await loadAggregates([txSymbol]);
+      // Refresh aggregates for just this symbol, merging so other positions
+      // in the map are preserved.
+      await loadAggregates([txSymbol], true);
     } catch (err) {
       console.error('Error saving transactions:', err);
       showStatus(`Failed to save transactions: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');

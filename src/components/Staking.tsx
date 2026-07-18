@@ -709,13 +709,15 @@ const Staking: React.FC = () => {
       setPricesLoaded(false);
     try {
       // Wait for wallet address to be available before fetching data
+      let freshItems: StakingItem[] | null | undefined = null;
       if (walletAddress) {
         // Fetch staking data from API first
-        await fetchStakingData();
+        freshItems = await fetchStakingData();
       }
 
-      // Always load prices (if API available)
-      await fetchPriceData();      } catch (e) {
+      // Always load prices (if API available), using the just-fetched items so
+      // we don't overwrite them with the stale localStorage snapshot.
+      await fetchPriceData(freshItems ?? undefined);      } catch (e) {
         console.error("Error in loadInitialData:", e);
       } finally {
         setIsLoading(false);
@@ -771,27 +773,35 @@ const Staking: React.FC = () => {
         setStakingItems(stakingData);
         storage.save('stakingData', stakingData);
         showStatus(`Loaded ${stakingData.length} staking items from API`, 'success');
+        return stakingData as StakingItem[];
       } else {
         showStatus('No staking data found in API, using local data', 'success');
+        return null;
       }
     } catch (err) {
       console.error('Error fetching staking data from API:', err);
       showStatus('Failed to load staking data from API, using local data', 'error');
       // Don't throw error - fall back to local storage
+      return null;
     }
   }, [walletAddress, showStatus]);
 
-  const fetchPriceData = useCallback(async () => {
+  // `itemsOverride` lets callers pass freshly-fetched items so we don't map over
+  // a stale `stakingItems` closure (e.g. right after fetchStakingData in the
+  // initial load / manual refresh), which would discard the API's item list.
+  const fetchPriceData = useCallback(async (itemsOverride?: StakingItem[]) => {
     if (!walletAddress) {
       setPriceUpdateError('Wallet not connected');
       setPricesLoaded(true);
       return;
     }
 
+    const baseItems = itemsOverride ?? stakingItems;
+
     setPriceUpdateError(null);
     try {
       // Get unique symbols from staking items
-      const symbols = [...new Set(stakingItems.map(item => item.ticker))];
+      const symbols = [...new Set(baseItems.map(item => item.ticker))];
 
       if (symbols.length === 0) {
         setPricesLoaded(true);
@@ -817,7 +827,7 @@ const Staking: React.FC = () => {
 
       // Update staking items with the fetched data
       if (data.prices && (data.returns_30d || data.returns)) {
-        const updatedItems = stakingItems.map(item => {
+        const updatedItems = baseItems.map(item => {
           const symbol = item.ticker.toLowerCase();
           const price = data.prices[symbol];
           const return7d = data.returns_7d ? data.returns_7d[symbol] : undefined;
@@ -1039,8 +1049,8 @@ const Staking: React.FC = () => {
 
     try {
       setIsLoading(true);
-      await fetchStakingData();
-      await fetchPriceData();
+      const freshItems = await fetchStakingData();
+      await fetchPriceData(freshItems ?? undefined);
       showStatus('Data refreshed from API', 'success');
     } catch (err) {
       showStatus('Failed to refresh data from API', 'error');

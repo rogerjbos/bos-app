@@ -127,7 +127,6 @@ const Bots: React.FC = () => {
           // Extract unique baseCurrencies from trading symbols, lowercase
           const baseCurrencies: string[] = [...new Set(symbols.map((s: KrakenBotSymbol) => s.symbol.split('/')[0].toLowerCase()))];
           await fetchCryptoThresholds(baseCurrencies);
-          await fetchSchwabConfig();
           // Extract unique symbols from schwab symbols
           const schwabSymbols: SchwabBotSymbolsConfig = await fetchSchwabConfig();
           const stockSymbols: string[] = [...new Set(schwabSymbols.map((s: SchwabBotSymbol) => s.symbol))];
@@ -281,27 +280,10 @@ const Bots: React.FC = () => {
     }
   }, [user?.name, walletAddress, API_BASE_URL]);
 
-  // Auto-save when tradingSymbols changes
-  useEffect(() => {
-    if (tradingSymbols.length > 0) {
-      saveTradingConfigToAPI(tradingSymbols).catch(error => {
-        console.warn('Failed to sync with API:', error);
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tradingSymbols]);
-
-  // Auto-save when schwabSymbols changes
-  useEffect(() => {
-    if (schwabSymbols.length > 0) {
-      saveSchwabConfigToAPI(schwabSymbols).catch(error => {
-        console.warn('Failed to sync schwab config with API:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-        showStatus(`Failed to save: ${errorMessage}`, 'error');
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schwabSymbols]);
+  // NOTE: configs are saved explicitly from the add/edit/delete handlers below
+  // (passing the freshly-computed list). A previous [tradingSymbols]/[schwabSymbols]
+  // auto-save effect echoed server data back on every load and, due to a
+  // length > 0 guard, could never persist deleting the last symbol.
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -370,7 +352,7 @@ const Bots: React.FC = () => {
     setSchwabEditItem(null);
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (editIndex === null || !editItem) return;
 
     const updatedItems = [...tradingSymbols];
@@ -378,10 +360,10 @@ const Bots: React.FC = () => {
     setTradingSymbols(updatedItems);
     setEditIndex(null);
     setEditItem(null);
-    showStatus('Configuration updated successfully', 'success');
+    await saveTradingConfigToAPI(updatedItems);
   };
 
-  const saveSchwabEdit = () => {
+  const saveSchwabEdit = async () => {
     if (schwabEditIndex === null || !schwabEditItem) return;
 
     const item: SchwabBotSymbol = {
@@ -401,7 +383,7 @@ const Bots: React.FC = () => {
     setSchwabSymbols(updatedItems);
     setSchwabEditIndex(null);
     setSchwabEditItem(null);
-    showStatus('Schwab configuration updated successfully', 'success');
+    await saveSchwabConfigToAPI(updatedItems);
   };
 
   const addTradingSymbol = async () => {
@@ -438,7 +420,7 @@ const Bots: React.FC = () => {
 
       // Hide form after successful add
       setShowForm(false);
-      showStatus('Trading symbol added successfully', 'success');
+      await saveTradingConfigToAPI(updatedItems);
 
     } catch (error) {
       console.error('Error adding item:', error);
@@ -457,7 +439,7 @@ const Bots: React.FC = () => {
     try {
       const updatedItems = tradingSymbols.filter((_, i) => i !== index);
       setTradingSymbols(updatedItems);
-      showStatus('Trading symbol deleted successfully', 'success');
+      await saveTradingConfigToAPI(updatedItems);
 
     } catch (error) {
       console.error('Error deleting item:', error);
@@ -514,7 +496,7 @@ const Bots: React.FC = () => {
 
       // Hide form after successful add
       setShowSchwabForm(false);
-      showStatus('Schwab symbol added successfully', 'success');
+      await saveSchwabConfigToAPI(updatedItems);
 
     } catch (error) {
       console.error('Error adding schwab item:', error);
@@ -533,7 +515,7 @@ const Bots: React.FC = () => {
     try {
       const updatedItems = schwabSymbols.filter((_, i) => i !== index);
       setSchwabSymbols(updatedItems);
-      showStatus('Schwab symbol deleted successfully', 'success');
+      await saveSchwabConfigToAPI(updatedItems);
 
     } catch (error) {
       console.error('Error deleting schwab item:', error);

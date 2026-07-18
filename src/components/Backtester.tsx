@@ -57,7 +57,11 @@ const Backtester: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<string>('');
   const [selectedFileInfo, setSelectedFileInfo] = useState<FileInfo | null>(null);
   const [fileContent, setFileContent] = useState<DecisionData[] | PerformanceData[]>([]);
-  const [resultsContent, setResultsContent] = useState<any[]>([]);
+  // Distinct tickers (with row counts) from results.csv, aggregated server-side.
+  // results.csv can be hundreds of MB / millions of rows, so we NEVER download it
+  // whole — that used to OOM-crash the tab ("Aw, Snap!"). Per-symbol rows are
+  // fetched lazily via fetchResultsForSymbol only when a symbol is selected.
+  const [resultsSymbols, setResultsSymbols] = useState<{ ticker: string; count: number }[]>([]);
 
   // Loading states
   const [loadingModels, setLoadingModels] = useState(false);
@@ -172,21 +176,43 @@ const Backtester: React.FC = () => {
     }
   };
 
-  // Auto-load results.csv to power By Symbol / By Strategy views
-  const fetchResultsContent = async (model: string) => {
+  // Load the distinct-ticker list (aggregated server-side) to power the
+  // By Symbol / By Strategy views. This replaces the old fetch of the entire
+  // results.csv, which downloaded hundreds of MB and crashed the browser tab.
+  const fetchResultsSymbols = async (model: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/backtester/${model}/files/results.csv`, {
+      const response = await fetch(`${API_BASE_URL}/backtester/${model}/results/symbols`, {
         method: 'GET',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
       });
       if (response.ok) {
         const data = await response.json();
-        setResultsContent(data);
+        setResultsSymbols(Array.isArray(data) ? data : []);
       } else {
-        setResultsContent([]);
+        setResultsSymbols([]);
       }
     } catch {
-      setResultsContent([]);
+      setResultsSymbols([]);
+    }
+  };
+
+  // Fetch just the results.csv rows for a single ticker (typically a few hundred).
+  const fetchResultsForSymbol = async (model: string, ticker: string): Promise<any[]> => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/backtester/${model}/results/rows?ticker=${encodeURIComponent(ticker)}`,
+        {
+          method: 'GET',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        },
+      );
+      if (response.ok) {
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+      }
+      return [];
+    } catch {
+      return [];
     }
   };
 
@@ -271,11 +297,11 @@ const Backtester: React.FC = () => {
   useEffect(() => {
     if (selectedModel) {
       fetchFiles(selectedModel);
-      fetchResultsContent(selectedModel);
+      fetchResultsSymbols(selectedModel);
       setSelectedFile('');
       setSelectedFileInfo(null);
       setFileContent([]);
-      setResultsContent([]);
+      setResultsSymbols([]);
     }
   }, [selectedModel, activeTab]);
 
@@ -318,36 +344,49 @@ const Backtester: React.FC = () => {
   }, [selectedFile, selectedSymbol, viewMode]);
 
   // Auto-select summary file when files are loaded (only for overview mode)
-  // Only auto-select if there's exactly one summary file
   useEffect(() => {
     if (files.length > 0 && !selectedFile && viewMode === 'overview') {
       const summaryFiles = files.filter(f => f.level === 'summary');
-      // Only auto-select if there's exactly one summary file
-      if (summaryFiles.length === 1) {
+      // Micro_testing.csv holds cumulative data for SC, MC, LC, and Micro,
+      // so prefer it automatically whenever it's available.
+      const microFile = summaryFiles.find(f => f.name === 'Micro_testing.csv');
+      if (microFile) {
+        setSelectedFile(microFile.name);
+        setSelectedFileInfo(microFile);
+      } else if (summaryFiles.length === 1) {
+        // Otherwise only auto-select when there's exactly one summary file
         setSelectedFile(summaryFiles[0].name);
         setSelectedFileInfo(summaryFiles[0]);
       }
-      // If there are multiple summary files, let the user choose
+      // If there are multiple summary files and no Micro file, let the user choose
     }
   }, [files, selectedFile, viewMode]);
 
-  // Auto-load symbol file when symbol is selected in strategies mode
+  // Auto-load symbol data when symbol is selected in strategies mode
   useEffect(() => {
-    if (viewMode === 'strategies' && selectedSymbol) {
-      if (resultsContent.length > 0) {
-        // New format: filter results.csv by ticker and show as content directly
-        // (do NOT set selectedFile - that would trigger fetchFileContent and overwrite)
-        const filtered = resultsContent.filter(r => r.ticker === selectedSymbol);
-        setFileContent(filtered as any);
-      } else {
-        // Old format: load the per-symbol file
-        const symbolFile = files.find(f => f.level === 'symbol' && f.symbol === selectedSymbol);
-        if (symbolFile && symbolFile.name !== selectedFile) {
-          setSelectedFile(symbolFile.name);
-        }
-      }
+    if (viewMode !== 'strategies' || !selectedSymbol) return;
+
+    if (resultsSymbols.length > 0) {
+      // New format: fetch only this ticker's rows server-side and show them directly
+      // (do NOT set selectedFile - that would trigger fetchFileContent and overwrite)
+      let cancelled = false;
+      setLoadingContent(true);
+      fetchResultsForSymbol(selectedModel, selectedSymbol)
+        .then(rows => {
+          if (!cancelled) setFileContent(rows as any);
+        })
+        .finally(() => {
+          if (!cancelled) setLoadingContent(false);
+        });
+      return () => { cancelled = true; };
     }
-  }, [viewMode, selectedSymbol, resultsContent]);
+
+    // Old format: load the per-symbol file
+    const symbolFile = files.find(f => f.level === 'symbol' && f.symbol === selectedSymbol);
+    if (symbolFile && symbolFile.name !== selectedFile) {
+      setSelectedFile(symbolFile.name);
+    }
+  }, [viewMode, selectedSymbol, resultsSymbols, selectedModel]);
 
   // Load file content when file is selected
   useEffect(() => {
@@ -405,7 +444,7 @@ const Backtester: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Backtester Analysis</h1>
           <button
@@ -472,32 +511,6 @@ const Backtester: React.FC = () => {
             {loadingModels && <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading models...</span>}
           </div>
 
-          {/* View Mode Selection */}
-          {selectedModel && (
-            <div className="flex-1 min-w-0">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                View Mode
-              </label>
-              <select
-                value={viewMode}
-                onChange={(e) => {
-                  const newViewMode = e.target.value as 'overview' | 'symbols' | 'strategies';
-                  setViewMode(newViewMode);
-                  setSelectedFile(''); // Clear selected file for all view modes
-                  setFileContent([]);
-                  if (newViewMode !== 'strategies') {
-                    setSelectedSymbol('');
-                  }
-                }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="overview">Overview (Summary Files)</option>
-                <option value="symbols">By Symbol</option>
-                <option value="strategies">By Strategy</option>
-              </select>
-            </div>
-          )}
-
           {/* Symbol Selection for Strategies View */}
           {viewMode === 'strategies' && (
             <div className="flex-1 min-w-0">
@@ -515,8 +528,8 @@ const Backtester: React.FC = () => {
               >
                 <option value="">Select a symbol...</option>
                 {Array.from(new Set(
-                  resultsContent.length > 0
-                    ? resultsContent.filter(r => r.ticker).map(r => r.ticker as string)
+                  resultsSymbols.length > 0
+                    ? resultsSymbols.map(r => r.ticker)
                     : files.filter(f => f.level === 'strategy' && f.symbol).map(f => f.symbol!)
                 )).sort().map(symbol => (
                   <option key={symbol} value={symbol}>{symbol.toUpperCase()}</option>
@@ -690,10 +703,10 @@ const Backtester: React.FC = () => {
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {(() => {
-                      // Get unique symbols from results.csv content (new format) or file metadata (old format)
+                      // Get unique symbols from results.csv aggregation (new format) or file metadata (old format)
                       const symbols = Array.from(new Set(
-                        resultsContent.length > 0
-                          ? resultsContent.filter(r => r.ticker).map(r => r.ticker as string)
+                        resultsSymbols.length > 0
+                          ? resultsSymbols.map(r => r.ticker)
                           : files.filter(f => f.level === 'strategy' && f.symbol).map(f => f.symbol!)
                       )).sort();
 
@@ -705,16 +718,16 @@ const Backtester: React.FC = () => {
                         </tr>
                       ) : (
                         symbols.map((symbol) => {
-                          const symbolStrategies = resultsContent.length > 0
-                            ? resultsContent.filter(r => r.ticker === symbol)
-                            : files.filter(f => f.level === 'strategy' && f.symbol === symbol);
+                          const strategyCount = resultsSymbols.length > 0
+                            ? (resultsSymbols.find(r => r.ticker === symbol)?.count ?? 0)
+                            : files.filter(f => f.level === 'strategy' && f.symbol === symbol).length;
                           return (
                             <tr key={symbol} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                                 {symbol.toUpperCase()}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                {symbolStrategies.length}
+                                {strategyCount}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                 <button
@@ -941,3 +954,4 @@ const Backtester: React.FC = () => {
 };
 
 export default Backtester;
+
