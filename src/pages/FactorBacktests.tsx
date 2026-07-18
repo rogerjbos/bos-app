@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { API_BASE_URL, getAuthHeaders } from '../lib/api';
+import { API_BASE_URL, authFetch, getAuthHeaders } from '../lib/api';
 
 // Mirrors the FactorBacktest pydantic model served by the data-api-server
 // (GET /api/factor_backtests). Nullable numeric columns come back as number | null.
@@ -136,7 +136,7 @@ const FactorBacktests: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${API_BASE_URL}/factor_backtests`, {
+        const response = await authFetch(`${API_BASE_URL}/factor_backtests`, {
           headers: { ...getAuthHeaders() },
         });
         if (!response.ok) {

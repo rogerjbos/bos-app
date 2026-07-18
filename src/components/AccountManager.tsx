@@ -44,10 +44,16 @@ export function AccountManager() {
 
   // Load saved nicknames from localStorage
   useEffect(() => {
-    const savedNicknames = JSON.parse(
-      localStorage.getItem("account_nicknames") || "{}"
-    );
-    setNicknames(savedNicknames);
+    // Guard the parse: a single corrupt value would otherwise throw and crash
+    // the whole component on mount.
+    try {
+      const savedNicknames = JSON.parse(
+        localStorage.getItem("account_nicknames") || "{}"
+      );
+      setNicknames(savedNicknames);
+    } catch {
+      setNicknames({});
+    }
   }, []);
 
   const handleCopy = async (address: string) => {
@@ -216,6 +222,11 @@ function AccountItem({
   onSelect,
 }: AccountItemProps) {
   const { data: balance, isLoading } = useBalance(account.address);
+  const { api } = usePolkadot();
+  // Use the connected chain's units instead of hardcoding DOT/10 decimals, which
+  // gave 100x-wrong, mislabeled balances on Kusama/Westend/Paseo/etc.
+  const chainDecimals = api?.registry?.chainDecimals?.[0] ?? 10;
+  const tokenSymbol = api?.registry?.chainTokens?.[0] ?? 'DOT';
 
   const isEditing = editingAccount === account.address;
 
@@ -286,9 +297,9 @@ function AccountItem({
             ) : (
               <span>
                 {balance
-                  ? (parseFloat(balance.total) / 1e10).toFixed(4)
+                  ? (parseFloat(balance.total) / Math.pow(10, chainDecimals)).toFixed(4)
                   : "0.0000"}{" "}
-                DOT
+                {tokenSymbol}
               </span>
             )}
           </div>

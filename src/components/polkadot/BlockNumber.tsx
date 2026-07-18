@@ -17,6 +17,7 @@ export function BlockNumber({ showIcon = true, className = '', format = 'full' }
     if (!api || status !== 'connected') return
 
     let unsub: any
+    let cancelled = false
 
     const subscribe = async () => {
       unsub = await api.rpc.chain.subscribeNewHeads((header) => {
@@ -24,11 +25,14 @@ export function BlockNumber({ showIcon = true, className = '', format = 'full' }
         setIsLive(true)
         setTimeout(() => setIsLive(false), 500)
       })
+      // Unsubscribe immediately if cleanup ran before this resolved.
+      if (cancelled && typeof unsub === 'function') unsub()
     }
 
     subscribe()
 
     return () => {
+      cancelled = true
       if (unsub) unsub()
     }
   }, [api, status])

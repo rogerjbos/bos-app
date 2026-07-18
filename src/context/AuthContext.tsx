@@ -1,6 +1,7 @@
 import { useSIWS, useSIWSAuth, useWalletConnect } from '@shawncoe/siws-auth/react';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useMetaMaskContext } from '../providers/MetaMaskProvider';
+import { decodeJwtPayload } from '../lib/api';
 import { getMetaMaskProvider } from '../lib/metamaskProvider';
 import { useWalletAuthContext } from '../providers/WalletAuthProvider';
 
@@ -90,12 +91,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const hasValidJwt = (() => {
     const token = getAccessToken();
     if (!token) return false;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp > Date.now() / 1000;
-    } catch {
-      return false;
-    }
+    const payload = decodeJwtPayload(token);
+    return !!payload && payload.exp > Date.now() / 1000;
   })();
 
   // Use SIWS authentication only if wallet matches AND wallet is authorized AND it's not a MetaMask connection
@@ -216,13 +213,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Reset auth attempt tracking
       authAttemptedRef.current = null;
 
-      // Clear local storage that might contain auth state (but preserve metamask_disconnected)
-      const metamaskDisconnected = sessionStorage.getItem('metamask_disconnected');
-      localStorage.clear();
-      sessionStorage.clear();
-      if (metamaskDisconnected) {
-        sessionStorage.setItem('metamask_disconnected', metamaskDisconnected);
-      }
+      // Remove only our auth tokens. SIWS and MetaMask clear their own state via
+      // the calls above, so a blanket localStorage.clear()/sessionStorage.clear()
+      // would needlessly wipe unrelated data (theme, MelodyLab tabs, staking cache,
+      // etc.). metamask_disconnected (set above) is intentionally kept.
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
 
       // Reload to ensure clean state
       window.location.reload();

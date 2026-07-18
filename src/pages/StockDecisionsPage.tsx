@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { API_BASE_URL, getAuthHeaders } from '../lib/api';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { API_BASE_URL, authFetch, getAuthHeaders } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
 // Mirrors StockDecision / StockDecisionsResponse served by the data-api-server
@@ -268,13 +268,18 @@ const StockDecisionsPage: React.FC = () => {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   // Load the decision board (refetches when the user picks a different date).
+  // The initial load runs with no date, then sets dateFilter to the returned
+  // decision_date; lastLoadedDate lets us skip the redundant refetch that state
+  // change would otherwise trigger for data we already have.
+  const lastLoadedDate = useRef<string | null>(null);
   useEffect(() => {
+    if (lastLoadedDate.current !== null && dateFilter === lastLoadedDate.current) return;
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
         const qs = dateFilter ? `?date=${encodeURIComponent(dateFilter)}` : '';
-        const response = await fetch(`${API_BASE_URL}/stock_decisions${qs}`, {
+        const response = await authFetch(`${API_BASE_URL}/stock_decisions${qs}`, {
           headers: { ...getAuthHeaders() },
         });
         if (!response.ok) {
@@ -283,6 +288,7 @@ const StockDecisionsPage: React.FC = () => {
         }
         const payload: StockDecisionsResponse = await response.json();
         setData(payload);
+        lastLoadedDate.current = payload.decision_date || dateFilter;
         if (!dateFilter && payload.decision_date) setDateFilter(payload.decision_date);
       } catch (err) {
         console.error('Error loading stock decisions:', err);
@@ -303,7 +309,7 @@ const StockDecisionsPage: React.FC = () => {
       const symbols = new Set<string>();
       for (const endpoint of ['portfolios', 'watchlists']) {
         try {
-          const res = await fetch(
+          const res = await authFetch(
             `${API_BASE_URL}/${endpoint}?username=${encodeURIComponent(walletAddress)}`,
             { headers: { ...getAuthHeaders() } },
           );

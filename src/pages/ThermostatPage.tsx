@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getAuthHeaders } from '../lib/api';
+import { authFetch, getAuthHeaders } from '../lib/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -40,9 +40,12 @@ const ThermostatPage = () => {
 
   const currentStatus = activeTab === 'downstairs' ? downstairsStatus : upstairsStatus;
 
-  const getThermostatStatus = async (location: string) => {
+  // syncTarget controls whether the target-temp input is reset to the thermostat's
+  // current setting. The 30s poll passes false so it can't clobber a value the
+  // user is typing before they click Set; tab-change / manual refresh pass true.
+  const getThermostatStatus = async (location: string, syncTarget: boolean = true) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/thermostat/${location}/status`, {
+      const response = await authFetch(`${API_BASE_URL}/thermostat/${location}/status`, {
         headers: {
           ...getAuthHeaders(),
         },
@@ -57,11 +60,13 @@ const ThermostatPage = () => {
           setUpstairsStatus(data);
         }
 
-        // Update target temp input to match current setting
-        if (data.tmode === 1 && data.t_heat) {
-          setTargetTemp(Math.round(data.t_heat));
-        } else if (data.tmode === 2 && data.t_cool) {
-          setTargetTemp(Math.round(data.t_cool));
+        // Update target temp input to match current setting (skipped on poll)
+        if (syncTarget) {
+          if (data.tmode === 1 && data.t_heat) {
+            setTargetTemp(Math.round(data.t_heat));
+          } else if (data.tmode === 2 && data.t_cool) {
+            setTargetTemp(Math.round(data.t_cool));
+          }
         }
 
         return data;
@@ -94,7 +99,7 @@ const ThermostatPage = () => {
       }
 
       console.log(`[Set Temp] ${location}:`, payload);
-      const response = await fetch(`${API_BASE_URL}/thermostat/${location}/control`, {
+      const response = await authFetch(`${API_BASE_URL}/thermostat/${location}/control`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,7 +132,7 @@ const ThermostatPage = () => {
       const payload = { tmode: mode };
       console.log(`[Set Mode] ${location}:`, payload);
 
-      const response = await fetch(`${API_BASE_URL}/thermostat/${location}/control`, {
+      const response = await authFetch(`${API_BASE_URL}/thermostat/${location}/control`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -159,7 +164,7 @@ const ThermostatPage = () => {
       const payload = { hold: newHold };
       console.log(`[Toggle Hold] ${location}:`, payload);
 
-      const response = await fetch(`${API_BASE_URL}/thermostat/${location}/control`, {
+      const response = await authFetch(`${API_BASE_URL}/thermostat/${location}/control`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -195,7 +200,7 @@ const ThermostatPage = () => {
         minute: now.getMinutes()
       };
 
-      const response = await fetch(`${API_BASE_URL}/thermostat/${location}/time`, {
+      const response = await authFetch(`${API_BASE_URL}/thermostat/${location}/time`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -233,9 +238,9 @@ const ThermostatPage = () => {
     refreshStatus();
   }, [activeTab]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 30 seconds — does NOT sync the target-temp input.
   useEffect(() => {
-    const interval = setInterval(refreshStatus, 30000);
+    const interval = setInterval(() => getThermostatStatus(activeTab, false), 30000);
     return () => clearInterval(interval);
   }, [activeTab]);
 

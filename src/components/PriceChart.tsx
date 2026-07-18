@@ -69,8 +69,11 @@ const PriceChart: React.FC<PriceChartProps> = ({ symbol, decisions, assetType, a
       // Extract symbol from decision data
       const chartSymbol = decisions && decisions.length > 0 && decisions[0].ticker ? decisions[0].ticker : symbol;
 
-      // Check if this is decision data (4 fields) or performance data (24+ fields)
-      isDecisionData = decisions.length > 0 && !!decisions[0] && Object.keys(decisions[0]).length === 4;
+      // Decision rows carry a `decision` field; performance rows don't. Detect by
+      // that presence — the old `Object.keys().length === 4` check misclassified
+      // the real 6-field DecisionData shape as performance data.
+      isDecisionData = decisions.length > 0 && !!decisions[0] &&
+        ('decision' in decisions[0] || 'action' in (decisions[0] as any));
 
       let startDate: string;
       let endDate: string;
@@ -161,10 +164,10 @@ const PriceChart: React.FC<PriceChartProps> = ({ symbol, decisions, assetType, a
     if (decisions && decisions.length > 0 && decisions[0]) {
       if (isDecisionData) {
         // For decision files, use ticker field
-        chartSymbol = decisions[0].ticker || decisions[0].symbol || symbol;
+        chartSymbol = decisions[0].ticker || symbol;
       } else {
         // For performance files, use ticker field
-        chartSymbol = decisions[0].ticker || decisions[0].symbol || symbol;
+        chartSymbol = decisions[0].ticker || symbol;
       }
     }
 
@@ -201,8 +204,10 @@ const PriceChart: React.FC<PriceChartProps> = ({ symbol, decisions, assetType, a
       decisions.forEach((decision, index) => {
         if (!decision) return; // Skip null decisions
 
-        const decisionDate = decision.date || decision.Date || decision.DATE;
-        const decisionValue = decision.action || decision.Action || decision.ACTION;
+        // DecisionData exposes `date` and `decision` (e.g. "buy"/"sell"); the old
+        // code read non-existent action/Date fields, so every marker was skipped.
+        const decisionDate = decision.date;
+        const decisionValue = decision.decision;
 
         if (!decisionDate || !decisionValue) {
           console.log('Missing required fields for decision', index, ':', { date: decisionDate, action: decisionValue });

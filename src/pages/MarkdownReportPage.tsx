@@ -12,6 +12,11 @@ const MarkdownReportPage: React.FC = () => {
   useEffect(() => {
     const fetchContent = async () => {
       if (!filename) return;
+      // Reset per-filename so navigating from a failed report to a valid one
+      // doesn't keep showing the old error/content.
+      setLoading(true);
+      setError(null);
+      setContent('');
       try {
         const response = await fetch(`/reports/${filename}`);
         if (!response.ok) {

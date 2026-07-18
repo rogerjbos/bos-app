@@ -28,6 +28,7 @@ export function BalanceDisplay({
     if (!api || status !== 'connected' || !address) return
 
     let unsub: any
+    let cancelled = false
 
     const subscribe = async () => {
       try {
@@ -39,6 +40,8 @@ export function BalanceDisplay({
           })
           setLoading(false)
         })
+        // Unsubscribe immediately if cleanup ran before this resolved.
+        if (cancelled && typeof unsub === 'function') unsub()
       } catch (error) {
         console.error('Error loading balance:', error)
         setLoading(false)
@@ -48,6 +51,7 @@ export function BalanceDisplay({
     subscribe()
 
     return () => {
+      cancelled = true
       if (unsub) unsub()
     }
   }, [api, status, address])

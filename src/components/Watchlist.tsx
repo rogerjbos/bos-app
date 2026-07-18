@@ -305,8 +305,6 @@ const mergeCryptoRankEntries = (entries: any[], fallbackSymbol: string): CryptoR
 const Watchlist: React.FC = () => {
   const { user, walletAddress } = useAuth();
 
-  console.log('Watchlist component rendering with:', { user, walletAddress });
-
   const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
   const [activeWatchlistId, setActiveWatchlistId] = useState<string>('');
   const [cryptoData, setCryptoData] = useState<CryptoXDaysData[]>([]);
@@ -872,10 +870,9 @@ const Watchlist: React.FC = () => {
     if (symbols.length === 0) return;
 
     try {
-      const allRanksData: any[] = [];
-
-      // Fetch ranks for each symbol individually since the endpoint only accepts one ticker
-      for (const symbol of symbols) {
+      // Fetch all symbols in parallel (the endpoint takes one ticker each); a
+      // serial loop added seconds of latency on large lists.
+      const perSymbol = await Promise.all(symbols.map(async (symbol) => {
         try {
           const response = await fetch(`${API_BASE_URL}/ranks?ticker=${encodeURIComponent(symbol)}`, {
             method: 'GET',
@@ -883,20 +880,17 @@ const Watchlist: React.FC = () => {
               ...getAuthHeaders(),
             },
           });
-
           if (response.ok) {
             const data = await response.json();
-            if (data && data.length > 0) {
-              allRanksData.push(...data);
-            }
+            if (data && data.length > 0) return data;
           }
         } catch (symbolError) {
           console.warn(`Failed to fetch ranks for ${symbol}:`, symbolError);
-          // Continue with other symbols
         }
-      }
+        return [];
+      }));
 
-      if (isCurrent()) setRanksData(allRanksData);
+      if (isCurrent()) setRanksData(perSymbol.flat());
     } catch (err) {
       console.error('Error fetching ranks data:', err);
       showStatus(`Failed to load stock ranks: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
@@ -910,12 +904,11 @@ const Watchlist: React.FC = () => {
     try {
       const aggregatedEntries = new Map<string, CryptoRankData>();
 
-      // Fetch ranks for each symbol individually since the endpoint only accepts one baseCurrency
-      for (const symbol of symbols) {
+      // Fetch all symbols in parallel (the endpoint takes one baseCurrency each).
+      const merged = await Promise.all(symbols.map(async (symbol) => {
         const symbolUpper = symbol.toUpperCase();
         const symbolLower = symbol.toLowerCase();
         try {
-          console.log(`Fetching crypto ranks for ${symbolLower}...`);
           const response = await fetch(`${API_BASE_URL}/crypto_ranks?baseCurrency=${encodeURIComponent(symbolLower)}`, {
             method: 'GET',
             headers: {
@@ -925,27 +918,21 @@ const Watchlist: React.FC = () => {
 
           if (response.ok) {
             const data = await response.json();
-            console.log(`Crypto ranks data for ${symbolLower}:`, data);
-            // Log first entry to see available fields
-            if (data && data.length > 0) {
-              console.log(`Sample entry for ${symbolLower}:`, data[0]);
-              console.log(`Available keys:`, Object.keys(data[0]));
-            }
-            const mergedEntry = mergeCryptoRankEntries(data, symbolUpper);
-            console.log(`Merged entry for ${symbolUpper}:`, mergedEntry);
-            if (mergedEntry) {
-              aggregatedEntries.set(mergedEntry.baseCurrency, mergedEntry);
-            }
-          } else {
-            console.warn(`Failed to fetch crypto ranks for ${symbolUpper}: ${response.status}`);
+            return mergeCryptoRankEntries(data, symbolUpper);
           }
+          console.warn(`Failed to fetch crypto ranks for ${symbolUpper}: ${response.status}`);
         } catch (symbolError) {
           console.warn(`Failed to fetch crypto ranks for ${symbolUpper}:`, symbolError);
           // Continue with other symbols
         }
+        return null;
+      }));
+
+      // Later symbols win on baseCurrency collision, matching the old loop order.
+      for (const entry of merged) {
+        if (entry) aggregatedEntries.set(entry.baseCurrency, entry);
       }
 
-      console.log('All crypto ranks data:', Array.from(aggregatedEntries.values()));
       if (isCurrent()) setCryptoRanksData(Array.from(aggregatedEntries.values()));
     } catch (err) {
       console.error('Error fetching crypto ranks data:', err);
@@ -1624,24 +1611,8 @@ const Watchlist: React.FC = () => {
 
                             // Get crypto ranks data for crypto - handle symbols with suffixes like 'usd', 'usdt'
                             const cryptoRanksDataItem = watchlist.type === 'crypto'
-                              ? cryptoRanksData.find(r => {
-                                  const match = matchesCryptoSymbol(symbol, r.baseCurrency || '');
-                                  if (match) {
-                                    console.log(`Matched ${symbol} with ${r.baseCurrency}`);
-                                  }
-                                  return match;
-                                })
+                              ? cryptoRanksData.find(r => matchesCryptoSymbol(symbol, r.baseCurrency || ''))
                               : null;
-
-                            if (watchlist.type === 'crypto') {
-                              console.log(`Looking for crypto data for ${symbol}`, {
-                                cryptoRanksDataItem,
-                                availableSymbols: cryptoRanksData.map(r => r.baseCurrency),
-                                ai_sentiment: cryptoRanksDataItem?.ai_sentiment,
-                                ai_decision: cryptoRanksDataItem?.ai_decision,
-                                ai_age: cryptoRanksDataItem?.ai_age
-                              });
-                            }
 
                             const formatPrice = (price: number | null) => price ? `$${price.toFixed(2)}` : 'N/A';
                             const formatReturn = (returnPct: number | null) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useState, useEffect, useRef, ReactNode } from "react";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Copy, Check, CircleCheck } from "lucide-react";
 import { Identicon } from "@polkadot/react-identicon";
@@ -14,7 +14,7 @@ import {
   truncateAddress,
   type ValidationResult,
 } from "@/components/lib/utils.dot-ui";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import { dotUiConfig } from "@/components/lib/config.dot-ui";
 import { SubstrateExplorer } from "@/components/lib/types.dot-ui";
 import {

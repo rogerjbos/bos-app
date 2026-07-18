@@ -44,7 +44,7 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({
   const getScoreBadge = (score: string) => {
     const numScore = parseInt(score);
     if (numScore >= 7) return <Badge className="bg-green-600">Strong Buy</Badge>;
-    if (numScore >= 5) return <Badge className="bg-blue-600">Buy</Badge>;
+    if (numScore > 5) return <Badge className="bg-blue-600">Buy</Badge>;
     if (numScore === 5) return <Badge className="bg-gray-600">Hold</Badge>;
     if (numScore >= 3) return <Badge className="bg-orange-600">Sell</Badge>;
     return <Badge className="bg-red-600">Strong Sell</Badge>;
@@ -138,7 +138,7 @@ export const AnalysisModal: React.FC<AnalysisModalProps> = ({
                     </div>
                     <div className="flex-1 text-sm text-gray-600">
                       {parseInt(analysis.decision_score) >= 7 && 'Strong bullish indicators suggest this is a good buying opportunity.'}
-                      {parseInt(analysis.decision_score) >= 5 && parseInt(analysis.decision_score) < 7 && 'Moderate bullish indicators suggest potential upside.'}
+                      {parseInt(analysis.decision_score) > 5 && parseInt(analysis.decision_score) < 7 && 'Moderate bullish indicators suggest potential upside.'}
                       {parseInt(analysis.decision_score) === 5 && 'Neutral indicators suggest a hold position.'}
                       {parseInt(analysis.decision_score) >= 3 && parseInt(analysis.decision_score) < 5 && 'Moderate bearish indicators suggest caution.'}
                       {parseInt(analysis.decision_score) < 3 && 'Strong bearish indicators suggest avoiding or selling.'}

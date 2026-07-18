@@ -896,7 +896,20 @@ const Ranks: React.FC = () => {
 
       const data = await response.json();
       setStockData(data || []);
-      setStockOHLCVData([]); // OHLC data is included in the main data array
+      // Derive the candlestick series from the rank rows (each carries OHLCV
+      // joined from prices). Previously hardcoded to [], so the chart never drew.
+      const ohlcv: OHLCVData[] = (data || [])
+        .filter((r: RankData) => r.date && r.open != null && r.high != null && r.low != null && r.close != null)
+        .map((r: RankData) => ({
+          date: String(r.date).split('T')[0],
+          open: r.open as number,
+          high: r.high as number,
+          low: r.low as number,
+          close: r.close as number,
+          volume: r.volume ?? 0,
+        }))
+        .sort((a: OHLCVData, b: OHLCVData) => a.date.localeCompare(b.date));
+      setStockOHLCVData(ohlcv);
     } catch (err) {
       console.error('Error fetching stock rank data:', err);
       setStockError(`Failed to load stock rank data: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -926,7 +939,19 @@ const Ranks: React.FC = () => {
 
       const data = await response.json();
       setCryptoData(data || []);
-      setCryptoOHLCVData([]); // OHLC data is included in the main data array
+      // Derive the candlestick series from the rank rows (each carries OHLCV).
+      const ohlcv: OHLCVData[] = (data || [])
+        .filter((r: CryptoRankData) => r.date && r.open != null && r.high != null && r.low != null && r.close != null)
+        .map((r: CryptoRankData) => ({
+          date: String(r.date).split('T')[0],
+          open: r.open as number,
+          high: r.high as number,
+          low: r.low as number,
+          close: r.close as number,
+          volume: r.volume ?? 0,
+        }))
+        .sort((a: OHLCVData, b: OHLCVData) => a.date.localeCompare(b.date));
+      setCryptoOHLCVData(ohlcv);
     } catch (err) {
       console.error('Error fetching crypto rank data:', err);
       setCryptoError(`Failed to load crypto rank data: ${err instanceof Error ? err.message : 'Unknown error'}`);

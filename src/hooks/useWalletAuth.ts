@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { decodeJwtPayload } from '../lib/api';
 
 export interface AuthUser {
   sub: string;
@@ -28,22 +29,21 @@ export function useWalletAuth() {
 
   // Helper function to decode JWT token locally
   const decodeTokenLocally = useCallback((token: string): AuthUser | null => {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return {
-        sub: payload.sub,
-        address: payload.sub, // wallet address is stored in sub
-        walletType: 'metamask', // default, could be enhanced
-        iat: payload.iat,
-        exp: payload.exp,
-        iss: payload.iss,
-        aud: payload.aud,
-        nonce: payload.nonce || '',
-      };
-    } catch (err) {
-      console.error('Failed to decode token:', err);
+    const payload = decodeJwtPayload(token);
+    if (!payload) {
+      console.error('Failed to decode token');
       return null;
     }
+    return {
+      sub: payload.sub,
+      address: payload.sub, // wallet address is stored in sub
+      walletType: 'metamask', // default, could be enhanced
+      iat: payload.iat,
+      exp: payload.exp,
+      iss: payload.iss,
+      aud: payload.aud,
+      nonce: payload.nonce || '',
+    };
   }, []);
 
   // Check for existing tokens on mount

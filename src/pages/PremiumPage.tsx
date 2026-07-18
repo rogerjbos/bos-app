@@ -19,15 +19,15 @@ interface PaymentStatus {
 
 const PremiumPage: React.FC = () => {
   const auth = useAuth();
-  const { currentWalletAddress, walletAddress } = auth;
+  const { walletAddress } = auth;
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>({ status: 'unpaid' });
   const [api, setApi] = useState<ApiPromise | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [balance, setBalance] = useState<string | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
 
-  // Use whichever address is available, but ensure it's a Substrate address (not EVM)
-  const rawAddress = currentWalletAddress || walletAddress;
+  // Use the connected wallet address, but ensure it's a Substrate address (not EVM)
+  const rawAddress = walletAddress;
 
   // Check if address is a Polkadot/Substrate address (starts with uppercase letter, 47-48 chars)
   // EVM addresses start with 0x and are 42 chars
@@ -49,17 +49,27 @@ const PremiumPage: React.FC = () => {
 
   // Connect to Paseo testnet
   useEffect(() => {
+    // Track the instance created by THIS effect run. The cleanup previously
+    // closed over the `api` state (null on first run, deps []), so the WsProvider
+    // connection was never disconnected and leaked one (two under StrictMode) per
+    // visit.
+    let apiInstance: ApiPromise | null = null;
+    let cancelled = false;
+
     const connectToPaseo = async () => {
       try {
-        // console.log('[PremiumPage] Connecting to Paseo RPC:', PASEO_RPC);
         setIsConnecting(true);
         const provider = new WsProvider(PASEO_RPC);
-        const apiInstance = await ApiPromise.create({ provider });
-        // console.log('[PremiumPage] Successfully connected to Paseo');
+        apiInstance = await ApiPromise.create({ provider });
+        if (cancelled) {
+          apiInstance.disconnect();
+          return;
+        }
         setApi(apiInstance);
         setIsConnecting(false);
       } catch (error) {
         console.error('[PremiumPage] Failed to connect to Paseo:', error);
+        if (cancelled) return;
         setPaymentStatus({
           status: 'error',
           message: 'Failed to connect to Paseo testnet'
@@ -71,8 +81,9 @@ const PremiumPage: React.FC = () => {
     connectToPaseo();
 
     return () => {
-      if (api) {
-        api.disconnect();
+      cancelled = true;
+      if (apiInstance) {
+        apiInstance.disconnect();
       }
     };
   }, []);

@@ -107,8 +107,8 @@ const StakingTableContent: React.FC<{
           </tr>
         </thead>
         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-          {filteredStakingItems.map(({ item, idx }) => {
-            const { totalQuantity, itemValue } = filteredCalculatedValues[filteredStakingItems.findIndex(f => f.idx === idx)];
+          {filteredStakingItems.map(({ item, idx }, rowIndex) => {
+            const { totalQuantity, itemValue } = filteredCalculatedValues[rowIndex];
             const percentOfTotal = filteredTotalValue > 0 ? (itemValue / filteredTotalValue) * 100 : 0;
 
             return (
@@ -394,8 +394,8 @@ const DeletedStakingTableContent: React.FC<{
           </tr>
         </thead>
         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-          {filteredStakingItems.map(({ item, idx }) => {
-            const { totalQuantity, itemValue } = filteredCalculatedValues[filteredStakingItems.findIndex(f => f.idx === idx)];
+          {filteredStakingItems.map(({ item, idx }, rowIndex) => {
+            const { totalQuantity, itemValue } = filteredCalculatedValues[rowIndex];
             const percentOfTotal = filteredTotalValue > 0 ? (itemValue / filteredTotalValue) * 100 : 0;
 
             return (
@@ -684,7 +684,10 @@ const Staking: React.FC = () => {
   // Calculate filtered totals
   const filteredCalculatedValues = useMemo(() => {
     if (activeTab === 'deleted') {
-      return deletedStakingItems.map(item => {
+      // Build values in the SAME (sorted) order as filteredStakingItems so the
+      // two arrays align positionally; previously this used deletedStakingItems'
+      // original order, so sorted rows showed another item's Total/Value/%.
+      return filteredStakingItems.map(({ item }) => {
         const totalQuantity = parseFloat(item.stakedQuantity || '0') + parseFloat(item.unclaimedQuantity || '0');
         const itemValue = totalQuantity * parseFloat(item.price || '0');
         return { totalQuantity, itemValue };

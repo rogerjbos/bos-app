@@ -837,10 +837,9 @@ const Portfolio: React.FC = () => {
     if (symbols.length === 0) return;
 
     try {
-      const allRanksData: any[] = [];
-
-      // Fetch ranks for each symbol individually since the endpoint only accepts one ticker
-      for (const symbol of symbols) {
+      // Fetch all symbols in parallel (the endpoint takes one ticker each); a
+      // serial loop added seconds of latency on large lists.
+      const perSymbol = await Promise.all(symbols.map(async (symbol) => {
         try {
           const response = await fetch(`${API_BASE_URL}/ranks?ticker=${encodeURIComponent(symbol)}`, {
             method: 'GET',
@@ -848,20 +847,17 @@ const Portfolio: React.FC = () => {
               ...getAuthHeaders(),
             },
           });
-
           if (response.ok) {
             const data = await response.json();
-            if (data && data.length > 0) {
-              allRanksData.push(...data);
-            }
+            if (data && data.length > 0) return data;
           }
         } catch (symbolError) {
           console.warn(`Failed to fetch ranks for ${symbol}:`, symbolError);
-          // Continue with other symbols
         }
-      }
+        return [];
+      }));
 
-      if (isCurrent()) setRanksData(allRanksData);
+      if (isCurrent()) setRanksData(perSymbol.flat());
     } catch (err) {
       console.error('Error fetching ranks data:', err);
       showStatus(`Failed to load stock ranks: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
@@ -875,8 +871,8 @@ const Portfolio: React.FC = () => {
     try {
       const aggregatedEntries = new Map<string, CryptoRankData>();
 
-      // Fetch ranks for each symbol individually since the endpoint only accepts one baseCurrency
-      for (const symbol of symbols) {
+      // Fetch all symbols in parallel (the endpoint takes one baseCurrency each).
+      const merged = await Promise.all(symbols.map(async (symbol) => {
         const symbolUpper = symbol.toUpperCase();
         const symbolLower = symbol.toLowerCase();
         try {
@@ -889,15 +885,18 @@ const Portfolio: React.FC = () => {
 
           if (response.ok) {
             const data = await response.json();
-            const mergedEntry = mergeCryptoRankEntries(data, symbolUpper);
-            if (mergedEntry) {
-              aggregatedEntries.set(mergedEntry.baseCurrency, mergedEntry);
-            }
+            return mergeCryptoRankEntries(data, symbolUpper);
           }
         } catch (symbolError) {
           console.warn(`Failed to fetch crypto ranks for ${symbolUpper}:`, symbolError);
           // Continue with other symbols
         }
+        return null;
+      }));
+
+      // Later symbols win on baseCurrency collision, matching the old loop order.
+      for (const entry of merged) {
+        if (entry) aggregatedEntries.set(entry.baseCurrency, entry);
       }
 
       if (isCurrent()) setCryptoRanksData(Array.from(aggregatedEntries.values()));
