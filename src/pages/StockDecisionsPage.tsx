@@ -46,6 +46,25 @@ interface StockDecisionsResponse {
   rows: StockDecision[];
 }
 
+// Mirrors RegimeSignal served by the data-api-server (GET /api/regime_signal):
+// the latest point-in-time macro regime nowcast (sector rotation confirmed by
+// the HOPE2 cycle stage) written daily by macro_engine into ClickHouse.
+interface RegimeSignal {
+  detector: string;
+  as_of: string;
+  regime: string; // 'risk_on' | 'risk_off'
+  since: string | null;
+  spread: number | null;
+  allocation: Record<string, number>;
+}
+
+const REGIME_ASSET_LABELS: Record<string, string> = {
+  sp500: 'S&P 500',
+  treasury_long: 'TLT',
+  corporate_bonds: 'LQD',
+  cash: 'Cash',
+};
+
 // A decision row enriched with client-side derived fields.
 interface BoardRow extends StockDecision {
   nBuy: number;
@@ -254,6 +273,7 @@ const StockDecisionsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [heldSymbols, setHeldSymbols] = useState<Set<string>>(new Set());
+  const [regime, setRegime] = useState<RegimeSignal | null>(null);
 
   const [dateFilter, setDateFilter] = useState<string>('');
   const [universeFilter, setUniverseFilter] = useState<string>(ALL);
@@ -300,6 +320,22 @@ const StockDecisionsPage: React.FC = () => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFilter]);
+
+  // Macro regime banner: best-effort, failures just hide the banner.
+  useEffect(() => {
+    const loadRegime = async () => {
+      try {
+        const res = await authFetch(`${API_BASE_URL}/regime_signal`, {
+          headers: { ...getAuthHeaders() },
+        });
+        if (!res.ok) return;
+        setRegime((await res.json()) as RegimeSignal);
+      } catch {
+        // banner is best-effort
+      }
+    };
+    loadRegime();
+  }, []);
 
   // Holdings overlay: union of stock portfolio + watchlist symbols. Optional —
   // failures (e.g. no wallet session) just leave the overlay empty.
@@ -432,6 +468,50 @@ const StockDecisionsPage: React.FC = () => {
               <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">{s.here}</div>
             </div>
           ))}
+        </div>
+      )}
+
+      {regime && (
+        <div
+          className={`mb-4 rounded-lg border px-4 py-3 flex flex-wrap items-center justify-between gap-3 ${
+            regime.regime === 'risk_off'
+              ? 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20'
+              : 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20'
+          }`}
+        >
+          <div>
+            <div className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Macro regime · sector rotation × HOPE2 confirmation
+            </div>
+            <div
+              className={`mt-0.5 text-2xl font-bold ${
+                regime.regime === 'risk_off'
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-emerald-600 dark:text-emerald-400'
+              }`}
+            >
+              {regime.regime === 'risk_off' ? 'RISK-OFF' : 'RISK-ON'}
+            </div>
+            <div className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+              {regime.since && <>since {regime.since} · </>}as of {regime.as_of}
+              {regime.spread !== null && (
+                <> · cyclical−defensive spread {fmtPct(regime.spread)}</>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {Object.entries(regime.allocation)
+              .sort(([, a], [, b]) => b - a)
+              .map(([asset, w]) => (
+                <span
+                  key={asset}
+                  title="Model allocation for the current regime"
+                  className="inline-block rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300 tabular-nums"
+                >
+                  {REGIME_ASSET_LABELS[asset] ?? asset} {fmtPct(w, 0)}
+                </span>
+              ))}
+          </div>
         </div>
       )}
 
