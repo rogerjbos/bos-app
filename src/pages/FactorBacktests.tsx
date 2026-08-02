@@ -60,6 +60,7 @@ interface ColumnDef {
 
 const COLUMNS: ColumnDef[] = [
   { key: 'factor', label: 'Factor', numeric: false },
+  { key: 'sector', label: 'Sector', numeric: false },
   { key: 'min_mcap', label: 'Cap', numeric: false },
   { key: 'fwd', label: 'Fwd', numeric: false },
   { key: 'horizon_months', label: 'Horizon (mo)', numeric: true, decimals: 0 },
@@ -99,6 +100,22 @@ const fmtMcapRange = (min: number, max: number): string => {
 // Stable key identifying a market-cap universe (min/max pair).
 const mcapKey = (min: number, max: number): string => `${min}|${max}`;
 
+// The cross-sector universe has two encodings in the table: the current sweep
+// writes 'all', while older runs left the column blank. They are kept as
+// separate selections because they come from different sweeps — collapsing them
+// would double up every row where the two overlap.
+const ALL_SECTOR = 'all';
+const sectorLabel = (sector: string): string => (sector === '' ? 'all (unlabeled)' : sector);
+
+// Sort order for the sector dropdown: cross-sector universes first, then A–Z.
+const sectorRank = (sector: string): number => (sector === ALL_SECTOR ? 0 : sector === '' ? 1 : 2);
+
+// A backtest sweep writes one insert_at timestamp per (horizon x cap universe) leg,
+// so a single logical run spans a dozen-plus timestamps minutes apart. Runs are
+// selected by calendar date; the time of day is an implementation detail of the
+// sweep, and filtering on it would silently pin the view to one leg.
+const runDate = (insertAt: string): string => insertAt.slice(0, 10);
+
 const formatCell = (value: FactorBacktest[keyof FactorBacktest], col: ColumnDef): string => {
   if (value === null || value === undefined) return '—';
   if (!col.numeric) return String(value);
@@ -122,10 +139,11 @@ const FactorBacktests: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [factorFilter, setFactorFilter] = useState<string>(ALL);
+  const [sectorFilter, setSectorFilter] = useState<string>(ALL);
   const [fwdFilter, setFwdFilter] = useState<string>(ALL);
   const [horizonFilter, setHorizonFilter] = useState<string>(ALL);
   const [mcapFilter, setMcapFilter] = useState<string>(ALL);
-  // Empty string until data loads, then defaults to the most recent insert_at.
+  // Empty string until data loads, then defaults to the most recent run date.
   const [insertFilter, setInsertFilter] = useState<string>('');
 
   const [sortKey, setSortKey] = useState<keyof FactorBacktest>('ic_tstat');
@@ -145,9 +163,9 @@ const FactorBacktests: React.FC = () => {
         }
         const rows: FactorBacktest[] = await response.json();
         setData(rows);
-        // Default the insert_at selector to the most recent run.
+        // Default the selector to the most recent run date.
         const latest = rows.reduce<string>(
-          (acc, r) => (r.insert_at > acc ? r.insert_at : acc),
+          (acc, r) => (runDate(r.insert_at) > acc ? runDate(r.insert_at) : acc),
           '',
         );
         setInsertFilter(latest);
@@ -164,6 +182,13 @@ const FactorBacktests: React.FC = () => {
   // Distinct values for the filter dropdowns, derived from the loaded data.
   const factors = useMemo(
     () => Array.from(new Set(data.map((d) => d.factor))).sort(),
+    [data],
+  );
+  const sectors = useMemo(
+    () =>
+      Array.from(new Set(data.map((d) => d.sector))).sort(
+        (a, b) => sectorRank(a) - sectorRank(b) || a.localeCompare(b),
+      ),
     [data],
   );
   const fwds = useMemo(
@@ -183,9 +208,9 @@ const FactorBacktests: React.FC = () => {
     }
     return Array.from(seen.values()).sort((a, b) => b.min - a.min || a.max - b.max);
   }, [data]);
-  // Distinct insert_at run dates, newest first.
+  // Distinct run dates (day-level, not per-leg timestamps), newest first.
   const insertDates = useMemo(
-    () => Array.from(new Set(data.map((d) => d.insert_at))).sort((a, b) => b.localeCompare(a)),
+    () => Array.from(new Set(data.map((d) => runDate(d.insert_at)))).sort((a, b) => b.localeCompare(a)),
     [data],
   );
 
@@ -193,10 +218,11 @@ const FactorBacktests: React.FC = () => {
     const filtered = data.filter(
       (d) =>
         (factorFilter === ALL || d.factor === factorFilter) &&
+        (sectorFilter === ALL || d.sector === sectorFilter) &&
         (fwdFilter === ALL || d.fwd === fwdFilter) &&
         (horizonFilter === ALL || String(d.horizon_months) === horizonFilter) &&
         (mcapFilter === ALL || mcapKey(d.min_mcap, d.max_mcap) === mcapFilter) &&
-        (insertFilter === '' || d.insert_at === insertFilter),
+        (insertFilter === '' || runDate(d.insert_at) === insertFilter),
     );
 
     const dir = sortDir === 'asc' ? 1 : -1;
@@ -209,7 +235,7 @@ const FactorBacktests: React.FC = () => {
       if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
       return String(av).localeCompare(String(bv)) * dir;
     });
-  }, [data, factorFilter, fwdFilter, horizonFilter, mcapFilter, insertFilter, sortKey, sortDir]);
+  }, [data, factorFilter, sectorFilter, fwdFilter, horizonFilter, mcapFilter, insertFilter, sortKey, sortDir]);
 
   const toggleSort = (key: keyof FactorBacktest) => {
     if (key === sortKey) {
@@ -234,7 +260,7 @@ const FactorBacktests: React.FC = () => {
         header to sort.
       </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Factor
@@ -248,6 +274,23 @@ const FactorBacktests: React.FC = () => {
             {factors.map((f) => (
               <option key={f} value={f}>
                 {f}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Sector
+          </label>
+          <select
+            value={sectorFilter}
+            onChange={(e) => setSectorFilter(e.target.value)}
+            className={selectClass}
+          >
+            <option value={ALL}>All rows</option>
+            {sectors.map((s) => (
+              <option key={s} value={s}>
+                {sectorLabel(s)}
               </option>
             ))}
           </select>
@@ -345,7 +388,7 @@ const FactorBacktests: React.FC = () => {
                 universes.length === 1
                   ? fmtMcapRange(filteredSorted[0].min_mcap, filteredSorted[0].max_mcap)
                   : `${universes.length} cap ranges`;
-              const dates = Array.from(new Set(filteredSorted.map((d) => d.insert_at)));
+              const dates = Array.from(new Set(filteredSorted.map((d) => runDate(d.insert_at))));
               return (
                 <span className="ml-3">
                   universe {universeLabel}
@@ -383,7 +426,7 @@ const FactorBacktests: React.FC = () => {
               <tbody>
                 {filteredSorted.map((row, i) => (
                   <tr
-                    key={`${row.factor}-${row.fwd}-${row.horizon_months}-${row.min_mcap}-${i}`}
+                    key={`${row.factor}-${row.sector}-${row.fwd}-${row.horizon_months}-${row.min_mcap}-${i}`}
                     className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                   >
                     {COLUMNS.map((col) => {
@@ -392,11 +435,14 @@ const FactorBacktests: React.FC = () => {
                       const colorClass = isTstat
                         ? tstatColor(raw as number | null)
                         : 'text-gray-900 dark:text-gray-100';
-                      // The Cap column combines min_mcap/max_mcap into one range label.
+                      // The Cap column combines min_mcap/max_mcap into one range label,
+                      // and a blank sector is the unlabeled cross-sector universe.
                       const content =
                         col.key === 'min_mcap'
                           ? fmtMcapRange(row.min_mcap, row.max_mcap)
-                          : formatCell(raw, col);
+                          : col.key === 'sector'
+                            ? sectorLabel(row.sector)
+                            : formatCell(raw, col);
                       return (
                         <td
                           key={col.key}
