@@ -154,8 +154,8 @@ const PortfolioBacktest: React.FC = () => {
       if (bVal === null || bVal === undefined) return direction === 'asc' ? 1 : -1;
 
       // Try to parse as numbers if they look like numbers
-      let aNum = typeof aVal === 'number' ? aVal : parseFloat(String(aVal));
-      let bNum = typeof bVal === 'number' ? bVal : parseFloat(String(bVal));
+      const aNum = typeof aVal === 'number' ? aVal : parseFloat(String(aVal));
+      const bNum = typeof bVal === 'number' ? bVal : parseFloat(String(bVal));
 
       if (!isNaN(aNum) && !isNaN(bNum) && isFinite(aNum) && isFinite(bNum)) {
         return direction === 'asc' ? aNum - bNum : bNum - aNum;

@@ -174,7 +174,7 @@ const Bots: React.FC = () => {
       showStatus(`Failed to fetch trading config: ${errorMessage}`, 'error');
       return [];
     }
-  }, [user?.name, walletAddress, API_BASE_URL]);
+  }, [user?.name, walletAddress]);
 
   const saveTradingConfigToAPI = useCallback(async (data: KrakenBotSymbolsConfig) => {
     if (!user?.name && !walletAddress) {
@@ -212,7 +212,7 @@ const Bots: React.FC = () => {
       showStatus(`Failed to save trading config: ${errorMessage}`, 'error');
       return false;
     }
-  }, [user?.name, walletAddress, API_BASE_URL]);
+  }, [user?.name, walletAddress]);
 
   const fetchSchwabConfig = useCallback(async () => {
     if (!user?.name && !walletAddress) {
@@ -240,7 +240,7 @@ const Bots: React.FC = () => {
       showStatus(`Failed to fetch schwab config: ${errorMessage}`, 'error');
       return [];
     }
-  }, [user?.name, walletAddress, API_BASE_URL]);
+  }, [user?.name, walletAddress]);
 
   const saveSchwabConfigToAPI = useCallback(async (data: SchwabBotSymbolsConfig) => {
     if (!user?.name && !walletAddress) {
@@ -278,7 +278,7 @@ const Bots: React.FC = () => {
       showStatus(`Failed to save schwab config: ${errorMessage}`, 'error');
       return false;
     }
-  }, [user?.name, walletAddress, API_BASE_URL]);
+  }, [user?.name, walletAddress]);
 
   // NOTE: configs are saved explicitly from the add/edit/delete handlers below
   // (passing the freshly-computed list). A previous [tradingSymbols]/[schwabSymbols]
@@ -643,7 +643,7 @@ const Bots: React.FC = () => {
       // Don't show error for thresholds, just log it
       console.warn('Failed to fetch crypto thresholds');
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   const fetchStockThresholds = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
@@ -674,7 +674,7 @@ const Bots: React.FC = () => {
       // Don't show error for thresholds, just log it
       console.warn('Failed to fetch stock thresholds');
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   const fetchLatestCryptoPrices = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
@@ -705,7 +705,7 @@ const Bots: React.FC = () => {
       // Don't show error for prices, just log it
       console.warn('Failed to fetch latest crypto prices');
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   const fetchLatestStockPrices = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
@@ -736,7 +736,7 @@ const Bots: React.FC = () => {
       // Don't show error for prices, just log it
       console.warn('Failed to fetch latest stock prices');
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">

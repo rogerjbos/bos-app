@@ -19,6 +19,7 @@ import CorrelationPage from './pages/CorrelationPage';
 import FactorBacktests from './pages/FactorBacktests';
 import StockDecisionsPage from './pages/StockDecisionsPage';
 import EtfPerformancePage from './pages/EtfPerformancePage';
+import FactorHistoryPage from './pages/FactorHistoryPage';
 import SourdoughRecipes from './pages/SourdoughRecipes';
 import StakingPage from './pages/StakingPage';
 import ThermostatPage from './pages/ThermostatPage';
@@ -79,6 +80,7 @@ const App: React.FC = () => {
                     <Route path="/factor-backtests" element={<ProtectedRoute element={<FactorBacktests />} authorizedOnly={true} />} />
                     <Route path="/stock-decisions" element={<ProtectedRoute element={<StockDecisionsPage />} authorizedOnly={true} />} />
                     <Route path="/etf-performance" element={<ProtectedRoute element={<EtfPerformancePage />} authorizedOnly={true} />} />
+                    <Route path="/factor-history" element={<ProtectedRoute element={<FactorHistoryPage />} authorizedOnly={true} />} />
                     <Route path="/counter" element={<Counter />} />
                     <Route path="/crypto-universe" element={<CryptoUniversePage />} />
                     <Route path="/dapps" element={<DappsPage />} />

@@ -96,34 +96,30 @@ export function useMetaMask() {
   const connect = useCallback(async () => {
     const eth = getMetaMaskProvider();
     if (!eth) throw new Error("MetaMask is not installed");
+    // Clear the disconnect flag when user explicitly connects
+    sessionStorage.removeItem('metamask_disconnected');
+
+    // Try to request permissions first to ensure fresh account selection
     try {
-      // Clear the disconnect flag when user explicitly connects
-      sessionStorage.removeItem('metamask_disconnected');
-
-      // Try to request permissions first to ensure fresh account selection
-      try {
-        await eth.request({
-          method: "wallet_requestPermissions",
-          params: [{ eth_accounts: {} }],
-        });
-      } catch (permError) {
-        // Permission request failed or not supported, fall back to eth_requestAccounts
-      }
-
-      // Always request accounts to get the currently selected account in MetaMask
-      const accs: string[] = await eth.request({
-        method: "eth_requestAccounts",
+      await eth.request({
+        method: "wallet_requestPermissions",
+        params: [{ eth_accounts: {} }],
       });
-
-      handleAccountsChanged(accs);
-      const id: string = await eth.request({
-        method: "eth_chainId",
-      });
-      setChainId(id);
-      return accs;
-    } catch (error) {
-      throw error;
+    } catch {
+      // Permission request failed or not supported, fall back to eth_requestAccounts
     }
+
+    // Always request accounts to get the currently selected account in MetaMask
+    const accs: string[] = await eth.request({
+      method: "eth_requestAccounts",
+    });
+
+    handleAccountsChanged(accs);
+    const id: string = await eth.request({
+      method: "eth_chainId",
+    });
+    setChainId(id);
+    return accs;
   }, [handleAccountsChanged]);
 
   const disconnect = useCallback(() => {

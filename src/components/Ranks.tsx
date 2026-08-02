@@ -80,9 +80,9 @@ const upColor = '#00da3c';
 const downColor = '#ec0000';
 
 function splitData(rawData: OHLCVData[]) {
-  let categoryData: string[] = [];
-  let values: number[][] = [];
-  let volumes: (string | number)[][] = [];
+  const categoryData: string[] = [];
+  const values: number[][] = [];
+  const volumes: (string | number)[][] = [];
 
   for (let i = 0; i < rawData.length; i++) {
     const item = rawData[i];
@@ -99,14 +99,14 @@ function splitData(rawData: OHLCVData[]) {
 }
 
 function calculateMA(dayCount: number, data: { values: number[][] }) {
-  var result: (number | string)[] = [];
-  for (var i = 0, len = data.values.length; i < len; i++) {
+  const result: (number | string)[] = [];
+  for (let i = 0, len = data.values.length; i < len; i++) {
     if (i < dayCount) {
       result.push('-');
       continue;
     }
-    var sum = 0;
-    for (var j = 0; j < dayCount; j++) {
+    let sum = 0;
+    for (let j = 0; j < dayCount; j++) {
       sum += data.values[i - j][1]; // close price
     }
     result.push(+(sum / dayCount).toFixed(3));

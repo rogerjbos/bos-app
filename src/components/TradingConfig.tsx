@@ -188,7 +188,7 @@ const Bots: React.FC = () => {
       console.error('Error fetching trading config from API:', error);
       throw error;
     }
-  }, [user?.name, walletAddress, API_BASE_URL]);
+  }, []);
 
   const saveTradingConfigToAPI = useCallback(async (data: KrakenBotSymbolsConfig) => {
     const identifier = user?.name || walletAddress;
@@ -217,7 +217,7 @@ const Bots: React.FC = () => {
       console.error('Error saving to API:', error);
       throw error;
     }
-  }, [user?.name, walletAddress, API_BASE_URL]);
+  }, [user?.name, walletAddress]);
 
   const fetchSchwabConfig = useCallback(async () => {
     // Public read; don't require user to fetch. Only include Authorization when token present.
@@ -254,7 +254,7 @@ const Bots: React.FC = () => {
       console.error('Error fetching schwab config from API:', error);
       throw error;
     }
-  }, [user?.name, walletAddress, API_BASE_URL]);
+  }, []);
 
   const saveSchwabConfigToAPI = useCallback(async (data: SchwabBotSymbolsConfig) => {
     const identifier = user?.name || walletAddress;
@@ -304,7 +304,7 @@ const Bots: React.FC = () => {
       console.error('Error saving schwab config to API:', error);
       throw error;
     }
-  }, [user?.name, walletAddress, API_BASE_URL]);
+  }, [user?.name, walletAddress]);
 
   // Auto-save when tradingSymbols changes
   useEffect(() => {
@@ -689,7 +689,7 @@ const Bots: React.FC = () => {
       console.error('Error fetching crypto thresholds:', error);
       // Don't show error for thresholds, just log it
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   const fetchStockThresholds = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
@@ -723,7 +723,7 @@ const Bots: React.FC = () => {
       console.error('Error fetching stock thresholds:', error);
       // Don't show error for thresholds, just log it
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   const fetchLatestCryptoPrices = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
@@ -757,7 +757,7 @@ const Bots: React.FC = () => {
       console.error('Error fetching latest crypto prices:', error);
       // Don't show error for prices, just log it
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   const fetchLatestStockPrices = useCallback(async (symbols: string[]) => {
     if (symbols.length === 0) return;
@@ -791,7 +791,7 @@ const Bots: React.FC = () => {
       console.error('Error fetching latest stock prices:', error);
       // Don't show error for prices, just log it
     }
-  }, [API_BASE_URL]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">

@@ -524,12 +524,13 @@ const Portfolio: React.FC = () => {
           aValue = aAgg.total_cost_basis;
           bValue = bAgg.total_cost_basis;
           break;
-        case 'unrealizedGain':
+        case 'unrealizedGain': {
           const aLatestPrice = aLatest?.latestPrice || 0;
           const bLatestPrice = bLatest?.latestPrice || 0;
           aValue = (aAgg.total_quantity * aLatestPrice) - aAgg.total_cost_basis;
           bValue = (bAgg.total_quantity * bLatestPrice) - bAgg.total_cost_basis;
           break;
+        }
         case '1d':
           aValue = aLatest?.returns['1d'] || 0;
           bValue = bLatest?.returns['1d'] || 0;
@@ -1015,7 +1016,7 @@ const Portfolio: React.FC = () => {
       console.error('Error loading aggregates:', err);
       showStatus(`Failed to load portfolio aggregates: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
     }
-  }, [activePortfolioId, portfolios, walletAddress, user, showStatus]);
+  }, [activePortfolioId, portfolios, walletAddress, showStatus]);
 
   // Open transactions modal for a symbol
   const openTransactionsModal = async (symbol: string) => {

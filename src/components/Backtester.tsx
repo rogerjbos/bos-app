@@ -275,8 +275,8 @@ const Backtester: React.FC = () => {
       if (bVal === null || bVal === undefined) return direction === 'asc' ? 1 : -1;
 
       // Try to parse as numbers if they look like numbers
-      let aNum = typeof aVal === 'number' ? aVal : parseFloat(String(aVal));
-      let bNum = typeof bVal === 'number' ? bVal : parseFloat(String(bVal));
+      const aNum = typeof aVal === 'number' ? aVal : parseFloat(String(aVal));
+      const bNum = typeof bVal === 'number' ? bVal : parseFloat(String(bVal));
 
       if (!isNaN(aNum) && !isNaN(bNum) && isFinite(aNum) && isFinite(bNum)) {
         return direction === 'asc' ? aNum - bNum : bNum - aNum;
@@ -379,31 +379,42 @@ const Backtester: React.FC = () => {
     }
   }, [files, selectedFile, viewMode]);
 
-  // Auto-load symbol data when symbol is selected in strategies mode
+  // Auto-load symbol data when symbol is selected in strategies mode.
+  //
+  // The two formats are split into separate effects on purpose. They need different
+  // dependencies: the old-format branch reads `files`, which loads asynchronously, so
+  // it has to re-run when that arrives or the selection is silently skipped. Putting
+  // `files` on a single combined effect would also re-trigger the new-format fetch
+  // below every time the file list changed.
+
+  // New format: fetch only this ticker's rows server-side and show them directly
+  // (do NOT set selectedFile - that would trigger fetchFileContent and overwrite)
   useEffect(() => {
     if (viewMode !== 'strategies' || !selectedSymbol) return;
+    if (resultsSymbols.length === 0) return;
 
-    if (resultsSymbols.length > 0) {
-      // New format: fetch only this ticker's rows server-side and show them directly
-      // (do NOT set selectedFile - that would trigger fetchFileContent and overwrite)
-      let cancelled = false;
-      setLoadingContent(true);
-      fetchResultsForSymbol(selectedModel, selectedSymbol)
-        .then(rows => {
-          if (!cancelled) setFileContent(rows as any);
-        })
-        .finally(() => {
-          if (!cancelled) setLoadingContent(false);
-        });
-      return () => { cancelled = true; };
-    }
+    let cancelled = false;
+    setLoadingContent(true);
+    fetchResultsForSymbol(selectedModel, selectedSymbol)
+      .then(rows => {
+        if (!cancelled) setFileContent(rows as any);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingContent(false);
+      });
+    return () => { cancelled = true; };
+  }, [viewMode, selectedSymbol, resultsSymbols, selectedModel]);
 
-    // Old format: load the per-symbol file
+  // Old format: load the per-symbol file
+  useEffect(() => {
+    if (viewMode !== 'strategies' || !selectedSymbol) return;
+    if (resultsSymbols.length > 0) return;
+
     const symbolFile = files.find(f => f.level === 'symbol' && f.symbol === selectedSymbol);
     if (symbolFile && symbolFile.name !== selectedFile) {
       setSelectedFile(symbolFile.name);
     }
-  }, [viewMode, selectedSymbol, resultsSymbols, selectedModel]);
+  }, [viewMode, selectedSymbol, resultsSymbols, files, selectedFile]);
 
   // Load file content when file is selected
   useEffect(() => {

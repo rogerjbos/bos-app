@@ -694,7 +694,7 @@ const Staking: React.FC = () => {
       });
     }
     return filteredStakingItems.map(({ idx }) => calculatedValues[idx]);
-  }, [filteredStakingItems, calculatedValues, activeTab, deletedStakingItems]);
+  }, [filteredStakingItems, calculatedValues, activeTab]);
 
   const filteredTotalValue = useMemo(() => {
     return filteredCalculatedValues.reduce((sum, { itemValue }) => sum + itemValue, 0);

@@ -51,6 +51,7 @@ const NavBarComponent: React.FC = () => {
     { to: '/factor-backtests', label: 'Factor Backtests' },
     { to: '/stock-decisions', label: 'Stock Decisions' },
     { to: '/etf-performance', label: 'ETF Performance' },
+    { to: '/factor-history', label: 'Factor History' },
   ], []);
 
   // Close dropdown on outside click
